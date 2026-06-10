@@ -375,7 +375,8 @@ export function canonicalizeContent(content: string): string {
 
 export function sourceFingerprint(kind: SourceKind, content: string): string {
   const canonical = canonicalizeContent(content);
-  const hex = createHash('sha256').update(`${kind} ${canonical}`, 'utf8').digest('hex');
+  const sep = '\u0000'; // explicit separator — never embed a literal NUL in the template
+  const hex = createHash('sha256').update(`${kind}${sep}${canonical}`, 'utf8').digest('hex');
   return `sha256:${hex}`;
 }
 ```
@@ -537,6 +538,11 @@ describe('InMemoryStrategyProfileRepository', () => {
     await repo.create(profile({ id: 'a' }));
     await expect(repo.create(profile({ id: 'a' }))).rejects.toThrow(/already exists/);
   });
+  it('throws on duplicate sourceFingerprint (mirrors the DB unique index)', async () => {
+    const repo = new InMemoryStrategyProfileRepository();
+    await repo.create(profile({ id: 'a', sourceFingerprint: 'sha256:dup' }));
+    await expect(repo.create(profile({ id: 'b', sourceFingerprint: 'sha256:dup' }))).rejects.toThrow(/fingerprint/);
+  });
 });
 ```
 
@@ -568,6 +574,11 @@ export class InMemoryStrategyProfileRepository implements StrategyProfileReposit
 
   async create(profile: StrategyProfile): Promise<void> {
     if (this.byId.has(profile.id)) throw new Error(`strategy_profile already exists: ${profile.id}`);
+    for (const p of this.byId.values()) {
+      if (p.sourceFingerprint === profile.sourceFingerprint) {
+        throw new Error(`strategy_profile already exists for fingerprint: ${profile.sourceFingerprint}`);
+      }
+    }
     this.byId.set(profile.id, { ...profile });
   }
 
