@@ -3,9 +3,11 @@ import type {
   BacktestRunRequest, MarketContext, MarketRegime, PlatformGatewayPort, ResearchRunEnvelope,
 } from '../../ports/platform-gateway.port.ts';
 
-let counter = 0;
-
 export class MockPlatformGatewayAdapter implements PlatformGatewayPort {
+  // Instance-level call counter: keeps run ids unique per adapter without bleeding
+  // across independently-constructed mocks (the conventional stateful-test-double pattern).
+  private counter = 0;
+
   async getMarketContext(symbol: string, tsOrWindow: string): Promise<MarketContext> {
     return { symbol, ts: tsOrWindow, features: { oi: 100, funding: 0.0001, cvd: 0 } };
   }
@@ -15,8 +17,8 @@ export class MockPlatformGatewayAdapter implements PlatformGatewayPort {
   }
 
   async submitBacktest(req: BacktestRunRequest): Promise<BacktestRunRef> {
-    counter += 1;
-    return { platformRunId: `mock-run-${counter}`, correlationId: req.correlationId, submittedAt: new Date().toISOString() };
+    this.counter += 1;
+    return { platformRunId: `mock-run-${this.counter}`, correlationId: req.correlationId, submittedAt: new Date().toISOString() };
   }
 
   async getBacktestResult(ref: BacktestRunRef): Promise<ResearchRunEnvelope> {
