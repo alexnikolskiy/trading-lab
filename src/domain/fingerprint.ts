@@ -12,7 +12,7 @@ export function canonicalizeContent(content: string): string {
 
 export function sourceFingerprint(kind: SourceKind, content: string): string {
   const canonical = canonicalizeContent(content);
-  const sep = String.fromCharCode(32); // space separator
+  const sep = '\u0000'; // explicit NUL separator (escape sequence — no raw NUL byte in source)
   const hex = createHash('sha256').update(`${kind}${sep}${canonical}`, 'utf8').digest('hex');
   return `sha256:${hex}`;
 }
