@@ -1,0 +1,28 @@
+import type { ResearchTask, TaskStatus } from '../../domain/types.ts';
+import type { ResearchTaskRepository } from '../../ports/research-task.repository.ts';
+
+export class InMemoryResearchTaskRepository implements ResearchTaskRepository {
+  private readonly byId = new Map<string, ResearchTask>();
+
+  async create(task: ResearchTask): Promise<void> {
+    this.byId.set(task.id, { ...task });
+  }
+
+  async findById(id: string): Promise<ResearchTask | null> {
+    return this.byId.get(id) ?? null;
+  }
+
+  async findByDedupeKey(dedupeKey: string): Promise<ResearchTask | null> {
+    for (const t of this.byId.values()) {
+      if (t.dedupeKey === dedupeKey) return t;
+    }
+    return null;
+  }
+
+  async updateStatus(id: string, status: TaskStatus): Promise<void> {
+    const existing = this.byId.get(id);
+    if (!existing) throw new Error(`research_task not found: ${id}`);
+    existing.status = status;
+    existing.updatedAt = new Date().toISOString();
+  }
+}
