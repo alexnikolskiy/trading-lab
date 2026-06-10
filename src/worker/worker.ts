@@ -31,3 +31,11 @@ export function startWorker(deps: WorkerDeps): void {
     }
   });
 }
+
+// Runtime entrypoint: `pnpm worker`
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { composeRuntime } = await import('../composition.ts');
+  const { queue, repo, router } = composeRuntime();
+  startWorker({ queue, repo, router });
+  console.log('worker started, consuming research-tasks');
+}
