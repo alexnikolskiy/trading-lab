@@ -20,7 +20,7 @@ export function createIngressApp(deps: IngressDeps): Hono {
     if (validation.status === 'invalid') {
       return c.json({ status: 'rejected', issues: validation.issues }, 400);
     }
-    const req = IngressTaskRequestSchema.parse(raw);
+    const req = validation.data;
 
     if (req.dedupeKey) {
       const existing = await deps.repo.findByDedupeKey(req.dedupeKey);

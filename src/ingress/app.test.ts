@@ -26,12 +26,13 @@ describe('Ingress POST /tasks', () => {
   });
 
   it('rejects an invalid payload with 400', async () => {
-    const { app } = setup();
+    const { app, queue } = setup();
     const res = await app.request('/tasks', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ taskType: 'nope', source: 'web' }),
     });
     expect(res.status).toBe(400);
+    expect(queue.queued).toHaveLength(0);
   });
 
   it('deduplicates by dedupeKey: second call returns the same taskId without re-enqueue', async () => {
