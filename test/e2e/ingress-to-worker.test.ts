@@ -24,5 +24,6 @@ describe('E2E: Ingress → queue → worker → router', () => {
 
     await queue.drain();
     expect((await repo.findById(taskId))?.status).toBe('completed');
+    expect(queue.queued).toHaveLength(0); // nothing left behind or re-enqueued
   });
 });
