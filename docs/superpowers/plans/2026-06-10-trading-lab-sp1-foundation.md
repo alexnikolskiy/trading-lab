@@ -149,14 +149,47 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Create `.gitignore`**
+- [ ] **Step 4: Update `.gitignore` (do NOT overwrite — preserve the existing `assets/` rule)**
+
+The repo already has a `.gitignore` containing `assets/`. Append the new entries so the final file contains exactly these lines (keep `assets/`):
 
 ```
+assets/
 node_modules
 dist
 .env
 *.local
 .artifacts
+.artifacts-test
+```
+
+- [ ] **Step 4b: Create `docker-compose.yml` (needed early — Redis/Postgres integration tests in Tasks 4 & 6 use it)**
+
+```yaml
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: lab
+      POSTGRES_PASSWORD: lab
+      POSTGRES_DB: trading_lab
+    ports: ["5432:5432"]
+    volumes: ["lab_pg:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+volumes:
+  lab_pg:
+```
+
+- [ ] **Step 4c: Create `.env.example`**
+
+```
+DATABASE_URL=postgres://lab:lab@localhost:5432/trading_lab
+REDIS_URL=redis://localhost:6379
+ARTIFACT_DIR=.artifacts
+ENABLE_CRITIC_AGENT=false
+INGRESS_PORT=3000
 ```
 
 - [ ] **Step 5: Create `src/config/env.ts`**
@@ -205,8 +238,8 @@ Expected: 2 tests PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add package.json pnpm-lock.yaml tsconfig.json vitest.config.ts .gitignore src/config/env.ts test/smoke.test.ts
-git commit -m "chore: scaffold trading-lab TS project (pnpm, vitest, env)"
+git add package.json pnpm-lock.yaml tsconfig.json vitest.config.ts .gitignore docker-compose.yml .env.example src/config/env.ts test/smoke.test.ts
+git commit -m "chore: scaffold trading-lab TS project (pnpm, vitest, env, docker-compose)"
 ```
 
 ---
@@ -745,7 +778,7 @@ Expected: FAIL — cannot find module `../../db/client.ts`.
 - [ ] **Step 3: Create `src/db/schema.ts`**
 
 ```ts
-import { pgTable, text, jsonb, timestamp, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, jsonb, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const researchTask = pgTable('research_task', {
   id: text('id').primaryKey(),
@@ -758,7 +791,9 @@ export const researchTask = pgTable('research_task', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
-  dedupeIdx: index('research_task_dedupe_idx').on(t.dedupeKey),
+  // UNIQUE index: DB-level dedupe guard against races. Postgres treats multiple
+  // NULLs as distinct, so tasks without a dedupeKey never collide.
+  dedupeIdx: uniqueIndex('research_task_dedupe_key_uq').on(t.dedupeKey),
   corrIdx: index('research_task_correlation_idx').on(t.correlationId),
 }));
 
@@ -1349,18 +1384,28 @@ describe('WorkflowRouter', () => {
   it('dispatches a task to its registered handler', async () => {
     const repo = new InMemoryResearchTaskRepository();
     const t = task();
-    await repo.create(t);
     const deps: HandlerDeps = { repo };
+    const seen: string[] = [];
     const router = new WorkflowRouter();
-    router.register('strategy.onboard', echoHandler);
+    router.register('strategy.onboard', async (task) => { seen.push(task.id); });
     await router.dispatch(t, deps);
-    expect((await repo.findById('id-1'))?.status).toBe('completed');
+    expect(seen).toEqual(['id-1']);
   });
 
   it('throws on an unregistered task type', async () => {
     const router = new WorkflowRouter();
     const repo = new InMemoryResearchTaskRepository();
     await expect(router.dispatch(task({ taskType: 'paper.monitor' }), { repo })).rejects.toThrow(/no handler/i);
+  });
+});
+
+describe('echoHandler', () => {
+  it('is a no-op stub: it does NOT own the status transition (the worker does)', async () => {
+    const repo = new InMemoryResearchTaskRepository();
+    const t = task({ status: 'running' });
+    await repo.create(t);
+    await echoHandler(t, { repo });
+    expect((await repo.findById('id-1'))?.status).toBe('running'); // unchanged by the handler
   });
 });
 ```
@@ -1402,16 +1447,20 @@ export class WorkflowRouter {
 ```ts
 import type { WorkflowHandler } from '../workflow-router.ts';
 
-/** SP-1 stub handler proving Ingress→queue→worker→router wiring. Replaced by real workflows in SP-2+. */
-export const echoHandler: WorkflowHandler = async (task, deps) => {
-  await deps.repo.updateStatus(task.id, 'completed');
+/**
+ * SP-1 no-op stub proving Ingress→queue→worker→router wiring. Replaced by real
+ * workflows in SP-2+. The handler does NOT own status transitions: the worker
+ * owns the generic running → completed/failed transition (see Task 13).
+ */
+export const echoHandler: WorkflowHandler = async () => {
+  // intentionally empty: success is signalled by returning without throwing
 };
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `pnpm vitest run src/orchestrator/workflow-router.test.ts`
-Expected: PASS (2 tests).
+Expected: PASS (3 tests).
 
 - [ ] **Step 6: Commit**
 
@@ -1642,9 +1691,13 @@ export function startWorker(deps: WorkerDeps): void {
   deps.queue.process(async (envelope) => {
     const task = await deps.repo.findById(envelope.taskId);
     if (!task) throw new Error(`research_task not found for envelope: ${envelope.taskId}`);
+    // The worker owns the generic lifecycle transition. Handlers do their work
+    // and signal success by returning (failure by throwing); they do not set
+    // completed/failed themselves.
     await deps.repo.updateStatus(task.id, 'running');
     try {
       await deps.router.dispatch({ ...task, status: 'running' }, { repo: deps.repo });
+      await deps.repo.updateStatus(task.id, 'completed');
     } catch (err) {
       await deps.repo.updateStatus(task.id, 'failed');
       throw err; // let the queue adapter apply its retry/backoff policy
@@ -1733,7 +1786,9 @@ git commit -m "test: add end-to-end ingress-to-worker wiring test"
 ### Task 15: Runtime composition, servers, docker-compose, README
 
 **Files:**
-- Create: `src/composition.ts`, `src/ingress/server.ts`, `docker-compose.yml`, `.env.example`, `README.md`
+- Create: `src/composition.ts`, `src/ingress/server.ts`, `README.md`
+
+> Note: `docker-compose.yml` and `.env.example` were created in Task 1 (Steps 4b/4c).
 
 - [ ] **Step 1: Create `src/composition.ts`**
 
@@ -1792,36 +1847,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 }
 ```
 
-- [ ] **Step 4: Create `docker-compose.yml`**
-
-```yaml
-services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    environment:
-      POSTGRES_USER: lab
-      POSTGRES_PASSWORD: lab
-      POSTGRES_DB: trading_lab
-    ports: ["5432:5432"]
-    volumes: ["lab_pg:/var/lib/postgresql/data"]
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-volumes:
-  lab_pg:
-```
-
-- [ ] **Step 5: Create `.env.example`**
-
-```
-DATABASE_URL=postgres://lab:lab@localhost:5432/trading_lab
-REDIS_URL=redis://localhost:6379
-ARTIFACT_DIR=.artifacts
-ENABLE_CRITIC_AGENT=false
-INGRESS_PORT=3000
-```
-
-- [ ] **Step 6: Create `README.md`**
+- [ ] **Step 4: Create `README.md`**
 
 ```markdown
 # trading-lab
@@ -1844,16 +1870,16 @@ Research-only multi-agent system over trading-platform. Research brain; no live 
 Design: docs/superpowers/specs/2026-06-10-trading-lab-design.md
 ```
 
-- [ ] **Step 7: Typecheck and run the worker entrypoint guard**
+- [ ] **Step 5: Typecheck and run the worker entrypoint guard**
 
 Run: `pnpm typecheck && pnpm test`
 Expected: typecheck clean; all tests PASS (integration suites skip without env vars).
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/composition.ts src/ingress/server.ts src/worker/worker.ts docker-compose.yml .env.example README.md
-git commit -m "feat: add runtime composition, ingress/worker entrypoints, docker-compose, README"
+git add src/composition.ts src/ingress/server.ts src/worker/worker.ts README.md
+git commit -m "feat: add runtime composition, ingress/worker entrypoints, README"
 ```
 
 ---
