@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { WorkflowHandler } from '../workflow-router.ts';
 import { StrategyAnalystInputSchema } from '../../domain/strategy-source.ts';
 import {
-  AnalystProfileOutputSchema, STRATEGY_PROFILE_CONTRACT_VERSION, type StrategyProfile,
+  AnalystProfileOutputSchema, STRATEGY_PROFILE_CONTRACT_VERSION,
+  type StrategyProfile, type AnalystProfileOutput,
 } from '../../domain/strategy-profile.ts';
 import { sourceFingerprint } from '../../domain/fingerprint.ts';
 import { validateWithSchema } from '../../validation/validator.ts';
@@ -38,7 +39,7 @@ export const strategyOnboardHandler: WorkflowHandler = async (task, services) =>
     payload: { ...auditBase }, createdAt: new Date().toISOString(),
   });
 
-  let output;
+  let output: AnalystProfileOutput;
   try {
     output = await services.analyst.analyze(input);
   } catch (err) {
