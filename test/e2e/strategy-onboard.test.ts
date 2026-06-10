@@ -33,6 +33,8 @@ describe('E2E: strategy.onboard ingress -> worker -> profile', () => {
     const profile = await services.strategyProfiles.findByFingerprint(fp);
     expect(profile).not.toBeNull();
     expect(profile?.sourceKind).toBe('manual_description');
+    expect(profile?.sourceFingerprint).toBe(fp); // the persisted record really carries this fingerprint
+    // Exactly started+completed (no `strategy.onboard.deduped` — this is the fresh happy path)
     const events = (await services.events.listByTask(taskId)).map((e) => e.type);
     expect(events).toEqual(['strategy_analyst.started', 'strategy_analyst.completed']);
   });
