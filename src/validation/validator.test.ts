@@ -20,4 +20,13 @@ describe('validateWithSchema', () => {
     const paths = r.issues.map((i) => i.path);
     expect([...paths].sort()).toEqual(paths);
   });
+
+  it('reorders issues into a stable alphabetical path sequence', () => {
+    const r = validateWithSchema(QueueEnvelopeSchema, {
+      taskId: '', taskType: 'backtest.submit', source: 'platform', attempt: 0,
+      // correlationId intentionally omitted -> required error
+    });
+    const paths = r.issues.map((i) => i.path);
+    expect(paths).toEqual(['attempt', 'correlationId', 'taskId']);
+  });
 });
