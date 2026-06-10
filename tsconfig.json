@@ -9,11 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "outDir": "dist",
-    "rootDir": ".",
     "allowImportingTsExtensions": true,
-    "declaration": true,
-    "sourceMap": true,
     "noEmit": true
   },
   "include": ["src/**/*", "test/**/*", "*.config.ts"]
