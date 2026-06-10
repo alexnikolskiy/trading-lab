@@ -17,6 +17,9 @@ function buildAnalyst(env: ReturnType<typeof loadEnv>): StrategyAnalystPort {
     if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required when STRATEGY_ANALYST_ADAPTER=mastra');
     return new MastraStrategyAnalyst(env.STRATEGY_ANALYST_MODEL);
   }
+  // Make the no-op default loud: a deploy that forgot STRATEGY_ANALYST_ADAPTER=mastra
+  // would otherwise silently return stub profiles for every onboarding.
+  console.warn('[composition] STRATEGY_ANALYST_ADAPTER is not "mastra"; using FakeStrategyAnalyst (stub analysis)');
   return new FakeStrategyAnalyst();
 }
 
