@@ -24,5 +24,7 @@ export const agentEvent = pgTable('agent_event', {
   payload: jsonb('payload').notNull().$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
+  // No FK from task_id -> research_task.id by design: agent_event is an append-only
+  // event log and must accept events even if the parent row is archived/removed.
   taskIdx: index('agent_event_task_idx').on(t.taskId),
 }));

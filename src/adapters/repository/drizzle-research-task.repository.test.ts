@@ -27,4 +27,8 @@ d('DrizzleResearchTaskRepository (integration)', () => {
     await repo.updateStatus(t.id, 'completed');
     expect((await repo.findById(t.id))?.status).toBe('completed');
   });
+
+  it('throws when updating a missing id', async () => {
+    await expect(repo.updateStatus('does-not-exist', 'completed')).rejects.toThrow(/not found/);
+  });
 });

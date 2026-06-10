@@ -7,6 +7,8 @@ import type { ResearchTaskRepository } from '../../ports/research-task.repositor
 type Row = typeof researchTask.$inferSelect;
 
 function toDomain(row: Row): ResearchTask {
+  // Trust boundary: status/taskType/source columns are only ever written via create()
+  // with already-typed values, so these casts are safe unless the DB is mutated out-of-band.
   return {
     id: row.id,
     taskType: row.taskType as ResearchTask['taskType'],
@@ -47,6 +49,11 @@ export class DrizzleResearchTaskRepository implements ResearchTaskRepository {
   }
 
   async updateStatus(id: string, status: TaskStatus): Promise<void> {
-    await this.db.update(researchTask).set({ status, updatedAt: new Date() }).where(eq(researchTask.id, id));
+    const updated = await this.db
+      .update(researchTask)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(researchTask.id, id))
+      .returning({ id: researchTask.id });
+    if (updated.length === 0) throw new Error(`research_task not found: ${id}`);
   }
 }
