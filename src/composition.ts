@@ -22,6 +22,12 @@ import { DrizzleHypothesisReviewRepository } from './adapters/repository/drizzle
 import { InMemoryLexicalSimilarHypothesisSearch } from './adapters/similarity/in-memory-lexical-similar-hypothesis-search.ts';
 import type { ResearcherPort } from './ports/researcher.port.ts';
 import type { CriticPort } from './ports/critic.port.ts';
+import { FakeBuilder } from './adapters/builder/fake-builder.ts';
+import { MastraBuilder } from './adapters/builder/mastra-builder.ts';
+import { DrizzleHypothesisBuildRepository } from './adapters/repository/drizzle-hypothesis-build.repository.ts';
+import { DrizzleBacktestRunRepository } from './adapters/repository/drizzle-backtest-run.repository.ts';
+import { DrizzleEvaluationRepository } from './adapters/repository/drizzle-evaluation.repository.ts';
+import type { BuilderPort } from './ports/builder.port.ts';
 
 function buildAnalyst(env: ReturnType<typeof loadEnv>): StrategyAnalystPort {
   if (env.STRATEGY_ANALYST_ADAPTER === 'mastra') {
@@ -53,6 +59,15 @@ function buildCritic(env: ReturnType<typeof loadEnv>): CriticPort | null {
   return new FakeCritic();
 }
 
+function buildBuilder(env: ReturnType<typeof loadEnv>): BuilderPort {
+  if (env.BUILDER_ADAPTER === 'mastra') {
+    if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required when BUILDER_ADAPTER=mastra');
+    return new MastraBuilder(env.BUILDER_MODEL);
+  }
+  console.warn('[composition] BUILDER_ADAPTER is not "mastra"; using FakeBuilder (template bundles)');
+  return new FakeBuilder();
+}
+
 export function composeRuntime() {
   const env = loadEnv();
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
@@ -76,6 +91,11 @@ export function composeRuntime() {
     hypothesisReviews: new DrizzleHypothesisReviewRepository(db),
     similarHypotheses: new InMemoryLexicalSimilarHypothesisSearch(hypotheses),
     maxHypothesesPerCycle: env.MAX_HYPOTHESES_PER_CYCLE,
+    builder: buildBuilder(env),
+    builds: new DrizzleHypothesisBuildRepository(db),
+    backtests: new DrizzleBacktestRunRepository(db),
+    evaluations: new DrizzleEvaluationRepository(db),
+    evaluatorThresholds: env.evaluatorThresholds,
   };
 
   const router = new WorkflowRouter();

@@ -9,6 +9,11 @@ import { FakeResearcher } from '../../src/adapters/researcher/fake-researcher.ts
 import { InMemoryHypothesisProposalRepository } from '../../src/adapters/repository/in-memory-hypothesis-proposal.repository.ts';
 import { InMemoryHypothesisReviewRepository } from '../../src/adapters/repository/in-memory-hypothesis-review.repository.ts';
 import { InMemoryLexicalSimilarHypothesisSearch } from '../../src/adapters/similarity/in-memory-lexical-similar-hypothesis-search.ts';
+import { FakeBuilder } from '../../src/adapters/builder/fake-builder.ts';
+import { InMemoryHypothesisBuildRepository } from '../../src/adapters/repository/in-memory-hypothesis-build.repository.ts';
+import { InMemoryBacktestRunRepository } from '../../src/adapters/repository/in-memory-backtest-run.repository.ts';
+import { InMemoryEvaluationRepository } from '../../src/adapters/repository/in-memory-evaluation.repository.ts';
+import { DEFAULT_EVALUATOR_THRESHOLDS } from '../../src/validation/evaluator.ts';
 
 export function makeServices(overrides: Partial<AppServices> = {}): AppServices {
   const hypotheses = new InMemoryHypothesisProposalRepository();
@@ -25,6 +30,11 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     hypothesisReviews: new InMemoryHypothesisReviewRepository(),
     similarHypotheses: new InMemoryLexicalSimilarHypothesisSearch(hypotheses),
     maxHypothesesPerCycle: 5,
+    builder: new FakeBuilder(),
+    builds: new InMemoryHypothesisBuildRepository(),
+    backtests: new InMemoryBacktestRunRepository(),
+    evaluations: new InMemoryEvaluationRepository(),
+    evaluatorThresholds: DEFAULT_EVALUATOR_THRESHOLDS,
     ...overrides,
   };
 }
