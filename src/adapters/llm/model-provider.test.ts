@@ -26,3 +26,34 @@ describe('parseRoleModel', () => {
     });
   }
 });
+
+import { resolveLanguageModel } from './model-provider.ts';
+
+describe('resolveLanguageModel', () => {
+  it('resolves provider/modelId/label and returns an opaque model (openai)', () => {
+    const r = resolveLanguageModel({ MODEL_PROVIDER: 'openai', OPENAI_API_KEY: 'dummy' }, 'gpt-4o');
+    expect(r.provider).toBe('openai');
+    expect(r.modelId).toBe('gpt-4o');
+    expect(r.label).toBe('gpt-4o');
+    expect(r.model).toBeDefined(); // model is opaque — do NOT assert provider-internal fields
+  });
+
+  it('per-role prefix overrides the global provider, label keeps the original id', () => {
+    const r = resolveLanguageModel({ MODEL_PROVIDER: 'openrouter', OPENROUTER_API_KEY: 'k', ANTHROPIC_API_KEY: 'a' }, 'anthropic/claude-sonnet-4-6');
+    expect(r.provider).toBe('anthropic');
+    expect(r.modelId).toBe('claude-sonnet-4-6');
+    expect(r.label).toBe('anthropic/claude-sonnet-4-6');
+  });
+
+  it('openrouter vendor id falls through to global MODEL_PROVIDER=openrouter', () => {
+    const r = resolveLanguageModel({ MODEL_PROVIDER: 'openrouter', OPENROUTER_API_KEY: 'k' }, 'meta-llama/llama-3.1-70b-instruct');
+    expect(r.provider).toBe('openrouter');
+    expect(r.modelId).toBe('meta-llama/llama-3.1-70b-instruct');
+  });
+
+  it('throws a clear error when the selected provider key is missing', () => {
+    expect(() => resolveLanguageModel({ MODEL_PROVIDER: 'anthropic' }, 'claude-sonnet-4-6')).toThrow(/ANTHROPIC_API_KEY/);
+    expect(() => resolveLanguageModel({ MODEL_PROVIDER: 'openai' }, 'gpt-4o')).toThrow(/OPENAI_API_KEY/);
+    expect(() => resolveLanguageModel({ MODEL_PROVIDER: 'openrouter' }, 'x/y')).toThrow(/OPENROUTER_API_KEY/);
+  });
+});

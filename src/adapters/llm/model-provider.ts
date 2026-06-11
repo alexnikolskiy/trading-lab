@@ -1,4 +1,8 @@
 // src/adapters/llm/model-provider.ts
+import { createAnthropic } from '@ai-sdk/anthropic';
+import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+
 export const MODEL_PROVIDERS = ['anthropic', 'openai', 'openrouter'] as const;
 export type ModelProvider = (typeof MODEL_PROVIDERS)[number];
 
@@ -22,4 +26,38 @@ export function parseRoleModel(env: ModelProviderEnv, roleModelId: string): { pr
     }
   }
   return { provider: env.MODEL_PROVIDER, modelId: roleModelId };
+}
+
+// Canonical model type. The Task-1 probe confirmed all three providers' returns are assignable to this.
+export type ProviderModel = ReturnType<ReturnType<typeof createAnthropic>>;
+
+export interface ResolvedModel {
+  model: ProviderModel;
+  provider: ModelProvider;
+  modelId: string;
+  label: string; // original role model env value, for audit
+}
+
+export function resolveLanguageModel(env: ModelProviderEnv, roleModelId: string): ResolvedModel {
+  const { provider, modelId } = parseRoleModel(env, roleModelId);
+  let model: ProviderModel;
+  switch (provider) {
+    case 'anthropic':
+      if (!env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is required for MODEL provider "anthropic"');
+      model = createAnthropic({ apiKey: env.ANTHROPIC_API_KEY })(modelId);
+      break;
+    case 'openai':
+      if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is required for MODEL provider "openai"');
+      model = createOpenAI({ apiKey: env.OPENAI_API_KEY })(modelId);
+      break;
+    case 'openrouter':
+      if (!env.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is required for MODEL provider "openrouter"');
+      model = createOpenRouter({ apiKey: env.OPENROUTER_API_KEY })(modelId);
+      break;
+    default: {
+      const _x: never = provider;
+      throw new Error(`unknown provider: ${String(_x)}`);
+    }
+  }
+  return { model, provider, modelId, label: roleModelId };
 }
