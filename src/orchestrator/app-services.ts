@@ -9,6 +9,11 @@ import type { CriticPort } from '../ports/critic.port.ts';
 import type { HypothesisProposalRepository } from '../ports/hypothesis-proposal.repository.ts';
 import type { HypothesisReviewRepository } from '../ports/hypothesis-review.repository.ts';
 import type { SimilarHypothesisSearchPort } from '../ports/similar-hypothesis-search.port.ts';
+import type { BuilderPort } from '../ports/builder.port.ts';
+import type { HypothesisBuildRepository } from '../ports/hypothesis-build.repository.ts';
+import type { BacktestRunRepository } from '../ports/backtest-run.repository.ts';
+import type { EvaluationRepository } from '../ports/evaluation.repository.ts';
+import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 
 export interface AppServices {
   researchTasks: ResearchTaskRepository;
@@ -23,4 +28,9 @@ export interface AppServices {
   hypothesisReviews: HypothesisReviewRepository;
   similarHypotheses: SimilarHypothesisSearchPort;
   maxHypothesesPerCycle: number;      // budget guardrail injected from env
+  builder: BuilderPort;
+  builds: HypothesisBuildRepository;
+  backtests: BacktestRunRepository;
+  evaluations: EvaluationRepository;
+  evaluatorThresholds: EvaluatorThresholds;
 }

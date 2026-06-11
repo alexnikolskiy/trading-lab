@@ -22,3 +22,15 @@ describe('FixturePlatformGatewayAdapter', () => {
     expect(a.features.oi).toBe(123.0);
   });
 });
+
+describe('comparison summary (SP-4)', () => {
+  it('mock getBacktestResult returns a typed ComparisonSummary with baseline+variant blocks', async () => {
+    const mock = new MockPlatformGatewayAdapter();
+    const ref = await mock.submitBacktest({ correlationId: 'c1', baselineModuleId: 'b', variantModuleId: 'v', params: {} });
+    const env = await mock.getBacktestResult(ref);
+    expect(env.comparison).toBeDefined();
+    expect(env.comparison!.variant.netPnlUsd).toBeGreaterThan(env.comparison!.baseline.netPnlUsd);
+    expect(env.comparison!.sampleSize.variantTrades).toBeGreaterThan(0);
+    expect(typeof env.comparison!.variant.winRate).toBe('number');
+  });
+});

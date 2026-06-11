@@ -22,7 +22,7 @@
 
 **Create:**
 - `src/domain/module-bundle.ts` — `ModuleManifest`(+Schema), `ModuleBundle`, `assembleBundle`, contract versions.
-- `src/validation/build-validator.ts` — pure `validateBundle` + `RESTRICTED_IMPORT_TOKENS`.
+- `src/validation/build-validator.ts` — pure `validateBundle` + `RESTRICTED_MODULE_SPECIFIERS` / `RESTRICTED_CODE_TOKENS`.
 - `src/validation/evaluator.ts` — pure `evaluateBacktest`, `EvaluatorThresholds`, `DEFAULT_EVALUATOR_THRESHOLDS`.
 - `src/ports/builder.port.ts` — `BuilderPort`, `BuilderInput`, `BuilderOutput`(+strict Schema).
 - `src/adapters/builder/builder-sdk-doc.ts` — static `BUILDER_SDK_DOC` RAG fixture.
@@ -343,12 +343,26 @@ describe('validateBundle', () => {
     expect(codes(bundle(man({ exports: ['ghost'] }), goodFiles))).toContain('missing_export');
   });
 
-  it('restricted_import on a denylist token', () => {
+  it('restricted_import on a code token (process.env)', () => {
     expect(codes(bundle(man(), { 'index.ts': 'export const overlay = {}; const x = process.env.SECRET;' }))).toContain('restricted_import');
+  });
+
+  it('restricted_import on a builtin module specifier (import from fs)', () => {
+    expect(codes(bundle(man(), { 'index.ts': "import { readFileSync } from 'fs';\nexport const overlay = {};" }))).toContain('restricted_import');
+  });
+
+  it('restricted_import on a require of a builtin', () => {
+    expect(codes(bundle(man(), { 'index.ts': "const cp = require('child_process');\nexport const overlay = {};" }))).toContain('restricted_import');
   });
 
   it('restricted_import on an import specifier outside the allowlist', () => {
     expect(codes(bundle(man(), { 'index.ts': "import x from 'left-pad';\nexport const overlay = {};" }))).toContain('restricted_import');
+  });
+
+  it('does NOT false-positive on a builtin substring inside an identifier or object key', () => {
+    // 'offset' contains 'fs' and 'https' is a bare key — neither is an import, so neither is restricted.
+    const r = validateBundle(bundle(man(), { 'index.ts': 'export const overlay = { offset: 1, https: false };' }), allowed);
+    expect(r.status).toBe('built');
   });
 
   it('capability_violation when a declared capability is not allowed', () => {
@@ -384,12 +398,16 @@ export interface BuildValidation {
   issues: ValidationIssue[];
 }
 
-/** Non-authoritative fast-fail token scan (the platform sandbox 019 is the real boundary). */
-export const RESTRICTED_IMPORT_TOKENS = [
+/** Non-authoritative fast-fail scan (the platform sandbox 019 is the real boundary).
+ *  Builtins are matched on import / dynamic-import / require SPECIFIERS only — NOT a whole-file
+ *  substring scan — so 'fs' inside 'offset' or a bare 'https' key never false-positives.
+ *  The global-ish tokens below stay a text scan (per spec refinement). */
+export const RESTRICTED_MODULE_SPECIFIERS = [
   'fs', 'node:fs', 'child_process', 'node:child_process', 'net', 'node:net',
   'http', 'node:http', 'https', 'node:https',
-  'process.env', 'eval', 'new Function', 'require', 'import(', 'fetch', 'WebSocket',
 ];
+export const RESTRICTED_CODE_TOKENS = ['process.env', 'eval', 'new Function', 'fetch', 'WebSocket'];
+const RESTRICTED_MODULE_SET = new Set<string>(RESTRICTED_MODULE_SPECIFIERS);
 
 function compareStrings(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
@@ -422,15 +440,18 @@ export function validateBundle(
   }
 
   for (const [path, source] of Object.entries(bundle.files)) {
-    const tokenHits = RESTRICTED_IMPORT_TOKENS.filter((t) => source.includes(t));
+    const tokenHits = RESTRICTED_CODE_TOKENS.filter((t) => source.includes(t));
     if (tokenHits.length > 0) {
-      issues.push({ code: 'restricted_import', severity: 'error', path: `files.${path}`, message: `restricted tokens: ${tokenHits.join(', ')}` });
+      issues.push({ code: 'restricted_import', severity: 'error', path: `files.${path}`, message: `restricted code tokens: ${tokenHits.join(', ')}` });
     }
-    const re = /(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g;
+    // Builtins + allowlist are matched on module SPECIFIERS only (import / dynamic import / require).
+    const re = /(?:\bfrom|\bimport|\brequire)\s*\(?\s*['"]([^'"]+)['"]/g;
     let mt: RegExpExecArray | null;
     while ((mt = re.exec(source)) !== null) {
       const spec = mt[1]!;
-      if (!ctx.allowedImports.has(spec)) {
+      if (RESTRICTED_MODULE_SET.has(spec)) {
+        issues.push({ code: 'restricted_import', severity: 'error', path: `files.${path}`, message: `restricted module import: ${spec}` });
+      } else if (!ctx.allowedImports.has(spec)) {
         issues.push({ code: 'restricted_import', severity: 'error', path: `files.${path}`, message: `import not allowed: ${spec}` });
       }
     }
@@ -459,7 +480,7 @@ export function validateBundle(
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run src/validation/build-validator.test.ts && pnpm typecheck`
-Expected: PASS (10 tests), typecheck clean.
+Expected: PASS (13 tests), typecheck clean.
 
 - [ ] **Step 5: Commit**
 
@@ -1114,6 +1135,13 @@ describe('InMemoryBacktestRunRepository', () => {
     await repo.markFailed('r3');
     expect((await repo.findById('r3'))?.status).toBe('failed');
   });
+
+  it('findByIdentity returns the matching run or null', async () => {
+    const repo = new InMemoryBacktestRunRepository();
+    await repo.createSubmitted(run('r1'));
+    expect((await repo.findByIdentity('h1', 'sha256:p', 'sha256:bh'))?.id).toBe('r1');
+    expect(await repo.findByIdentity('h1', 'sha256:p', 'sha256:other')).toBeNull();
+  });
 });
 ```
 
@@ -1180,6 +1208,8 @@ export interface BacktestRunRepository {
   markFailed(id: string): Promise<void>;
   markEvaluated(id: string): Promise<void>;
   findById(id: string): Promise<BacktestRun | null>;
+  /** Identity lookup powering pre-submit idempotency (matches the DB unique key). */
+  findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null>;
   listByHypothesis(hypothesisId: string): Promise<BacktestRun[]>;
 }
 ```
@@ -1222,6 +1252,14 @@ export class InMemoryBacktestRunRepository implements BacktestRunRepository {
   async markEvaluated(id: string): Promise<void> { this.patch(id, { status: 'evaluated' }); }
 
   async findById(id: string): Promise<BacktestRun | null> { return this.byId.get(id) ?? null; }
+
+  async findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null> {
+    for (const r of this.byId.values()) {
+      if (r.hypothesisId === hypothesisId && r.paramsHash === paramsHash && r.bundleHash === bundleHash) return { ...r };
+    }
+    return null;
+  }
+
   async listByHypothesis(hypothesisId: string): Promise<BacktestRun[]> {
     return [...this.byId.values()].filter((r) => r.hypothesisId === hypothesisId);
   }
@@ -1231,7 +1269,7 @@ export class InMemoryBacktestRunRepository implements BacktestRunRepository {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run src/adapters/repository/in-memory-backtest-run.repository.test.ts && pnpm typecheck`
-Expected: PASS (5 tests), typecheck clean.
+Expected: PASS (6 tests), typecheck clean.
 
 - [ ] **Step 5: Commit**
 
@@ -1553,6 +1591,7 @@ const block = (o: Partial<BacktestMetricBlock> = {}): BacktestMetricBlock => ({ 
     expect(row?.status).toBe('completed');
     expect(row?.metrics?.netPnlUsd).toBe(250);
     expect(row?.deltaNetPnlUsd).toBe(150);
+    expect((await runs.findByIdentity(hid, 'sha256:p', 'sha256:bh'))?.id).toBe(base.id);
     await expect(runs.createSubmitted({ ...base, id: uid() })).rejects.toThrow();
   });
 
@@ -1638,7 +1677,7 @@ export class DrizzleHypothesisBuildRepository implements HypothesisBuildReposito
 
 ```typescript
 // src/adapters/repository/drizzle-backtest-run.repository.ts
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { backtestRun } from '../../db/schema.ts';
 import type { BacktestRun, BacktestRunStatus, BacktestCompletion } from '../../domain/backtest-run.ts';
@@ -1699,6 +1738,13 @@ export class DrizzleBacktestRunRepository implements BacktestRunRepository {
 
   async findById(id: string): Promise<BacktestRun | null> {
     const rows = await this.db.select().from(backtestRun).where(eq(backtestRun.id, id)).limit(1);
+    return rows[0] ? toDomain(rows[0]) : null;
+  }
+
+  async findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null> {
+    const rows = await this.db.select().from(backtestRun)
+      .where(and(eq(backtestRun.hypothesisId, hypothesisId), eq(backtestRun.paramsHash, paramsHash), eq(backtestRun.bundleHash, bundleHash)))
+      .limit(1);
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
@@ -1978,6 +2024,8 @@ import type { ResearchTask } from '../../domain/types.ts';
 import type { HypothesisProposal } from '../../domain/hypothesis.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { BuilderInput, BuilderOutput, BuilderPort } from '../../ports/builder.port.ts';
+import type { PlatformGatewayPort } from '../../ports/platform-gateway.port.ts';
+import { MockPlatformGatewayAdapter } from '../../adapters/platform/mock-platform-gateway.adapter.ts';
 
 function profile(): StrategyProfile {
   const now = '2026-01-01T00:00:00Z';
@@ -2027,6 +2075,24 @@ describe('hypothesisBuildHandler', () => {
     for (const t of ['build.started', 'builder.completed', 'build.validated', 'artifact.stored', 'backtest.submitted', 'backtest.completed', 'evaluation.completed']) {
       expect(evTypes).toContain(t);
     }
+  });
+
+  it('same hypothesis + params + bundle does not re-submit (idempotent reuse)', async () => {
+    let submitCount = 0;
+    const base = new MockPlatformGatewayAdapter();
+    const platform: PlatformGatewayPort = {
+      getMarketContext: (sym, t) => base.getMarketContext(sym, t),
+      getMarketRegime: (sym, t) => base.getMarketRegime(sym, t),
+      submitBacktest: (req) => { submitCount += 1; return base.submitBacktest(req); },
+      getBacktestResult: (ref) => base.getBacktestResult(ref),
+    };
+    const s = await seeded({ platform });
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1' }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1' }), s); // identical inputs → reuse, no second submit
+    expect(submitCount).toBe(1);
+    expect(await s.backtests.listByHypothesis('h1')).toHaveLength(1);
+    const evTypes = (await s.events.listByTask('t1')).map((e) => e.type);
+    expect(evTypes).toContain('backtest.reused');
   });
 
   it('throws when hypothesis is not validated', async () => {
@@ -2175,8 +2241,16 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   await services.builds.markCandidate(buildId, { bundleHash: bundle.bundleHash, bundleArtifactRef: ref, manifest: bundle.manifest });
   await services.events.append(event(task.id, 'artifact.stored', { buildId, artifactId: ref.artifact_id }));
 
-  // Submit (Orchestrator-owned side-effect)
+  // Idempotency: same hypothesis + same params + same bundle must NOT re-submit (checked
+  // BEFORE the platform side-effect, so reuse never triggers a duplicate backtest).
   const paramsHash = sha256(stableStringify(params));
+  const existingRun = await services.backtests.findByIdentity(hypothesis.id, paramsHash, bundle.bundleHash);
+  if (existingRun) {
+    await services.events.append(event(task.id, 'backtest.reused', { runId: existingRun.id, platformRunId: existingRun.platformRunId, status: existingRun.status }));
+    return;
+  }
+
+  // Submit (Orchestrator-owned side-effect)
   const baselineModuleId = `strategy:${profile.id}`;
   const variantModuleId = bundle.manifest.moduleId;
   const runRef = await services.platform.submitBacktest({ correlationId: task.correlationId, baselineModuleId, variantModuleId, params });
@@ -2228,7 +2302,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `pnpm vitest run src/orchestrator/handlers/hypothesis-build.handler.test.ts && pnpm typecheck`
-Expected: PASS (4 tests), typecheck clean. (If the events repo query method is not `listByTask`, adjust per the Step-1 note.)
+Expected: PASS (5 tests), typecheck clean.
 
 - [ ] **Step 5: Commit**
 
@@ -2324,9 +2398,9 @@ git commit -m "feat(sp4): register hypothesis.build handler + e2e"
 
 ## Self-Review (completed during planning)
 
-**Spec coverage:** §3 workflow → Task 14/15. §4 Builder → Task 5/6. §5 contracts → Task 1/2. §6 Build Validator → Task 3. §7 Evaluator → Task 4. §8 persistence → Task 7/8/9/10/11. §9 config/wiring → Task 12/13/15. §10 test scope → all tasks (hash determinism T1; validator codes T3; evaluator branches+boundaries T4; FakeBuilder passes T5; idempotency T8/T11; lifecycle build_failed T14; e2e T15). All 7 refinements: typed blocks (T2/T4), persisted failed attempts (T7/T14), lab-computed hash + ignore supplied (T1/T5), import denylist (T3), evaluator math (T4), bundle_hash in unique key (T8/T10/T11), comparison shape note (T2). ✔
+**Spec coverage:** §3 workflow → Task 14/15. §4 Builder → Task 5/6. §5 contracts → Task 1/2. §6 Build Validator → Task 3. §7 Evaluator → Task 4. §8 persistence → Task 7/8/9/10/11. §9 config/wiring → Task 12/13/15. §10 test scope → all tasks (hash determinism T1; validator codes T3; evaluator branches+boundaries T4; FakeBuilder passes T5; idempotency T8/T11; lifecycle build_failed T14; e2e T15). All 7 spec refinements: typed blocks (T2/T4), persisted failed attempts (T7/T14), lab-computed hash + ignore supplied (T1/T5), import denylist (T3), evaluator math (T4), bundle_hash in unique key (T8/T10/T11), comparison shape note (T2). Plus the 2 plan refinements: real pre-submit idempotency via `findByIdentity` + `backtest.reused`, no duplicate submit (T8 port/in-memory, T11 Drizzle, T14 handler + reuse test); specifier-scoped builtin import scan with a false-positive guard test (T3). ✔
 
-**Type consistency:** `BacktestMetricBlock`/`ComparisonSummary` (platform-gateway.port.ts) consumed identically in T4/T8/T9/T11/T14. `assembleBundle(manifest, files)` signature stable across T1/T3/T5/T14. Repo lifecycle method names (`createGenerating`/`markBuildFailed`/`markCandidate`/`markSubmitted`; `createSubmitted`/`markCompleted`/`markRejected`/`markFailed`/`markEvaluated`) identical in port (T7/T8), in-memory (T7/T8), Drizzle (T11), handler (T14). `EvaluatorThresholds`/`DEFAULT_EVALUATOR_THRESHOLDS` consistent T4/T9/T11/T12/T13.
+**Type consistency:** `BacktestMetricBlock`/`ComparisonSummary` (platform-gateway.port.ts) consumed identically in T4/T8/T9/T11/T14. `assembleBundle(manifest, files)` signature stable across T1/T3/T5/T14. Repo lifecycle method names (`createGenerating`/`markBuildFailed`/`markCandidate`/`markSubmitted`; `createSubmitted`/`markCompleted`/`markRejected`/`markFailed`/`markEvaluated`/`findByIdentity`) identical in port (T7/T8), in-memory (T7/T8), Drizzle (T11), handler (T14). `EvaluatorThresholds`/`DEFAULT_EVALUATOR_THRESHOLDS` consistent T4/T9/T11/T12/T13.
 
 **Green-typecheck ordering:** Tasks 1–12 add files / optional fields only. Task 13 extends `AppServices` and updates BOTH constructors in one commit. Tasks 14–15 consume already-present fields. No red window.
 

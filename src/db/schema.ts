@@ -1,9 +1,12 @@
-import { pgTable, text, jsonb, timestamp, index, uniqueIndex, integer, real } from 'drizzle-orm/pg-core';
+import { pgTable, text, jsonb, timestamp, index, uniqueIndex, integer, real, boolean, doublePrecision } from 'drizzle-orm/pg-core';
 import type { AnalystProfileOutput } from '../domain/strategy-profile.ts';
 import type { ArtifactRef } from '../domain/types.ts';
 import type { RuleAction, ExpectedEffect, HypothesisProposalDraft } from '../domain/hypothesis.ts';
 import type { ValidationIssue } from '../domain/schemas.ts';
 import type { CriticConcern } from '../domain/critic.ts';
+import type { ModuleManifest } from '../domain/module-bundle.ts';
+import type { BacktestMetricBlock, ComparisonSummary } from '../ports/platform-gateway.port.ts';
+import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 
 export const researchTask = pgTable('research_task', {
   id: text('id').primaryKey(),
@@ -92,4 +95,77 @@ export const hypothesisReview = pgTable('hypothesis_review', {
 }, (t) => ({
   // No FK to hypothesis_proposal by design — review is an append-only audit row.
   hypothesisIdx: index('hypothesis_review_hypothesis_idx').on(t.hypothesisId),
+}));
+
+export const hypothesisBuild = pgTable('hypothesis_build', {
+  id: text('id').primaryKey(),
+  hypothesisId: text('hypothesis_id').notNull(),
+  strategyProfileId: text('strategy_profile_id').notNull(),
+  status: text('status').notNull(),
+  builderAdapter: text('builder_adapter').notNull(),
+  builderModel: text('builder_model').notNull(),
+  bundleHash: text('bundle_hash'),
+  bundleArtifactRef: jsonb('bundle_artifact_ref').$type<ArtifactRef>(),
+  manifest: jsonb('manifest').$type<ModuleManifest>(),
+  sdkContractVersion: text('sdk_contract_version').notNull(),
+  bundleContractVersion: text('bundle_contract_version').notNull(),
+  issues: jsonb('issues').notNull().$type<ValidationIssue[]>(),
+  attempt: integer('attempt').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  hypothesisIdx: index('hypothesis_build_hypothesis_idx').on(t.hypothesisId),
+  statusIdx: index('hypothesis_build_status_idx').on(t.status),
+}));
+
+export const backtestRun = pgTable('backtest_run', {
+  id: text('id').primaryKey(),
+  hypothesisBuildId: text('hypothesis_build_id').notNull(),
+  hypothesisId: text('hypothesis_id').notNull(),
+  strategyProfileId: text('strategy_profile_id').notNull(),
+  platformRunId: text('platform_run_id').notNull(),
+  correlationId: text('correlation_id').notNull(),
+  params: jsonb('params').notNull().$type<Record<string, unknown>>(),
+  paramsHash: text('params_hash').notNull(),
+  bundleHash: text('bundle_hash').notNull(),
+  status: text('status').notNull(),
+  baselineModuleId: text('baseline_module_id').notNull(),
+  variantModuleId: text('variant_module_id').notNull(),
+  netPnlUsd: doublePrecision('net_pnl_usd'),
+  netPnlPct: doublePrecision('net_pnl_pct'),
+  totalTrades: integer('total_trades'),
+  winRate: doublePrecision('win_rate'),
+  profitFactor: doublePrecision('profit_factor'),
+  maxDrawdownPct: doublePrecision('max_drawdown_pct'),
+  expectancyUsd: doublePrecision('expectancy_usd'),
+  sharpe: doublePrecision('sharpe'),
+  topTradeContributionPct: doublePrecision('top_trade_contribution_pct'),
+  isFragile: boolean('is_fragile'),
+  baselineMetrics: jsonb('baseline_metrics').$type<BacktestMetricBlock>(),
+  deltaNetPnlUsd: doublePrecision('delta_net_pnl_usd'),
+  deltaMaxDrawdownPct: doublePrecision('delta_max_drawdown_pct'),
+  artifactRefs: jsonb('artifact_refs').notNull().$type<string[]>(),
+  platformContractVersion: text('platform_contract_version').notNull(),
+  sdkContractVersion: text('sdk_contract_version').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  idemUq: uniqueIndex('backtest_run_idem_uq').on(t.hypothesisId, t.paramsHash, t.bundleHash),
+  hypothesisIdx: index('backtest_run_hypothesis_idx').on(t.hypothesisId),
+  statusIdx: index('backtest_run_status_idx').on(t.status),
+}));
+
+export const evaluation = pgTable('evaluation', {
+  id: text('id').primaryKey(),
+  backtestRunId: text('backtest_run_id').notNull(),
+  hypothesisId: text('hypothesis_id').notNull(),
+  decision: text('decision').notNull(),
+  reasons: jsonb('reasons').notNull().$type<string[]>(),
+  metricsSnapshot: jsonb('metrics_snapshot').notNull().$type<ComparisonSummary>(),
+  thresholds: jsonb('thresholds').notNull().$type<EvaluatorThresholds>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  backtestRunIdx: index('evaluation_backtest_run_idx').on(t.backtestRunId),
 }));
