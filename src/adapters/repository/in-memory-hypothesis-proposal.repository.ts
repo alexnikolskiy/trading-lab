@@ -41,6 +41,7 @@ export class InMemoryHypothesisProposalRepository implements HypothesisProposalR
         if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1; // createdAt DESC
         return a.id < b.id ? 1 : -1; // id DESC tiebreak
       });
-    return candidates[0] ?? null;
+    // Defensive copy — keep the store immutable from callers, matching findById.
+    return candidates[0] ? { ...candidates[0] } : null;
   }
 }
