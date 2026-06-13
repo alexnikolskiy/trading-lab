@@ -169,3 +169,30 @@ export const evaluation = pgTable('evaluation', {
 }, (t) => ({
   backtestRunIdx: index('evaluation_backtest_run_idx').on(t.backtestRunId),
 }));
+
+export const chatSession = pgTable('chat_session', {
+  sessionId: text('session_id').primaryKey(),
+  lastStrategyProfileId: text('last_strategy_profile_id'),
+  lastResearchTaskId: text('last_research_task_id'),
+  lastHypothesisId: text('last_hypothesis_id'),
+  lastBacktestRunId: text('last_backtest_run_id'),
+  lastUserGoal: text('last_user_goal'),
+  pendingPlanId: text('pending_plan_id'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const chatPlan = pgTable('chat_plan', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull(),
+  afterTaskId: text('after_task_id').notNull(),
+  nextTaskType: text('next_task_type').notNull(),
+  resolveProfileByFingerprint: text('resolve_profile_by_fingerprint').notNull(),
+  correlationId: text('correlation_id').notNull(),
+  status: text('status').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  // Powers the worker hook query: findPendingByAfterTaskId(afterTaskId).
+  afterStatusIdx: index('chat_plan_after_task_status_idx').on(t.afterTaskId, t.status),
+  sessionIdx: index('chat_plan_session_idx').on(t.sessionId),
+}));

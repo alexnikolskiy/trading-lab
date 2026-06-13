@@ -29,6 +29,13 @@
       "when": 1781167419459,
       "tag": "0003_lean_cargill",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1781345696820,
+      "tag": "0004_mixed_killmonger",
+      "breakpoints": true
     }
   ]
 }

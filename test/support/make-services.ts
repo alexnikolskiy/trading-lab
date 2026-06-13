@@ -14,6 +14,8 @@ import { InMemoryHypothesisBuildRepository } from '../../src/adapters/repository
 import { InMemoryBacktestRunRepository } from '../../src/adapters/repository/in-memory-backtest-run.repository.ts';
 import { InMemoryEvaluationRepository } from '../../src/adapters/repository/in-memory-evaluation.repository.ts';
 import { DEFAULT_EVALUATOR_THRESHOLDS } from '../../src/validation/evaluator.ts';
+import { InMemoryChatSessionRepository } from '../../src/adapters/repository/in-memory-chat-session.repository.ts';
+import { InMemoryChatPlanRepository } from '../../src/adapters/repository/in-memory-chat-plan.repository.ts';
 
 export function makeServices(overrides: Partial<AppServices> = {}): AppServices {
   const hypotheses = new InMemoryHypothesisProposalRepository();
@@ -35,6 +37,8 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     backtests: new InMemoryBacktestRunRepository(),
     evaluations: new InMemoryEvaluationRepository(),
     evaluatorThresholds: DEFAULT_EVALUATOR_THRESHOLDS,
+    chatSessions: new InMemoryChatSessionRepository(),
+    chatPlans: new InMemoryChatPlanRepository(),
     ...overrides,
   };
 }

@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 import type { WorkflowRouter } from '../orchestrator/workflow-router.ts';
 import type { AppServices } from '../orchestrator/app-services.ts';
+import { advanceChatPlan } from '../orchestrator/chain-runner.ts';
 
 export interface WorkerDeps {
   queue: TaskQueuePort;
@@ -20,6 +21,15 @@ export function startWorker(deps: WorkerDeps): void {
     try {
       await router.dispatch({ ...task, status: 'running' }, services);
       await services.researchTasks.updateStatus(task.id, 'completed');
+      // Chat auto-chain: best-effort, internally guarded; never fails the worker.
+      await advanceChatPlan({ ...task, status: 'completed' }, {
+        researchTasks: services.researchTasks,
+        strategyProfiles: services.strategyProfiles,
+        events: services.events,
+        sessions: services.chatSessions,
+        plans: services.chatPlans,
+        queue,
+      });
     } catch (err) {
       // Best-effort: never let a failure to record 'failed' mask the original error.
       try {
