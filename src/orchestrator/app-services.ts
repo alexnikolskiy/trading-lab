@@ -14,6 +14,8 @@ import type { HypothesisBuildRepository } from '../ports/hypothesis-build.reposi
 import type { BacktestRunRepository } from '../ports/backtest-run.repository.ts';
 import type { EvaluationRepository } from '../ports/evaluation.repository.ts';
 import type { EvaluatorThresholds } from '../validation/evaluator.ts';
+import type { ChatSessionRepository } from '../ports/chat-session.repository.ts';
+import type { ChatPlanRepository } from '../ports/chat-plan.repository.ts';
 
 export interface AppServices {
   researchTasks: ResearchTaskRepository;
@@ -33,4 +35,6 @@ export interface AppServices {
   backtests: BacktestRunRepository;
   evaluations: EvaluationRepository;
   evaluatorThresholds: EvaluatorThresholds;
+  chatSessions: ChatSessionRepository;
+  chatPlans: ChatPlanRepository;
 }

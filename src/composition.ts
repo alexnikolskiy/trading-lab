@@ -30,6 +30,12 @@ import { DrizzleBacktestRunRepository } from './adapters/repository/drizzle-back
 import { DrizzleEvaluationRepository } from './adapters/repository/drizzle-evaluation.repository.ts';
 import type { BuilderPort } from './ports/builder.port.ts';
 import { resolveLanguageModel } from './adapters/llm/model-provider.ts';
+import { FakeIntentClassifier } from './adapters/intent/fake-intent-classifier.ts';
+import { MastraIntentClassifier } from './adapters/intent/mastra-intent-classifier.ts';
+import { DrizzleChatSessionRepository } from './adapters/repository/drizzle-chat-session.repository.ts';
+import { DrizzleChatPlanRepository } from './adapters/repository/drizzle-chat-plan.repository.ts';
+import type { IntentClassifierPort } from './ports/intent-classifier.port.ts';
+import type { ChatAppDeps } from './chat/chat-app.ts';
 
 function buildAnalyst(env: ReturnType<typeof loadEnv>): StrategyAnalystPort {
   if (env.STRATEGY_ANALYST_ADAPTER === 'mastra') {
@@ -57,6 +63,15 @@ function buildCritic(env: ReturnType<typeof loadEnv>): CriticPort | null {
   }
   console.warn('[composition] ENABLE_CRITIC_AGENT=true but CRITIC_ADAPTER is not "mastra"; using FakeCritic');
   return new FakeCritic();
+}
+
+function buildIntentClassifier(env: ReturnType<typeof loadEnv>): IntentClassifierPort {
+  if (env.INTENT_CLASSIFIER_ADAPTER === 'mastra') {
+    const r = resolveLanguageModel(env, env.INTENT_CLASSIFIER_MODEL);
+    return new MastraIntentClassifier(r.model, r.label);
+  }
+  console.warn('[composition] INTENT_CLASSIFIER_ADAPTER is not "mastra"; using FakeIntentClassifier (rule-based)');
+  return new FakeIntentClassifier();
 }
 
 function buildBuilder(env: ReturnType<typeof loadEnv>): BuilderPort {
@@ -96,6 +111,8 @@ export function composeRuntime() {
     backtests: new DrizzleBacktestRunRepository(db),
     evaluations: new DrizzleEvaluationRepository(db),
     evaluatorThresholds: env.evaluatorThresholds,
+    chatSessions: new DrizzleChatSessionRepository(db),
+    chatPlans: new DrizzleChatPlanRepository(db),
   };
 
   const router = new WorkflowRouter();
@@ -103,5 +120,18 @@ export function composeRuntime() {
   router.register('research.run_cycle', researchRunCycleHandler);
   router.register('hypothesis.build', hypothesisBuildHandler);
 
-  return { env, db, pool, queue, router, services };
+  const chat: ChatAppDeps = {
+    classifier: buildIntentClassifier(env),
+    sessions: services.chatSessions,
+    plans: services.chatPlans,
+    researchTasks: services.researchTasks,
+    strategyProfiles: services.strategyProfiles,
+    hypotheses: services.hypotheses,
+    events: services.events,
+    queue,
+    minConfidence: env.INTENT_CLASSIFIER_MIN_CONFIDENCE,
+    maxMessageChars: env.CHAT_MAX_MESSAGE_CHARS,
+  };
+
+  return { env, db, pool, queue, router, services, chat };
 }
