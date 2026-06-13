@@ -440,7 +440,7 @@ function hyp(id: string, over: Partial<HypothesisProposal> = {}): HypothesisProp
   const now = '2026-01-01T00:00:00.000Z';
   return {
     id, strategyProfileId: 'p1', thesis: 't', targetBehavior: 'tb',
-    ruleAction: { appliesTo: 'long', rules: [{ when: 'x>1', action: 'block_entry', params: {} }] },
+    ruleAction: { appliesTo: 'long', rules: [{ when: 'x>1', action: 'skip_entry', params: {} }] },
     requiredFeatures: ['oi'], validationPlan: 'plan',
     expectedEffect: { metric: 'pnl', direction: 'increase' },
     invalidationCriteria: ['c'], confidence: 0.7, status: 'validated', fingerprint: 'fp',
@@ -821,7 +821,7 @@ d('DrizzleHypothesisReadAdapter', () => {
     for (const id of ids) {
       await db.insert(hypothesisProposal).values({
         id, strategyProfileId: id === 'sp5h2' ? 'pB' : 'pA', thesis: 't', targetBehavior: 'tb',
-        ruleAction: { appliesTo: 'long', rules: [{ when: 'x', action: 'block_entry', params: {} }] },
+        ruleAction: { appliesTo: 'long', rules: [{ when: 'x', action: 'skip_entry', params: {} }] },
         requiredFeatures: ['oi'], validationPlan: 'plan', expectedEffect: { metric: 'pnl', direction: 'increase' },
         invalidationCriteria: ['c'], confidence: 0.7, status: id === 'sp5h2' ? 'rejected' : 'validated',
         fingerprint: `fp-${id}`, proposal: {}, issues: [], contractVersion: 'v1',
@@ -1170,7 +1170,7 @@ const BACKTEST_KEYS = ['id', 'hypothesisId', 'status', 'metrics', 'delta', 'isFr
 function hyp(over: Partial<HypothesisProposal> = {}): HypothesisProposal {
   return {
     id: 'h1', strategyProfileId: 'p1', thesis: 'thesis', targetBehavior: 'tb',
-    ruleAction: { appliesTo: 'long', rules: [{ when: 'x>1', action: 'block_entry', params: { threshold: 5 }, rationale: 'r' }] },
+    ruleAction: { appliesTo: 'long', rules: [{ when: 'x>1', action: 'skip_entry', params: { threshold: 5 }, rationale: 'r' }] },
     requiredFeatures: ['oi'], validationPlan: 'plan', expectedEffect: { metric: 'pnl', direction: 'increase' },
     invalidationCriteria: ['c'], confidence: 0.7, status: 'validated', fingerprint: 'SECRET-FP',
     proposal: { thesis: 'draft' } as HypothesisProposal['proposal'], issues: [], contractVersion: 'v1',
@@ -1200,7 +1200,7 @@ describe('hypothesis mappers', () => {
 
   it('detail: curated rules drop params; never leak fingerprint/proposal/issues/contractVersion', () => {
     const dto = toHypothesisDetail(hyp());
-    expect(dto.rules.rules).toEqual([{ when: 'x>1', action: 'block_entry', rationale: 'r' }]);
+    expect(dto.rules.rules).toEqual([{ when: 'x>1', action: 'skip_entry', rationale: 'r' }]);
     const json = JSON.stringify(dto);
     for (const leak of ['SECRET-FP', 'threshold', 'contractVersion', 'draft']) expect(json).not.toContain(leak);
     expect((dto as Record<string, unknown>).fingerprint).toBeUndefined();
@@ -1651,7 +1651,7 @@ import type { AgentEventRow } from '../ports/agent-event-read.port.ts';
 function hyp(id: string, createdAt: string): HypothesisProposal {
   return {
     id, strategyProfileId: 'p1', thesis: 't', targetBehavior: 'tb',
-    ruleAction: { appliesTo: 'long', rules: [{ when: 'x', action: 'block_entry', params: {} }] },
+    ruleAction: { appliesTo: 'long', rules: [{ when: 'x', action: 'skip_entry', params: {} }] },
     requiredFeatures: [], validationPlan: 'p', expectedEffect: { metric: 'pnl', direction: 'increase' },
     invalidationCriteria: ['c'], confidence: 0.5, status: 'validated', fingerprint: 'fp', proposal: {} as HypothesisProposal['proposal'],
     issues: [], contractVersion: 'v1', createdAt, updatedAt: createdAt,
