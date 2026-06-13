@@ -105,4 +105,18 @@ describe('advanceChatPlan', () => {
     await advanceChatPlan(onboardTask('unrelated'), base);
     expect(queue.queued).toHaveLength(0);
   });
+
+  it('never throws when the pending-plan lookup itself rejects (worker stays safe)', async () => {
+    // Simulate a real DB error on the very first await. advanceChatPlan must swallow it
+    // so the worker never flips the already-completed task to failed. (InMemory never
+    // rejects, so this is the only path that exercises the outermost guard.)
+    const { base, queue } = deps();
+    const throwingPlans = Object.assign(Object.create(Object.getPrototypeOf(base.plans)), base.plans, {
+      findPendingByAfterTaskId: async () => { throw new Error('db down'); },
+    });
+    const d = { ...base, plans: throwingPlans } as ChainRunnerDeps;
+
+    await expect(advanceChatPlan(onboardTask(), d)).resolves.toBeUndefined();
+    expect(queue.queued).toHaveLength(0);
+  });
 });
