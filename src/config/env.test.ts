@@ -53,3 +53,17 @@ describe('SP-4.5 model provider env', () => {
     expect(loadEnv({ MODEL_PROVIDER: 'bogus' }).MODEL_PROVIDER).toBe('anthropic');
   });
 });
+
+describe('loadEnv read API config', () => {
+  it('defaults READ_API_PORT to 3100 and token to undefined', () => {
+    const env = loadEnv({} as NodeJS.ProcessEnv);
+    expect(env.READ_API_PORT).toBe(3100);
+    expect(env.TRADING_LAB_READ_TOKEN).toBeUndefined();
+  });
+
+  it('reads READ_API_PORT and TRADING_LAB_READ_TOKEN from source', () => {
+    const env = loadEnv({ READ_API_PORT: '4601', TRADING_LAB_READ_TOKEN: 'secret' } as unknown as NodeJS.ProcessEnv);
+    expect(env.READ_API_PORT).toBe(4601);
+    expect(env.TRADING_LAB_READ_TOKEN).toBe('secret');
+  });
+});
