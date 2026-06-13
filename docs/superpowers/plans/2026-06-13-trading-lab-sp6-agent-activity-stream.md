@@ -298,8 +298,8 @@ import type { AgentEventRow } from '../ports/agent-event-read.port.ts';
 import type { Cursor } from '../ports/keyset.ts';
 import { encodeCursor } from './pagination.ts';
 import { toAgentEventDto } from './mappers.ts';
-import { agentIdForType, lifecycleForType, KNOWN_AGENT_IDS, AGENT_IDS, type AgentId } from './agent-taxonomy.ts';
-import type { AgentEventDto, AgentSummaryDto, AgentActivityDto, AgentLifecycle } from './dto.ts';
+import { agentIdForType, lifecycleForType, KNOWN_AGENT_IDS, AGENT_IDS, type AgentId, type AgentLifecycle } from './agent-taxonomy.ts';
+import type { AgentEventDto, AgentSummaryDto, AgentActivityDto } from './dto.ts';
 
 interface AgentState {
   status: AgentLifecycle;
