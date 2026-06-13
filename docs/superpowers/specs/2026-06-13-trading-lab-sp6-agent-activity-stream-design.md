@@ -53,10 +53,10 @@ This slice picks up exactly what SP-5 deferred ("an **internal** SSE/WS event st
 worker process                          ingress + read process  (READ_API_PORT)
 ─────────────                           ──────────────────────────────────────────
 handlers append agent_event ──INSERT──▶ Postgres (trading-lab only)
-                                          │  AFTER INSERT trigger → pg_notify('agent_event', '<id>|<created_at_epoch>')
+                                          │  AFTER INSERT trigger → pg_notify('trading_lab_agent_event', '<id>|<created_at_epoch>')
                                           │       (minimal wake-up signal — never raw payload / user text / secrets)
                                           │
-            PgNotifyAgentEventStream  ◀── LISTEN agent_event   (one dedicated pooled client)
+            PgNotifyAgentEventStream  ◀── LISTEN trading_lab_agent_event   (one dedicated pooled client)
               on notify | reconnect | safety-net tick:
                 AgentEventReadPort keyset read WHERE (created_at,id) > cursor   ◀── source of truth & ordering
                 │  emits rows in order
@@ -125,7 +125,7 @@ Derivation from the **suffix** of the agent's most recent event (ordered, specif
 
 ### 4.3 `currentTask` semantics (explicit)
 
-`currentTask` always reflects the **task of the agent's most recent event**, regardless of whether that event was terminal. After a terminal event the agent shows `status: succeeded|failed` **with** `currentTask` pointing at the task that just finished (so the UI renders "researcher · succeeded · task X" rather than a null flicker). `currentTask` is `null` **only** for a known agent that has produced no events (boot `idle`). `currentTask` exposes `{ id, type, status }` — the workflow `type` and the **derived agent lifecycle** status — never the task payload.
+`currentTask` always reflects the **task of the agent's most recent event**, regardless of whether that event was terminal. After a terminal event the agent shows `status: succeeded|failed` **with** `currentTask` pointing at the task that just finished (so the UI renders "researcher · succeeded · task X" rather than a null flicker). `currentTask` is `null` **only** for a known agent that has produced no events (boot `idle`). `currentTask` exposes `{ id, type, status }` where `id` is the `agent_event.task_id` of the latest event, `type` is that latest event's **event type** (the projection reads only `agent_event` and never joins `research_task`, so it does **not** expose `research_task.task_type`), and `status` is the **derived agent lifecycle** — never the task payload.
 
 ---
 
@@ -168,7 +168,7 @@ export interface AgentEventStreamPort {
 ```
 
 - **`PgNotifyAgentEventStream`** (`src/adapters/read/`): constructed with the node-postgres `pool` and the `AgentEventReadPort`.
-  - `start()` checks out **one dedicated** client from the pool (held for the listener's lifetime, never returned mid-listen) and issues `LISTEN agent_event`.
+  - `start()` checks out **one dedicated** client from the pool (held for the listener's lifetime, never returned mid-listen) and issues `LISTEN trading_lab_agent_event`.
   - On `notification` **or** a `AGENT_EVENT_STREAM_SAFETY_TICK_MS` tick (default 5000) **or** reconnect, it performs a **keyset catch-up read** (`AgentEventReadPort.list({ after: cursor, limit })`, looping until drained) and emits each row, in order, to subscribers. The NOTIFY payload is only a wake-up signal; the canonical row is always re-read from `agent_event`.
   - On client error / connection drop it reconnects with backoff and re-`LISTEN`s; the next catch-up read covers any events missed while disconnected.
   - `stop()` removes the notification handler and releases the client.
@@ -196,7 +196,7 @@ interface AgentSummaryDto {
 interface AgentActivityDto {
   agentId: AgentId;
   status: AgentLifecycle;
-  currentTask: { id: string; type: string; status: AgentLifecycle } | null;
+  currentTask: { id: string; type: string; status: AgentLifecycle } | null; // type = latest event type
   trace: AgentEventDto[];                 // ring-buffer tail, oldest→newest, sanitized
 }
 
@@ -206,7 +206,7 @@ interface AgentEventAppended  { agentId: AgentId; event: AgentEventDto; }
 ```
 
 - `lastEvent` / `trace` / `event` are produced **only** through `toAgentEventDto` (deny-by-default; raw `payload` never serialized; only allow-listed scalar `payloadSummary` survives).
-- `currentTask` exposes `id` + workflow `type` + derived `status` only. No `payload`, `params`, hashes, module ids, contract versions, correlation ids, fingerprints, strategy text, user content, or secrets.
+- `currentTask` exposes `id` + latest-event `type` + derived `status` only. No `payload`, `params`, hashes, module ids, contract versions, correlation ids, fingerprints, strategy text, user content, or secrets.
 - Field is named **`trace`** in lab DTOs (consistent everywhere); trading-office maps `trace` → its `logs` as needed.
 
 ---
@@ -236,18 +236,21 @@ A hand-authored raw-SQL migration (same approach SP-5 used for index migrations;
 ```sql
 CREATE OR REPLACE FUNCTION agent_event_notify() RETURNS trigger AS $$
 BEGIN
-  -- minimal, safe wake-up signal: id + created_at only. No payload, user text, or secrets.
-  PERFORM pg_notify('agent_event', NEW.id || '|' || extract(epoch from NEW.created_at)::text);
+  -- minimal, safe wake-up signal on a service-scoped channel: id + created_at only.
+  -- No payload, user text, or secrets.
+  PERFORM pg_notify('trading_lab_agent_event', NEW.id || '|' || extract(epoch from NEW.created_at)::text);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- DROP-before-CREATE so local re-runs / debug are idempotent.
+DROP TRIGGER IF EXISTS agent_event_notify_tr ON agent_event;
 CREATE TRIGGER agent_event_notify_tr
   AFTER INSERT ON agent_event
   FOR EACH ROW EXECUTE FUNCTION agent_event_notify();
 ```
 
-The payload carries only `id` + `created_at`; the read process still reads the canonical row from `agent_event` by keyset cursor (the payload is never trusted as content). Authoring a trigger in a migration is **not** a read-boundary violation — the boundary forbids the read *runtime* from writing tables, which it does not (§11).
+The NOTIFY channel is **service-scoped** (`trading_lab_agent_event`, not the generic `agent_event`). The payload carries only `id` + `created_at`; the read process still reads the canonical row from `agent_event` by keyset cursor (the payload is never trusted as content). Authoring a trigger in a migration is **not** a read-boundary violation — the boundary forbids the read *runtime* from writing tables, which it does not (§11).
 
 ---
 
@@ -295,7 +298,7 @@ src/read-api/
 src/config/env.ts                            # EXTEND: four knobs (§10)
 src/composition.ts                           # EXTEND: build projection + PgNotify stream into read deps
 src/ingress/server.ts                        # EXTEND: rebuild→start→subscribe; stop on shutdown (token-gated)
-drizzle/<n>_agent_event_notify.sql           # NEW: trigger migration
+migrations/<n>_agent_event_notify.sql       # NEW: trigger migration (next free index: 0006; + meta/_journal entry)
 ```
 
 ---
