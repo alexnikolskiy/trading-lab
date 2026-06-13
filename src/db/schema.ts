@@ -35,6 +35,7 @@ export const agentEvent = pgTable('agent_event', {
   // No FK from task_id -> research_task.id by design: agent_event is an append-only
   // event log and must accept events even if the parent row is archived/removed.
   taskIdx: index('agent_event_task_idx').on(t.taskId),
+  createdIdx: index('agent_event_created_idx').on(t.createdAt, t.id),
 }));
 
 export const strategyProfile = pgTable('strategy_profile', {
@@ -81,6 +82,7 @@ export const hypothesisProposal = pgTable('hypothesis_proposal', {
   profileFpUq: uniqueIndex('hypothesis_proposal_profile_fp_uq').on(t.strategyProfileId, t.fingerprint),
   profileIdx: index('hypothesis_proposal_profile_idx').on(t.strategyProfileId),
   statusIdx: index('hypothesis_proposal_status_idx').on(t.status),
+  createdIdx: index('hypothesis_proposal_created_idx').on(t.createdAt, t.id),
 }));
 
 export const hypothesisReview = pgTable('hypothesis_review', {
@@ -155,6 +157,7 @@ export const backtestRun = pgTable('backtest_run', {
   idemUq: uniqueIndex('backtest_run_idem_uq').on(t.hypothesisId, t.paramsHash, t.bundleHash),
   hypothesisIdx: index('backtest_run_hypothesis_idx').on(t.hypothesisId),
   statusIdx: index('backtest_run_status_idx').on(t.status),
+  createdIdx: index('backtest_run_created_idx').on(t.createdAt, t.id),
 }));
 
 export const evaluation = pgTable('evaluation', {
