@@ -12,6 +12,7 @@ export interface Env {
   TRADING_LAB_CHAT_TOKEN?: string;
   TRADING_LAB_TASK_TOKEN?: string;
   TRADING_LAB_CALLBACK_TOKEN?: string;
+  TRADING_PLATFORM_INTEGRATION: 'mock' | 'mcp';
   STRATEGY_ANALYST_ADAPTER: 'fake' | 'mastra';
   STRATEGY_ANALYST_MODEL: string;
   ANTHROPIC_API_KEY?: string;
@@ -71,6 +72,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     TRADING_LAB_CHAT_TOKEN: source.TRADING_LAB_CHAT_TOKEN,
     TRADING_LAB_TASK_TOKEN: source.TRADING_LAB_TASK_TOKEN,
     TRADING_LAB_CALLBACK_TOKEN: source.TRADING_LAB_CALLBACK_TOKEN,
+    TRADING_PLATFORM_INTEGRATION: source.TRADING_PLATFORM_INTEGRATION === 'mcp' ? 'mcp' : 'mock',
     STRATEGY_ANALYST_ADAPTER: source.STRATEGY_ANALYST_ADAPTER === 'mastra' ? 'mastra' : 'fake',
     STRATEGY_ANALYST_MODEL: source.STRATEGY_ANALYST_MODEL ?? 'anthropic/claude-sonnet-4-6',
     ANTHROPIC_API_KEY: source.ANTHROPIC_API_KEY,
