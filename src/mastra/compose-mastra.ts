@@ -56,6 +56,8 @@ export function composeMastra(env: MastraCompositionEnv): MastraRuntime {
 
   const mastra = new Mastra({ agents: registry });
 
+  // getAgent returns the same object registered above (identity holds in @mastra/core@1.41);
+  // used here so adapters hold a Mastra-runtime-owned reference, not the pre-registration agent.
   const entry = (id: string): MastraAgentEntry | undefined =>
     registry[id] ? { agent: mastra.getAgent(id), label: labels[id]! } : undefined;
 
