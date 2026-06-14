@@ -69,7 +69,15 @@ The SDK ships **no** packing helper (`contentBase64` ⇒ 0 hits in `packages/sdk
 1. emit `files[]` = base64 of each payload file, including `manifest.json`, sorted by `path`;
 2. synthesize `descriptor` with per-file `sha256`, `entryPoint`, `kind`, `contractVersion`, `bundleHash`.
 
-**Verify-during-TDD:** the exact re-validation `loadBundle` performs (does the descriptor `bundleHash` / per-file `sha256` have to match the lab-computed values, and is `manifest.json` expected inside `files[]` vs. only via the top-level `manifest`?) is pinned by a round-trip test against the real gateway before the mapper is frozen. Treat any mismatch as a finding, not a silent workaround.
+**Confirmed (planning findings):**
+- `loadBundle(bundleDir)` only parses `manifest.json` + `bundle.json`. Integrity is enforced by the platform acceptance-gate `validateBundle` (`src/research/sandbox/acceptance-gate.ts`): every `descriptor.files[]` must exist on disk, `descriptor.entryPoint` must resolve **inside `module/`**, `descriptor.contractVersion ∈ supportedContractVersions`, and the recomputed `bundleHash` must equal `descriptor.bundleHash`.
+- The platform `bundleHash` (`src/research/sandbox/bundle-hash.ts`) is **not** lab's `assembleBundle` hash: `manifestSha256 = sha256(bytes("manifest.json"))`, `files = sorted([{path, sha256(bytes(file))}])`, `bundleHash = "sha256:" + sha256(canonicalJson({ manifestSha256, files }))`. The mapper must replicate this exactly (incl. the 018 `canonicalJson` byte-form).
+- **Layout gap:** lab files are keyed by bare path (`'index.ts'`); the platform expects code under `module/` with `manifest.json` at root. The mapper re-roots files under `module/` and sets `descriptor.entryPoint = "module/" + manifest.entry`.
+- **Manifest gap:** lab's `ModuleManifest` ≠ the platform 017 overlay manifest (`OverlayManifestInput`: `id, version, name, summary, rationale, author, paramsSchema, targetStrategyRef, interceptionPoint, dataNeeds?, contractVersion?`). Lab does not yet hold `interceptionPoint` / `paramsSchema`. Building a fully **`accepted`** 017 overlay manifest is **out of scope for SP-7.1** (follow-up).
+
+**Structurally-valid invariant (the SP-7.1 guarantee).** As long as the `SubmittedBundle` materializes and loads (valid base64, path-safe entries, `manifest.json` + `bundle.json` parse), 017 manifest shortfalls surface as a **`rejected` `ValidationReport` (`ok:true`)**, never an `ok:false` gateway error. SP-7.1 guarantees that structural correctness; the report's `status` (`accepted` / `accepted_with_warnings` / `rejected`) is platform-domain and may legitimately be `rejected` until the 017 overlay manifest is built in a follow-up.
+
+The exact `canonicalJson` byte-equivalence and the precise `descriptor.files` set (module/** only vs. incl. `manifest.json`) are pinned by Task 1's round-trip before the mapper is frozen. Treat any mismatch as a finding, not a silent workaround.
 
 ## 6. Files
 
@@ -104,8 +112,8 @@ Ordered, via `AgentEventRepository` / `ConsoleAgentEventSink`:
 
 ## 9. Acceptance criteria
 
-1. `ResearchPlatformPort.validateModule` returns a typed `ValidationReport`; the probe makes zero submit/run/status/result/artifact calls (`executed:false` holds).
-2. `pnpm platform:validate <bundle.json>` against the real MCP gateway returns a real `ValidationReport`; against `mock` returns `accepted`.
+1. `ResearchPlatformPort.validateModule` returns a typed `ValidationReport` (status `accepted` / `accepted_with_warnings` / `rejected` are all valid successes); the probe makes zero submit/run/status/result/artifact calls (`executed:false` holds).
+2. `pnpm platform:validate <bundle.json>` against the real MCP gateway returns a real `ValidationReport` for a structurally-valid bundle (a `rejected` status from 017 manifest shortfalls is an accepted SP-7.1 outcome — see §5); against `mock` returns `accepted`. An `ok:false` gateway error occurs only on transport / contract / bundle-load failure, not on manifest content.
 3. `AgentEvent`s are emitted in the deterministic order of §7.
 4. Contract incompatibility fails closed (bundle never sent).
 5. **Zero diff** in `PlatformGatewayPort`, the SP-4 mock backtest flow, and `hypothesisBuildHandler`.
