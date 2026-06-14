@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { CONTRACT_VERSION } from '@trading-platform/sdk';
-import { loadResearchPlatformConfig, buildChildEnv, withTimeout } from './mcp-research-transport.ts';
+import { loadResearchPlatformConfig, buildChildEnv, withTimeout, extractToolResult } from './mcp-research-transport.ts';
 
 describe('loadResearchPlatformConfig', () => {
   it('parses TRADING_PLATFORM_* with defaults', () => {
@@ -56,5 +56,21 @@ describe('withTimeout', () => {
   it('rejects with a labeled error when the promise is too slow', async () => {
     const slow = new Promise((r) => setTimeout(() => r(1), 50));
     await expect(withTimeout(slow, 5, 'discover')).rejects.toThrow(/discover timed out after 5ms/);
+  });
+});
+
+describe('extractToolResult', () => {
+  it('returns structuredContent when present (passthrough)', () => {
+    expect(extractToolResult({ structuredContent: { a: 1 }, content: [{ type: 'text', text: 'ignored' }] })).toEqual({ a: 1 });
+  });
+  it('parses a single JSON text content block when structuredContent is absent', () => {
+    expect(extractToolResult({ content: [{ type: 'text', text: '{"contractVersion":"017.2"}' }] })).toEqual({ contractVersion: '017.2' });
+  });
+  it('concatenates multiple text blocks before parsing', () => {
+    expect(extractToolResult({ content: [{ type: 'text', text: '{"datasets":' }, { type: 'text', text: '[]}' }] })).toEqual({ datasets: [] });
+  });
+  it('returns the raw content when there is no text to parse', () => {
+    const content = [{ type: 'image', data: 'x' }];
+    expect(extractToolResult({ content })).toBe(content);
   });
 });

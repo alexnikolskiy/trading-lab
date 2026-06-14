@@ -1,6 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { createMcpTransport, type McpClientLike } from '@trading-platform/sdk/agent/mcp-transport';
 import { CONTRACT_VERSION } from '@trading-platform/sdk';
 import type { GatewayTransport } from '@trading-platform/sdk/agent';
 
@@ -50,6 +49,24 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): 
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Prefer structuredContent; else parse the concatenated text content blocks as JSON; else return raw content. */
+export function extractToolResult(result: { structuredContent?: unknown; content?: unknown }): unknown {
+  if (result.structuredContent !== undefined) return result.structuredContent;
+  const content = result.content;
+  if (Array.isArray(content)) {
+    const text = content
+      .filter(
+        (b): b is { type: string; text: string } =>
+          !!b && typeof b === 'object' && (b as { type?: unknown }).type === 'text' &&
+          typeof (b as { text?: unknown }).text === 'string',
+      )
+      .map((b) => b.text)
+      .join('');
+    if (text.length > 0) return JSON.parse(text);
+  }
+  return content;
+}
+
 /** Spawn the gateway over stdio and wrap it as a GatewayTransport. Caller owns close(). */
 export async function createGatewayTransport(config: ResearchPlatformConfig): Promise<GatewaySession> {
   const stdio = new StdioClientTransport({
@@ -59,12 +76,16 @@ export async function createGatewayTransport(config: ResearchPlatformConfig): Pr
   });
   const client = new Client({ name: 'trading-lab', version: '0.0.1' });
   await client.connect(stdio);
+  const transport: GatewayTransport = {
+    async call(tool, args) {
+      const result = await client.callTool({ name: tool, arguments: (args ?? {}) as Record<string, unknown> });
+      // callTool returns a union that includes a legacy `{ toolResult }` shape;
+      // narrow to the `{ content?, structuredContent? }` view extractToolResult reads.
+      return extractToolResult(result as { structuredContent?: unknown; content?: unknown });
+    },
+  };
   return {
-    // Cast is required: Client.callTool returns a union that includes a legacy
-    // `{ toolResult }` shape which TypeScript cannot prove satisfies McpClientLike's
-    // narrower `{ content?, structuredContent? }` contract — but every modern
-    // response path carries those fields at runtime.
-    transport: createMcpTransport(client as unknown as McpClientLike),
+    transport,
     close: async () => { await client.close(); },
   };
 }
