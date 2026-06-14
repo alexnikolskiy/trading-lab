@@ -811,7 +811,7 @@ Expected: PASS — full green, no type errors.
 - [ ] **Confirm the boundary by eye**
 
 Run: `git diff main --stat`
-Expected: the 13 files from the File Structure table (3 created, 10 modified), no others.
+Expected: the implementation files from the File Structure table plus the SP-6.2 spec/plan docs; no unrelated files.
 
 ---
 
