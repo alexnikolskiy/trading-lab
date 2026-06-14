@@ -1,0 +1,25 @@
+# Ingress (SP-1 / SP-6.2)
+
+Service-to-service write/ingress on `INGRESS_PORT` (default 3000), served by `createIngressApp`. Each route below is a fail-closed boundary fed by its **own** token — if a token is unset, that route rejects every request with `503`; with a token set, a missing/wrong `Authorization: Bearer …` gets `401`. The gates run before JSON parsing / validation / task intake.
+
+`/tasks` is **not** the office path — trading-office reaches the lab through `POST /chat/messages` (see `../chat/README.md`). `/tasks` is a low-level internal ingress; `/callbacks/backtest-completed` is an inbound signal from the backtest runner.
+
+| Route | Token | Unset behavior |
+|---|---|---|
+| `POST /tasks` | `TRADING_LAB_TASK_TOKEN` | `503` (route mounted, rejects all) |
+| `POST /callbacks/backtest-completed` | `TRADING_LAB_CALLBACK_TOKEN` | `503` (route mounted, rejects all) |
+
+Each token must be distinct from the others (`read` / `chat` / `task` / `callback` are separate boundaries); a token for one route never authorizes another (proven by the cross-token isolation tests in `app.test.ts`).
+
+## `POST /tasks`
+
+- **Auth:** `Authorization: Bearer <TRADING_LAB_TASK_TOKEN>`. `401` on missing/wrong token; `503` when unset.
+- **Request** (`IngressTaskRequestSchema`): `{ taskType, source, payload?, correlationId?, dedupeKey? }`, `content-type: application/json`.
+- **Response:** `202 { taskId, status }`. Invalid body → `400 { status: 'rejected', issues }`. A repeated `dedupeKey` returns the same `taskId` without re-enqueue.
+
+## `POST /callbacks/backtest-completed`
+
+- **Auth:** `Authorization: Bearer <TRADING_LAB_CALLBACK_TOKEN>`. `401` on missing/wrong token; `503` when unset.
+- **Behavior:** SP-1 stub — returns `202 { status: 'accepted' }`. This boundary only adds the gate; real suspend/resume wiring is a later slice.
+
+`INGRESS_PORT` must not be public without network protection (reverse proxy / firewall). See `docs/superpowers/specs/2026-06-14-trading-lab-sp6.2-task-ingress-boundary-design.md`.
