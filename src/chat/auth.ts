@@ -1,19 +1,12 @@
 import type { MiddlewareHandler } from 'hono';
-import { parseBearer, safeEqual } from '../auth/bearer.ts';
+import { bearerAuth } from '../auth/bearer-auth.ts';
 
-// Service-to-service gate for the chat ingress. Fail-closed:
-//   token unset/empty         -> 503 (boundary not configured — an operator signal)
-//   token set, bad/no Bearer  -> 401 (caller problem; same envelope as the read API)
+// Service-to-service gate for the chat ingress. Delegates to the shared bearerAuth
+// factory; chat remains the OWNER of the /chat/messages boundary (its 503 message and
+// its wiring in createChatApp). Behavior is identical to SP-6.1:
+//   token unset/empty         -> 503 { error: { code: 'service_unavailable', message: 'chat ingress not configured' } }
+//   token set, bad/no Bearer  -> 401 { error: { code: 'unauthorized', message: 'missing or invalid token' } }
 //   token set, Bearer matches -> next()
 export function chatAuthMiddleware(token?: string): MiddlewareHandler {
-  return async (c, next) => {
-    if (!token) {
-      return c.json({ error: { code: 'service_unavailable', message: 'chat ingress not configured' } }, 503);
-    }
-    const presented = parseBearer(c.req.header('authorization'));
-    if (presented === null || !safeEqual(presented, token)) {
-      return c.json({ error: { code: 'unauthorized', message: 'missing or invalid token' } }, 401);
-    }
-    await next();
-  };
+  return bearerAuth(token, { notConfiguredMessage: 'chat ingress not configured' });
 }
