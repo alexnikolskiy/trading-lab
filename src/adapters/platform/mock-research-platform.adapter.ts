@@ -4,7 +4,10 @@ import type {
   ResearchCapabilityDescriptor,
   ListDatasetsFilter,
   ListDatasetsResult,
+  ValidationReport,
+  ValidateModuleOptions,
 } from '../../ports/research-platform.port.ts';
+import type { ModuleBundle } from '../../domain/module-bundle.ts';
 
 export class MockResearchPlatformAdapter implements ResearchPlatformPort {
   async discover(): Promise<ResearchCapabilityDescriptor> {
@@ -32,5 +35,9 @@ export class MockResearchPlatformAdapter implements ResearchPlatformPort {
         },
       ],
     };
+  }
+
+  async validateModule(_bundle: ModuleBundle, _options?: ValidateModuleOptions): Promise<ValidationReport> {
+    return { status: 'accepted', issues: [], executed: false };
   }
 }
