@@ -4,6 +4,7 @@ import { validateWithSchema } from '../validation/validator.ts';
 import type { ResearchTaskRepository } from '../ports/research-task.repository.ts';
 import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 import { createAndEnqueueTask } from '../orchestrator/task-intake.ts';
+import { bearerAuth } from '../auth/bearer-auth.ts';
 
 export interface IngressDeps {
   repo: ResearchTaskRepository;
@@ -16,6 +17,14 @@ export interface IngressDeps {
 
 export function createIngressApp(deps: IngressDeps): Hono {
   const app = new Hono();
+
+  // SP-6.2: fail-closed, per-boundary service-token gates, registered BEFORE the handlers
+  // so unauthorized requests never reach JSON parsing / validation / task intake.
+  app.use('/tasks', bearerAuth(deps.taskToken, { notConfiguredMessage: 'task ingress not configured' }));
+  app.use(
+    '/callbacks/backtest-completed',
+    bearerAuth(deps.callbackToken, { notConfiguredMessage: 'callback ingress not configured' }),
+  );
 
   app.post('/tasks', async (c) => {
     const raw = await c.req.json().catch(() => null);
