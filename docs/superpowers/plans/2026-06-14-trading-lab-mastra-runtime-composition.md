@@ -1,6 +1,6 @@
 # Mastra Runtime Composition Cleanup — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** Recommended execution mode: task-by-task implementation with fresh context per task, using the project's normal Superpowers workflow (checkpoint review between tasks). Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Centralize Mastra `Agent` creation into a `src/mastra/**` layer with a single `new Mastra({ agents })` instance; the five Mastra adapters receive a pre-built `Agent` instead of constructing one. Behavior is unchanged.
 
@@ -863,8 +863,8 @@ Expected: PASS (all files green; live LLM blocks skipped).
 
 - [ ] **Step 3: Confirm the cleanup landed**
 
-Run: `git grep -n "new Agent(" src/adapters` 
-Expected: no matches (all `new Agent(` now live under `src/mastra/`; the only remaining offline `new Agent(` is in `src/adapters/llm/provider-probe.test.ts` — confirm that is the sole hit and it is intentional).
+Run: `git grep -n "new Agent(" src/adapters ':!src/adapters/llm/provider-probe.test.ts'`
+Expected: no matches. (After the cleanup, no `new Agent(` remains in the Mastra adapter files; the offline provider probe `src/adapters/llm/provider-probe.test.ts` is the sole intentional exception and is excluded above.)
 
 Run: `git grep -n "resolveLanguageModel" src/composition.ts`
 Expected: no matches (model resolution moved into `composeMastra`).
