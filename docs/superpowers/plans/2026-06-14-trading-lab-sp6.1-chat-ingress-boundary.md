@@ -81,7 +81,7 @@ describe('safeEqual (hash-based constant-time)', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/auth/bearer.test.ts`
+Run: `pnpm exec vitest run src/auth/bearer.test.ts`
 Expected: FAIL — `Failed to load .../bearer.ts` / cannot resolve `./bearer.ts`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -112,7 +112,7 @@ export function parseBearer(header: string | undefined): string | null {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/auth/bearer.test.ts`
+Run: `pnpm exec vitest run src/auth/bearer.test.ts`
 Expected: PASS — 2 suites, 6 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -134,7 +134,7 @@ Read API behavior must not change. `readAuthMiddleware` keeps its 401 envelope; 
 
 - [ ] **Step 1: Confirm the existing read auth test passes before the refactor**
 
-Run: `npx vitest run src/read-api/auth.test.ts`
+Run: `pnpm exec vitest run src/read-api/auth.test.ts`
 Expected: PASS — this is the regression baseline for the refactor.
 
 - [ ] **Step 2: Rewrite `src/read-api/auth.ts` to consume the shared helper**
@@ -161,12 +161,12 @@ export function readAuthMiddleware(token: string): MiddlewareHandler {
 
 - [ ] **Step 3: Run the existing read auth test to verify no regression**
 
-Run: `npx vitest run src/read-api/auth.test.ts`
+Run: `pnpm exec vitest run src/read-api/auth.test.ts`
 Expected: PASS — same 3 tests (401 without/with wrong token; 200 with correct; 401 envelope; `safeEqual` constant-time) still green.
 
 - [ ] **Step 4: Typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: no errors.
 
 - [ ] **Step 5: Commit**
@@ -258,7 +258,7 @@ describe('chat/read boundary separation', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/chat/auth.test.ts`
+Run: `pnpm exec vitest run src/chat/auth.test.ts`
 Expected: FAIL — cannot resolve `./auth.ts` (chatAuthMiddleware not defined).
 
 - [ ] **Step 3: Write minimal implementation**
@@ -289,7 +289,7 @@ export function chatAuthMiddleware(token?: string): MiddlewareHandler {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/chat/auth.test.ts`
+Run: `pnpm exec vitest run src/chat/auth.test.ts`
 Expected: PASS — 2 suites, 7 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -326,7 +326,7 @@ describe('SP-6.1 chat ingress token', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/config/env.test.ts`
+Run: `pnpm exec vitest run src/config/env.test.ts`
 Expected: FAIL — TypeScript error / assertion fail: `TRADING_LAB_CHAT_TOKEN` does not exist on `Env`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -347,7 +347,7 @@ And in `loadEnv`'s returned object, add the pass-through immediately after the `
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/config/env.test.ts`
+Run: `pnpm exec vitest run src/config/env.test.ts`
 Expected: PASS — all env suites green, including the new SP-6.1 block.
 
 - [ ] **Step 5: Commit**
@@ -441,7 +441,7 @@ Leave the existing `describe('POST /chat/messages', ...)` tests as they are — 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `npx vitest run src/chat/chat-app.test.ts`
+Run: `pnpm exec vitest run src/chat/chat-app.test.ts`
 Expected: FAIL — the new gate tests fail (no middleware yet: malformed body falls through to `c.req.json().catch(() => null)` → schema → **400**, not 401/503; wrong-token request returns 200).
 
 - [ ] **Step 3: Wire the middleware into `createChatApp`**
@@ -480,12 +480,12 @@ export function createChatApp(deps: ChatAppDeps): Hono {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx vitest run src/chat/chat-app.test.ts`
+Run: `pnpm exec vitest run src/chat/chat-app.test.ts`
 Expected: PASS — existing behavior tests (empty/whitespace/oversize/out_of_scope/task_created) still green through the gate, plus the 3 new gate tests.
 
 - [ ] **Step 5: Typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: no errors.
 
 - [ ] **Step 6: Commit**
@@ -515,7 +515,7 @@ In `src/composition.ts`, inside the `const chat: ChatAppDeps = { ... }` object, 
 
 - [ ] **Step 2: Typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: no errors — `authToken` matches `ChatAppDeps.authToken?: string` and `env.TRADING_LAB_CHAT_TOKEN` is `string | undefined`.
 
 - [ ] **Step 3: Commit**
@@ -547,7 +547,7 @@ if (!env.TRADING_LAB_CHAT_TOKEN) {
 
 - [ ] **Step 2: Typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: no errors.
 
 - [ ] **Step 3: Commit**
@@ -595,7 +595,7 @@ In the same test, update the `app.request('/messages', { ... })` headers to incl
 
 - [ ] **Step 3: Run the e2e test to verify it passes**
 
-Run: `npx vitest run test/e2e/chat-to-task.test.ts`
+Run: `pnpm exec vitest run test/e2e/chat-to-task.test.ts`
 Expected: PASS — chat→onboard→auto-chain research flow still works through the gate (`task_created`, `plannedNextStep.taskType === 'research.run_cycle'`, profile + research task persisted).
 
 - [ ] **Step 4: Commit**
@@ -707,12 +707,12 @@ git commit -m "docs(sp6.1): .env.example chat token dev placeholder + boundary n
 
 - [ ] **Step 1: Full typecheck**
 
-Run: `npm run typecheck`
+Run: `pnpm typecheck`
 Expected: no errors.
 
 - [ ] **Step 2: Full test suite**
 
-Run: `npm test`
+Run: `pnpm test`
 Expected: PASS — entire suite green, including: `src/auth/bearer.test.ts`, `src/chat/auth.test.ts`, `src/read-api/auth.test.ts` (unchanged), `src/chat/chat-app.test.ts` (auth-aware + gate-before-parse), `src/config/env.test.ts`, `test/e2e/chat-to-task.test.ts`.
 
 - [ ] **Step 3: Confirm the guardrails behaviorally**
