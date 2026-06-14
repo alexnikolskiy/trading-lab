@@ -166,7 +166,7 @@ export class MastraResearcher implements ResearcherPort {
 
 ### 4.5 `composition.ts` changes
 
-- `composeRuntime()` calls `const mastraRuntime = composeMastra(env)` near the top (after `loadEnv`, before `services`).
+- `composeRuntime()` calls `const mastraRuntime = composeMastra(env)` **after `loadEnv()` and after the existing required `DATABASE_URL` / `REDIS_URL` checks, before `services` are assembled** (placing it after `createDbClient` / queue creation is also fine). It must **not** run before the `DATABASE_URL` / `REDIS_URL` guards: `composeMastra` resolves models for mastra-mode roles and can throw on a missing LLM key, and today that resolution happens inside `buildXxx` *after* those guards. Calling it earlier would surface an LLM-key error before a missing `DATABASE_URL` / `REDIS_URL` — a needless **startup error-precedence change**. Keep the precedence: `DATABASE_URL` → `REDIS_URL` → (model/provider resolution).
 - The five `buildXxx(env)` helpers become `buildXxx(env, mastraRuntime)` and shrink to:
 
 ```ts
@@ -227,6 +227,7 @@ The spike's findings may refine §4.3 step 3–4 and §7.1's all-fake assertion;
 - Fakes work without LLM keys: `make-services.ts` and tests never import `src/mastra/**`; the Fake path is unchanged.
 - Mastra adapters work with current model/provider settings: resolution path is identical.
 - `composeRuntime` remains the composition root; it only delegates Mastra-specific composition and exposes a handle.
+- **Startup error precedence is preserved:** `composeMastra(env)` runs after the `DATABASE_URL` / `REDIS_URL` required checks, so a missing LLM key still cannot mask a missing `DATABASE_URL` / `REDIS_URL` (order: `DATABASE_URL` → `REDIS_URL` → model/provider resolution).
 
 ## 10. Risks & mitigations
 
