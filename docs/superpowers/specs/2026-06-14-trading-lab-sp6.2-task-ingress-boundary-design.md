@@ -122,6 +122,7 @@ TRADING_LAB_CALLBACK_TOKEN=dev-callback-token   # service-to-service token for P
   - `/tasks`: unset task token → 503; wrong token → 401.
   - `/callbacks/backtest-completed`: unset callback token → 503; wrong token → 401; correct token → 202 `{ status: 'accepted' }`.
   - **Cross-token isolation:** the task token presented to `/callbacks` → 401; the callback token presented to `/tasks` → 401.
+  - **Ordering (gate before body):** a malformed / invalid JSON body POSTed to `/tasks` with **no** token → 503, and with a **wrong** token → 401 — never `400`. Proves the gate runs before JSON parsing / schema validation / `createAndEnqueueTask`. (A *valid* token + malformed body still → 400, exercising the existing validation path.)
 - `test/e2e/ingress-to-worker.test.ts`, `test/e2e/research-run-cycle.test.ts`, `test/e2e/strategy-onboard.test.ts` — TOUCH. Each builds `createIngressApp` and POSTs `/tasks`; inject a `taskToken` and send the Bearer header so the authorized end-to-end flow still runs.
 - `src/config/env.test.ts` — TOUCH. Assert `TRADING_LAB_TASK_TOKEN` and `TRADING_LAB_CALLBACK_TOKEN` load from source.
 
