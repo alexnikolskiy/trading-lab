@@ -14,6 +14,7 @@ import { hypothesisBuildHandler } from './orchestrator/handlers/hypothesis-build
 import type { AppServices } from './orchestrator/app-services.ts';
 import type { StrategyAnalystPort } from './ports/strategy-analyst.port.ts';
 import { MockPlatformGatewayAdapter } from './adapters/platform/mock-platform-gateway.adapter.ts';
+import { selectResearchPlatform } from './adapters/platform/select-research-platform.ts';
 import { FakeResearcher } from './adapters/researcher/fake-researcher.ts';
 import { MastraResearcher } from './adapters/researcher/mastra-researcher.ts';
 import { FakeCritic } from './adapters/critic/fake-critic.ts';
@@ -107,6 +108,7 @@ export function composeRuntime() {
     artifacts: new LocalFileArtifactStore(env.ARTIFACT_DIR),
     events: new DrizzleAgentEventRepository(db),
     platform: new MockPlatformGatewayAdapter(),
+    researchPlatform: selectResearchPlatform(env.TRADING_PLATFORM_INTEGRATION),
     researcher: buildResearcher(env),
     critic: buildCritic(env),
     hypotheses,

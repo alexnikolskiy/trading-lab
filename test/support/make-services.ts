@@ -5,6 +5,7 @@ import { InMemoryAgentEventRepository } from '../../src/adapters/repository/in-m
 import { InMemoryArtifactStore } from '../../src/adapters/artifact/in-memory-artifact-store.ts';
 import { FakeStrategyAnalyst } from '../../src/adapters/analyst/fake-strategy-analyst.ts';
 import { MockPlatformGatewayAdapter } from '../../src/adapters/platform/mock-platform-gateway.adapter.ts';
+import { MockResearchPlatformAdapter } from '../../src/adapters/platform/mock-research-platform.adapter.ts';
 import { FakeResearcher } from '../../src/adapters/researcher/fake-researcher.ts';
 import { InMemoryHypothesisProposalRepository } from '../../src/adapters/repository/in-memory-hypothesis-proposal.repository.ts';
 import { InMemoryHypothesisReviewRepository } from '../../src/adapters/repository/in-memory-hypothesis-review.repository.ts';
@@ -26,6 +27,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     artifacts: new InMemoryArtifactStore(),
     events: new InMemoryAgentEventRepository(),
     platform: new MockPlatformGatewayAdapter(),
+    researchPlatform: new MockResearchPlatformAdapter(),
     researcher: new FakeResearcher(),
     critic: null, // base happy-path does not invoke Critic; tests opt in via overrides
     hypotheses,
