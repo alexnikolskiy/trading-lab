@@ -89,3 +89,14 @@ describe('SP-6 agent-activity knobs', () => {
     expect(env.AGENT_EVENT_STREAM_HEARTBEAT_MS).toBe(30000);
   });
 });
+
+describe('SP-6.1 chat ingress token', () => {
+  it('defaults TRADING_LAB_CHAT_TOKEN to undefined', () => {
+    expect(loadEnv({} as NodeJS.ProcessEnv).TRADING_LAB_CHAT_TOKEN).toBeUndefined();
+  });
+
+  it('reads TRADING_LAB_CHAT_TOKEN from source', () => {
+    const env = loadEnv({ TRADING_LAB_CHAT_TOKEN: 'chat-secret' } as unknown as NodeJS.ProcessEnv);
+    expect(env.TRADING_LAB_CHAT_TOKEN).toBe('chat-secret');
+  });
+});

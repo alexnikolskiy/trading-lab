@@ -9,6 +9,7 @@ export interface Env {
   INGRESS_PORT: number;
   READ_API_PORT: number;
   TRADING_LAB_READ_TOKEN?: string;
+  TRADING_LAB_CHAT_TOKEN?: string;
   STRATEGY_ANALYST_ADAPTER: 'fake' | 'mastra';
   STRATEGY_ANALYST_MODEL: string;
   ANTHROPIC_API_KEY?: string;
@@ -65,6 +66,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     INGRESS_PORT: parsePort(source.INGRESS_PORT, 3000),
     READ_API_PORT: parsePort(source.READ_API_PORT, 3100),
     TRADING_LAB_READ_TOKEN: source.TRADING_LAB_READ_TOKEN,
+    TRADING_LAB_CHAT_TOKEN: source.TRADING_LAB_CHAT_TOKEN,
     STRATEGY_ANALYST_ADAPTER: source.STRATEGY_ANALYST_ADAPTER === 'mastra' ? 'mastra' : 'fake',
     STRATEGY_ANALYST_MODEL: source.STRATEGY_ANALYST_MODEL ?? 'anthropic/claude-sonnet-4-6',
     ANTHROPIC_API_KEY: source.ANTHROPIC_API_KEY,
