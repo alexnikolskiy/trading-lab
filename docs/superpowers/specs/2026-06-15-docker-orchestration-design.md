@@ -55,14 +55,14 @@ The browser **never** talks to trading-lab directly — office-server is the onl
 
 | Service       | Container port(s) | Host-published?                | Notes |
 |---------------|-------------------|--------------------------------|-------|
-| office-web    | 80                | yes → `${OFFICE_WEB_PORT:-8080}`   | browser entry (nginx static) |
-| office-server | 8787              | yes → `${OFFICE_SERVER_PORT:-8787}`| browser XHR + WS target |
+| office-web    | 80                | **only in overlays** → `${OFFICE_WEB_PORT:-8080}`   | browser entry (nginx static); base uses `expose` only |
+| office-server | 8787              | **only in overlays** → `${OFFICE_SERVER_PORT:-8787}`| browser XHR + WS target; base uses `expose` only |
 | ingress       | 3000 + 3100       | **no** (internal)              | read-api + chat/tasks |
 | worker        | —                 | no                             | queue consumer |
 | postgres      | 5432              | **no** (internal)              | avoids host conflict with platform pg |
 | redis         | 6379              | **no** (internal)              | avoids host conflict with platform redis |
 
-Because pg/redis/ingress are internal-only, there is **no host-port conflict** with a running `trading-platform` (which uses 5432/6379/8839 on the host). demo binds published ports to `127.0.0.1`.
+The **base defines no `ports:`** — only `expose:`. **All host publishing lives in the mode overlays** (demo/local bind `127.0.0.1`; vps binds `${BIND_ADDR:-0.0.0.0}`). Keeping `ports:` out of the base avoids Docker Compose port-list merge conflicts (overlay port lists append rather than replace) and prevents accidental broad binds. Because pg/redis/ingress are internal-only and the base publishes nothing, there is **no host-port conflict** with a running `trading-platform` (which uses 5432/6379/8839 on the host).
 
 ## 4. File deliverables
 
@@ -101,7 +101,7 @@ Build context for both is the office repo **root** (workspaces + `tools/sync-flo
 
 ## 5. Base compose (`docker-compose.yml`)
 
-Repurposed from infra-only to the full shared stack. All connection values use service names; secrets/tokens come from the `--env-file` via `${VAR}` interpolation into each service's `environment:` block (with safe defaults).
+Repurposed from infra-only to the full shared stack. All connection values use service names; secrets/tokens come from the `--env-file` via `${VAR}` interpolation into each service's `environment:` block (with safe defaults). The base publishes **no** host ports — services that the browser reaches use `expose:` only, and every `ports:` mapping is defined in a mode overlay (§9).
 
 ### 5.1 Services
 
@@ -137,14 +137,14 @@ Repurposed from infra-only to the full shared stack. All connection values use s
 - build `context: ${TRADING_OFFICE_PATH:-../trading-office}`, `dockerfile: apps/server/Dockerfile`.
 - env: `OFFICE_CONNECTOR_MODE=trading-lab`, `OFFICE_SERVER_PORT=8787`, `TRADING_LAB_READ_URL=http://ingress:3100`, `TRADING_LAB_READ_TOKEN`, `TRADING_LAB_CHAT_URL=http://ingress:3000`, `TRADING_LAB_CHAT_TOKEN`, `OFFICE_CORS_ORIGIN=${OFFICE_CORS_ORIGIN:-http://localhost:8080}`. Platform vars unset by default (demo).
 - `depends_on: ingress (condition: service_healthy)`.
-- port `${OFFICE_SERVER_PORT:-8787}:8787`.
+- `expose: ["8787"]` — **no host publishing in base** (overlays publish it).
 - healthcheck: probe `http://localhost:8787/api/office/agents/statuses` (no dedicated `/health` route exists).
 
 **office-web**
 - build `context: ${TRADING_OFFICE_PATH:-../trading-office}`, `dockerfile: apps/web/Dockerfile`,
   `args: { VITE_OFFICE_MODE: connected, VITE_OFFICE_GATEWAY_URL: ${VITE_OFFICE_GATEWAY_URL:-http://localhost:8787} }`.
 - `depends_on: office-server`.
-- port `${OFFICE_WEB_PORT:-8080}:80`.
+- `expose: ["80"]` — **no host publishing in base** (overlays publish it).
 
 ### 5.2 Networks & volumes
 
@@ -163,12 +163,15 @@ These are service-to-service tokens; they never reach the browser (the web build
 
 **Decision:** build-arg per mode.
 - `VITE_OFFICE_MODE=connected` (build arg, all modes).
-- `VITE_OFFICE_GATEWAY_URL` (build arg from env): demo default `http://localhost:8787`; **vps must set the real public/internal office-server URL** (e.g. `https://office.example.com` behind a reverse proxy, or `http://<vps-host>:8787`). WS auto-derives; override with `VITE_OFFICE_GATEWAY_WS_URL` only for split origins.
-- Cross-origin is handled by `OFFICE_CORS_ORIGIN` (= the web's public origin), not by a proxy.
+- `VITE_OFFICE_GATEWAY_URL` (build arg from env) is the **public URL of office-server (the API) — not the web UI URL**. The browser uses it for `/api/office/*` XHR and the `/api/office/events` WebSocket. demo default `http://localhost:8787`. **vps must set the real public API origin**, which is typically a *different* origin from the web UI — e.g. API `https://office-api.example.com` vs UI `https://office.example.com`. WS auto-derives (`http→ws`/`https→wss`); set `VITE_OFFICE_GATEWAY_WS_URL` only for a split WS origin.
+- Cross-origin is handled by `OFFICE_CORS_ORIGIN` = the **web UI (page) origin** that issues the requests (e.g. `https://office.example.com`).
+- **Optional same-origin variant:** front the stack with a reverse proxy that serves the web UI and routes `/api/office/*` + the WS upgrade to office-server. Then a single public origin serves both, `VITE_OFFICE_GATEWAY_URL` = that origin, and CORS is moot. Valid **only** if the proxy actually forwards `/api/office/*` and the WS upgrade to office-server.
 
 ## 8. Private source integration (decision: URL-only)
 
-For local/vps, the optional read-only operational source is wired **by URL only**. office-server needs exactly:
+**Mode semantics (decision):** **demo has no private source** (`OFFICE_PLATFORM_ENABLED=false`). **local and vps include the read-only Ops Read source by default** (`OFFICE_PLATFORM_ENABLED=true`), wired **by URL only**. (A local/vps operator can still opt out by setting `OFFICE_PLATFORM_ENABLED=false` in their env file — e.g. to run local fully offline.)
+
+For local/vps, office-server needs exactly:
 
 ```
 OFFICE_PLATFORM_ENABLED=true
@@ -201,23 +204,25 @@ vps points `TRADING_PLATFORM_READ_URL` at the real internal/VPS host.
 ## 9. Mode overlays
 
 ### 9.1 `docker-compose.demo.yml`
-- Publishes `office-web` + `office-server` bound to `127.0.0.1`.
+- **Publishes ports (base has none):** `office-web` → `127.0.0.1:${OFFICE_WEB_PORT:-8080}:80`, `office-server` → `127.0.0.1:${OFFICE_SERVER_PORT:-8787}:8787`.
 - `restart: "no"` on app services.
 - Ensures demo-safe posture: `OFFICE_PLATFORM_ENABLED=false`, adapters `fake`, `TRADING_PLATFORM_INTEGRATION=mock` (these are also the base defaults).
-- Fully self-contained: no private source, no exchange credentials, no live execution.
+- Fully self-contained: **no private source**, no exchange credentials, no live execution.
 
 ### 9.2 `docker-compose.local.yml`
-- Extends demo.
-- office-server: `OFFICE_PLATFORM_ENABLED=${OFFICE_PLATFORM_ENABLED:-true}`, `TRADING_PLATFORM_READ_URL`, `TRADING_PLATFORM_READ_TOKEN`, `extra_hosts: host.docker.internal:host-gateway`.
+- Extends the demo posture (but the command is `base + local.yml`, **not** `+ demo.yml`), so this overlay carries its own `ports:`.
+- **Publishes ports:** `office-web` → `127.0.0.1:${OFFICE_WEB_PORT:-8080}:80`, `office-server` → `127.0.0.1:${OFFICE_SERVER_PORT:-8787}:8787`.
+- Private read-only source **on by default**: `OFFICE_PLATFORM_ENABLED=${OFFICE_PLATFORM_ENABLED:-true}` (set `false` to run local without it), `TRADING_PLATFORM_READ_URL`, `TRADING_PLATFORM_READ_TOKEN`, `extra_hosts: ["host.docker.internal:host-gateway"]`.
 - Optional `private-path-check` service (profile-gated, off by default).
 - May publish lab read-api on a **shifted** host port for developer convenience (e.g. `127.0.0.1:3100:3100`) — optional, still internal-first.
 
 ### 9.3 `docker-compose.vps.yml`
-- Extends the same base.
-- Absolute build/path env: `TRADING_OFFICE_PATH=/opt/trading-office`, `PRIVATE_RUNTIME_PATH=/opt/trading-platform` (only used if the optional profile is invoked).
+- Extends the same base; carries its own `ports:`.
+- **Publishes ports:** `office-web` → `${BIND_ADDR:-0.0.0.0}:${OFFICE_WEB_PORT:-8080}:80`, `office-server` → `${BIND_ADDR:-0.0.0.0}:${OFFICE_SERVER_PORT:-8787}:8787`. Set `BIND_ADDR=127.0.0.1` when fronted by a host reverse proxy.
+- Private read-only source **on by default** (same vars as local), pointed at the real internal/VPS host.
+- Absolute build/path env: `TRADING_OFFICE_PATH=/opt/trading-office`, `PRIVATE_RUNTIME_PATH=/opt/trading-platform` (the latter only used if the optional `private-path-check` profile is invoked).
 - `restart: unless-stopped` on long-lived services; intended for `up -d`.
-- Bind address `${BIND_ADDR:-0.0.0.0}` for published ports (or `127.0.0.1` behind a host reverse proxy).
-- No infra host ports.
+- No infra (pg/redis/ingress) host ports.
 - Prod env via gitignored `.env.vps`.
 - Live execution never auto-starts: lab stays `mock`; enabling any real runtime/exchange path requires explicit env, never a default.
 
@@ -261,8 +266,10 @@ TRADING_OFFICE_PATH=/opt/trading-office
 BIND_ADDR=0.0.0.0
 OFFICE_WEB_PORT=8080
 OFFICE_SERVER_PORT=8787
-OFFICE_CORS_ORIGIN=https://office.example.com
-VITE_OFFICE_GATEWAY_URL=https://office.example.com   # MUST be the real public/internal server URL
+OFFICE_CORS_ORIGIN=https://office.example.com           # web UI (page) origin
+VITE_OFFICE_GATEWAY_URL=https://office-api.example.com  # office-server (API) public origin — baked into web build
+# Same-origin variant (reverse proxy routes /api/office/* + WS upgrade to office-server):
+#   set OFFICE_CORS_ORIGIN and VITE_OFFICE_GATEWAY_URL both to https://office.example.com
 TRADING_LAB_READ_TOKEN=CHANGE_ME
 TRADING_LAB_CHAT_TOKEN=CHANGE_ME
 TRADING_LAB_TASK_TOKEN=CHANGE_ME
