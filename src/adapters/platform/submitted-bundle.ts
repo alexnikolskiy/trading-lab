@@ -1,10 +1,22 @@
 // src/adapters/platform/submitted-bundle.ts
 import { createHash } from 'node:crypto';
 import { CONTRACT_VERSION } from '@trading-platform/sdk';
+import { createOverlayManifest } from '@trading-platform/sdk/builder';
+import type { OverlayManifestInput } from '@trading-platform/sdk/builder';
 import type { SubmittedBundle } from '@trading-platform/sdk/agent';
 import type { ModuleBundle } from '../../domain/module-bundle.ts';
+import type { OverlayManifestMeta } from '../../domain/overlay-manifest-meta.ts';
 
 const MODULE_DIR = 'module';
+
+/** Thrown when a bundle reaches the platform wire boundary without SP-7.1b overlayMeta (not validation-ready). */
+export class MissingOverlayMetaError extends Error {
+  readonly code = 'overlay_meta_missing';
+  constructor() {
+    super('toSubmittedBundle: bundle is missing overlayMeta (pre-SP-7.1b bundle is not validation-ready) [overlay_meta_missing]');
+    this.name = 'MissingOverlayMetaError';
+  }
+}
 
 function sha256Hex(bytes: string): string {
   return createHash('sha256').update(bytes).digest('hex');
@@ -40,17 +52,37 @@ function assertSafeBundlePath(path: string, kind: string): void {
   if (path.split('/').some((seg) => seg === '..')) throw new Error(`toSubmittedBundle: path traversal in ${kind} path: ${path}`);
 }
 
+/** Map the lab-native OverlayManifestMeta onto the SDK's OverlayManifestInput (1:1; SDK fills the rest). */
+function mapMetaToOverlayInput(meta: OverlayManifestMeta): OverlayManifestInput {
+  return {
+    id: meta.id,
+    version: meta.version,
+    name: meta.name,
+    summary: meta.summary,
+    rationale: meta.rationale,
+    author: meta.author,
+    paramsSchema: meta.paramsSchema,
+    targetStrategyRef: meta.targetStrategyRef,
+    interceptionPoint: meta.interceptionPoint,
+  };
+}
+
 /**
- * Map a lab ModuleBundle to the platform's submitted-bundle wire shape (spec §5).
- *  - lab `files` keys are bare relative paths → re-rooted under `module/`; `manifest.json` at root
- *  - `descriptor.files` = `manifest.json` + all `module/**` payload entries (sorted, per-file sha256), per the 019 contract
- *  - `bundleHash` replicates `trading-platform/.../bundle-hash.ts::computeBundleHash`
+ * Map a lab ModuleBundle to the platform's submitted-bundle wire shape (SP-7.1b §3).
+ *  - `manifest.json` = a real 017 overlay manifest built from `bundle.overlayMeta` via the SDK's
+ *    `createOverlayManifest` (NOT the lab-native manifest) — this is what the gateway validates.
+ *  - lab `files` keys are re-rooted under `module/`; `descriptor.entryPoint` still comes from the
+ *    lab manifest's `entry`.
+ *  - `descriptor.files` = `manifest.json` + all `module/**` payload entries (sorted, per-file sha256).
+ *  - `bundleHash` replicates `trading-platform/.../bundle-hash.ts::computeBundleHash`.
  */
 export function toSubmittedBundle(bundle: ModuleBundle): SubmittedBundle {
+  if (bundle.overlayMeta === undefined) throw new MissingOverlayMetaError();
   for (const key of Object.keys(bundle.files)) assertSafeBundlePath(key, 'file');
   assertSafeBundlePath(bundle.manifest.entry, 'entry');
 
-  const manifestJson = JSON.stringify(bundle.manifest);
+  const manifest017 = createOverlayManifest(mapMetaToOverlayInput(bundle.overlayMeta));
+  const manifestJson = JSON.stringify(manifest017);
   const manifestSha256 = sha256Hex(manifestJson);
 
   // One sorted payload list (manifest.json + module/**) drives both descriptor.files and files[].
@@ -72,5 +104,5 @@ export function toSubmittedBundle(bundle: ModuleBundle): SubmittedBundle {
 
   const files = payload.map((f) => ({ path: f.path, contentBase64: Buffer.from(f.source, 'utf8').toString('base64') }));
 
-  return { manifest: bundle.manifest, files, descriptor };
+  return { manifest: manifest017, files, descriptor };
 }
