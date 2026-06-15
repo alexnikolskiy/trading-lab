@@ -58,3 +58,30 @@ describe('toSubmittedBundle', () => {
     }
   });
 });
+
+describe('toSubmittedBundle path safety', () => {
+  const code = 'export const overlay = {};';
+  function withFileKey(key: string) {
+    return assembleBundle(manifest, { [key]: code });
+  }
+
+  it.each([
+    ['empty', ''],
+    ['traversal', '../x.ts'],
+    ['absolute', '/x.ts'],
+    ['drive-letter', 'C:/x.ts'],
+    ['backslash', 'dir\\x.ts'],
+    ['NUL', 'dir/\0x.ts'],
+  ])('rejects an unsafe file path: %s', (_label, key) => {
+    expect(() => toSubmittedBundle(withFileKey(key))).toThrow();
+  });
+
+  it('rejects an unsafe manifest.entry', () => {
+    const b = assembleBundle({ ...manifest, entry: '../index.ts' }, { 'index.ts': code });
+    expect(() => toSubmittedBundle(b)).toThrow();
+  });
+
+  it('still accepts a safe nested path', () => {
+    expect(() => toSubmittedBundle(assembleBundle(manifest, { 'index.ts': code, 'helpers/util.ts': 'export const u = 1;' }))).not.toThrow();
+  });
+});

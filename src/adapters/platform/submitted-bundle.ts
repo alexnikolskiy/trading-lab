@@ -28,12 +28,28 @@ function canonicalJson(value: unknown): string {
 }
 
 /**
+ * Reject unsafe relative bundle paths locally so SP-7.1 guarantees structural correctness
+ * before the gateway materializes the bundle (mirrors the platform's isSafeBundlePath guard).
+ */
+function assertSafeBundlePath(path: string, kind: string): void {
+  if (path.length === 0) throw new Error(`toSubmittedBundle: empty ${kind} path`);
+  if (path.includes('\0')) throw new Error(`toSubmittedBundle: NUL in ${kind} path: ${JSON.stringify(path)}`);
+  if (path.includes('\\')) throw new Error(`toSubmittedBundle: backslash in ${kind} path: ${path}`);
+  if (path.startsWith('/')) throw new Error(`toSubmittedBundle: absolute ${kind} path: ${path}`);
+  if (/^[A-Za-z]:/.test(path)) throw new Error(`toSubmittedBundle: drive-letter ${kind} path: ${path}`);
+  if (path.split('/').some((seg) => seg === '..')) throw new Error(`toSubmittedBundle: path traversal in ${kind} path: ${path}`);
+}
+
+/**
  * Map a lab ModuleBundle to the platform's submitted-bundle wire shape (spec §5).
  *  - lab `files` keys are bare relative paths → re-rooted under `module/`; `manifest.json` at root
  *  - `descriptor.files` = `manifest.json` + all `module/**` payload entries (sorted, per-file sha256), per the 019 contract
  *  - `bundleHash` replicates `trading-platform/.../bundle-hash.ts::computeBundleHash`
  */
 export function toSubmittedBundle(bundle: ModuleBundle): SubmittedBundle {
+  for (const key of Object.keys(bundle.files)) assertSafeBundlePath(key, 'file');
+  assertSafeBundlePath(bundle.manifest.entry, 'entry');
+
   const manifestJson = JSON.stringify(bundle.manifest);
   const manifestSha256 = sha256Hex(manifestJson);
 
