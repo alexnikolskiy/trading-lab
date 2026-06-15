@@ -472,7 +472,8 @@ function legacyStableStringify(value: unknown): string {
   const obj = value as Record<string, unknown>;
   return `{${Object.keys(obj).sort().map((k) => `${JSON.stringify(k)}:${legacyStableStringify(obj[k])}`).join(',')}}`;
 }
-const legacy = (p: Record<string, unknown>) => createHash('sha256').update(legacyStableStringify(p)).digest('hex');
+// The legacy SP-4 sha256 carries a `sha256:` prefix and hashes utf8 — preserve both for byte-compat.
+const legacy = (p: Record<string, unknown>) => `sha256:${createHash('sha256').update(legacyStableStringify(p), 'utf8').digest('hex')}`;
 
 describe('computeParamsHash', () => {
   const params = { bars: 2, threshold: 0.5 };
@@ -530,7 +531,8 @@ export function errMsg(err: unknown): string {
 }
 
 export function sha256(input: string): string {
-  return createHash('sha256').update(input).digest('hex');
+  // Byte-identical to the legacy SP-4 handler hash: `sha256:` prefix + utf8 input.
+  return `sha256:${createHash('sha256').update(input, 'utf8').digest('hex')}`;
 }
 
 export function stableStringify(value: unknown): string {
