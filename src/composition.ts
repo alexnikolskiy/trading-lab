@@ -115,6 +115,9 @@ export function composeRuntime() {
     evaluatorThresholds: env.evaluatorThresholds,
     chatSessions: new DrizzleChatSessionRepository(db),
     chatPlans: new DrizzleChatPlanRepository(db),
+    backtestBackend: env.BACKTEST_BACKEND,
+    platformPoll: { maxPolls: env.PLATFORM_RUN_MAX_POLLS, pollDelayMs: env.PLATFORM_RUN_POLL_DELAY_MS },
+    baselineVersion: env.TRADING_PLATFORM_BASELINE_VERSION,
   };
 
   const router = new WorkflowRouter();
