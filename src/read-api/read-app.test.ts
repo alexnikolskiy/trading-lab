@@ -45,6 +45,19 @@ describe('createReadApp skeleton', () => {
     // The 200-with-token case needs real routes — it lands in Task 15 (stub routes register no GET here).
   });
 
+  it('GET /v1/authz is a credential probe: 401 without token, 401 with wrong token, 200 with valid token', async () => {
+    const app = createReadApp(deps());
+    expect((await app.request('/v1/authz')).status).toBe(401);
+
+    const wrong = await app.request('/v1/authz', { headers: { authorization: 'Bearer nope' } });
+    expect(wrong.status).toBe(401);
+    expect((await wrong.json() as { error: { code: string } }).error.code).toBe('unauthorized');
+
+    const ok = await app.request('/v1/authz', { headers: AUTH });
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ status: 'ok' });
+  });
+
   it('non-GET on a /v1 path returns 405 (not 404)', async () => {
     const app = createReadApp(deps());
     for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {

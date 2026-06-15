@@ -4,11 +4,16 @@ Read-only, service-to-service HTTP boundary for trading-office. Separate Hono ap
 
 Auth: `Authorization: Bearer <TRADING_LAB_READ_TOKEN>` on every `/v1/*` route. `/healthz` + `/readyz` are open.
 
+Readiness vs. credentials — two distinct probes:
+- `/readyz` is **open** and reports process/DB readiness only. It says nothing about whether a caller's read token is valid.
+- `GET /v1/authz` is **credential-gated** (same `readAuthMiddleware` as the rest of `/v1/*`): a valid `TRADING_LAB_READ_TOKEN` → `200 { "status": "ok" }`; a missing/invalid token → the same `401 { error: { code: "unauthorized" } }` as any other read route. Consumers use it to confirm the credentials they will actually use for `/v1/*` reads, not just that the process is up.
+
 Endpoints:
 - `GET /v1/hypotheses` (`status?`, `profileId?`, `limit?`, `cursor?`) · `GET /v1/hypotheses/:id`
 - `GET /v1/backtests` (`hypothesisId?`, `status?`, `limit?`, `cursor?`) · `GET /v1/backtests/:id`
 - `GET /v1/agent-events` (`taskId?`, `type?`, `since?`, `correlationId?`, `limit?`, `cursor?`)
-- `GET /healthz` · `GET /readyz` (DB readiness only — no queue/worker)
+- `GET /v1/authz` (credential probe — `200` with a valid read token, `401` otherwise)
+- `GET /healthz` · `GET /readyz` (process/DB readiness only — open, no token, no queue/worker)
 
 Pagination is keyset (opaque `cursor`); `limit` default 20, max 100. DTOs are deny-by-default projections; internal schema is never exposed; no `trading-platform` calls. See `docs/superpowers/specs/2026-06-13-trading-lab-sp5-read-api-design.md`.
 

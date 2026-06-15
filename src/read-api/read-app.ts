@@ -2,14 +2,14 @@ import { Hono, type Context } from 'hono';
 import type { ReadApiDeps } from './deps.ts';
 import { readAuthMiddleware } from './auth.ts';
 import { InvalidCursorError } from './pagination.ts';
-import { registerHealthRoutes } from './routes/health.ts';
+import { registerHealthRoutes, registerAuthzRoute } from './routes/health.ts';
 import { registerHypothesisRoutes } from './routes/hypotheses.ts';
 import { registerBacktestRoutes } from './routes/backtests.ts';
 import { registerAgentEventRoutes } from './routes/agent-events.ts';
 import { registerAgentRoutes } from './routes/agents.ts';
 import { registerStreamRoutes } from './routes/stream.ts';
 
-const V1_PATHS = ['/hypotheses', '/hypotheses/:id', '/backtests', '/backtests/:id', '/agent-events', '/agents', '/agents/:agentId', '/stream'];
+const V1_PATHS = ['/hypotheses', '/hypotheses/:id', '/backtests', '/backtests/:id', '/agent-events', '/agents', '/agents/:agentId', '/stream', '/authz'];
 
 export function createReadApp(deps: ReadApiDeps): Hono {
   const app = new Hono();
@@ -27,6 +27,7 @@ export function createReadApp(deps: ReadApiDeps): Hono {
   // gated read surface
   const v1 = new Hono();
   v1.use('*', readAuthMiddleware(deps.token));
+  registerAuthzRoute(v1); // credential probe — same gate, lets consumers verify their read token
   registerHypothesisRoutes(v1, deps);
   registerBacktestRoutes(v1, deps);
   registerAgentEventRoutes(v1, deps);
