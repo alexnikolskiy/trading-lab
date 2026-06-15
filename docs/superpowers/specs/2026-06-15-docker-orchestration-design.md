@@ -101,7 +101,7 @@ Build context for both is the office repo **root** (workspaces + `tools/sync-flo
 
 ## 5. Base compose (`docker-compose.yml`)
 
-Repurposed from infra-only to the full shared stack. All connection values use service names; secrets/tokens come from the `--env-file` via `${VAR}` interpolation into each service's `environment:` block (with safe defaults). The base publishes **no** host ports — services that the browser reaches use `expose:` only, and every `ports:` mapping is defined in a mode overlay (§9).
+Repurposed from infra-only to the full shared stack. All connection values use service names; secrets/tokens come from the `--env-file` via `${VAR}` interpolation into each service's `environment:` block (with safe defaults). The base publishes **no** host ports — services that the browser reaches use `expose:` only, and every `ports:` mapping is defined in a mode overlay (§9). `ingress`, `migrate`, and `worker` share one build definition through a YAML anchor (`x-lab-image: { build.context: ., image: trading-lab:local }`), so `trading-lab:local` is built exactly once and no service relies on another to produce it.
 
 ### 5.1 Services
 
@@ -289,7 +289,7 @@ PRIVATE_RUNTIME_PATH=/opt/trading-platform   # only used by --profile private-pa
 
 ## 12. Smoke check (`scripts/smoke.sh <mode>`)
 
-No external `curl` dependency — internal checks use `docker compose exec -T ingress node -e "fetch(...)"` (Node 22 has global fetch); host checks use the published ports.
+Requires `docker compose` and `curl`. Lab checks run inside the ingress container via `docker compose exec -T ingress node -e "fetch(...)"` (Node 22 has global fetch); office host checks and the optional Ops Read probe use `curl` against the published ports / URL.
 
 | Check | How |
 |-------|-----|
@@ -299,7 +299,7 @@ No external `curl` dependency — internal checks use `docker compose exec -T in
 | lab stream | `exec ingress` → `GET http://localhost:3100/v1/stream` first chunk received |
 | office server | host `GET http://localhost:${OFFICE_SERVER_PORT}/api/office/agents/statuses` 200 |
 | office web | host `GET http://localhost:${OFFICE_WEB_PORT}/` 200 + HTML |
-| private Ops Read (local/vps only) | if `TRADING_PLATFORM_READ_URL` set & reachable → probe it; **skipped in demo**, never starts the private runtime |
+| private Ops Read (local/vps only) | if `TRADING_PLATFORM_READ_URL` **and** `TRADING_PLATFORM_READ_TOKEN` are set → `curl -H "Authorization: Bearer …" …/ops/discover`; skipped if either is empty or in demo; never starts the private runtime |
 
 ## 13. Host-dev infra-only (back-compat)
 

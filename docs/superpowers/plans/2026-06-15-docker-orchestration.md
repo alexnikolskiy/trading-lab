@@ -261,6 +261,14 @@ git -C ../trading-office commit -m "feat(docker): infra-only build contract (ser
 # Infra-only for host development (run `pnpm ingress` / `pnpm worker` on the host):
 #   docker compose up postgres redis
 
+# Shared build for the lab image — declared once, reused by ingress/migrate/worker via the
+# YAML anchor below. Docker builds trading-lab:local a single time (keyed by the image tag),
+# so no service depends on another to produce the image.
+x-lab-image: &lab-image
+  build:
+    context: .
+  image: trading-lab:local
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -286,11 +294,8 @@ services:
       retries: 20
     networks: [trading]
 
-  # The lab image is built ONCE here and reused by `migrate` and `worker`.
   ingress:
-    build:
-      context: .
-    image: trading-lab:local
+    <<: *lab-image
     command: ["pnpm", "ingress"]
     environment:
       DATABASE_URL: postgres://lab:lab@postgres:5432/trading_lab
@@ -330,7 +335,7 @@ services:
     networks: [trading]
 
   migrate:
-    image: trading-lab:local
+    <<: *lab-image
     command: ["pnpm", "db:migrate"]
     environment:
       DATABASE_URL: postgres://lab:lab@postgres:5432/trading_lab
@@ -341,7 +346,7 @@ services:
     networks: [trading]
 
   worker:
-    image: trading-lab:local
+    <<: *lab-image
     command: ["pnpm", "worker"]
     environment:
       DATABASE_URL: postgres://lab:lab@postgres:5432/trading_lab
@@ -771,6 +776,8 @@ git commit -m "feat(docker): vps overlay + env example (detached, restart polici
 ```bash
 #!/usr/bin/env bash
 # Smoke-check the running stack for a mode. Usage: scripts/smoke.sh <demo|local|vps>
+# Requires: docker compose (lab checks run inside the ingress container via node fetch) and
+#           curl on the host (office host checks and the optional Ops Read probe use curl).
 set -uo pipefail
 
 MODE="${1:-demo}"
@@ -799,14 +806,14 @@ curl -fsS "http://localhost:${WEB_PORT}/" | grep -qi "<!doctype html" && pass "o
 
 if [ "$MODE" != "demo" ]; then
   echo "[smoke:${MODE}] optional private Ops Read…"
-  if [ -n "${TRADING_PLATFORM_READ_URL:-}" ]; then
-    if curl -fsS --max-time 4 "${TRADING_PLATFORM_READ_URL%/}/ops/discover" >/dev/null 2>&1; then
+  if [ -n "${TRADING_PLATFORM_READ_URL:-}" ] && [ -n "${TRADING_PLATFORM_READ_TOKEN:-}" ]; then
+    if curl -fsS --max-time 4 -H "Authorization: Bearer ${TRADING_PLATFORM_READ_TOKEN}" "${TRADING_PLATFORM_READ_URL%/}/ops/discover" >/dev/null 2>&1; then
       pass "private Ops Read reachable (${TRADING_PLATFORM_READ_URL})"
     else
       echo "  • private Ops Read not reachable — skipped (optional; not started by compose)"
     fi
   else
-    echo "  • TRADING_PLATFORM_READ_URL not set — private source check skipped"
+    echo "  • TRADING_PLATFORM_READ_URL/TOKEN not both set — private source check skipped"
   fi
 fi
 
@@ -904,6 +911,7 @@ Run the whole demo stack — the trading-lab backend plus the trading-office das
 
 - Docker with Compose v2 (≥ 2.17).
 - The `trading-office` checkout next to this repo (default `../trading-office`).
+- `curl` (used by the smoke check).
 
 ## Quickstart
 
