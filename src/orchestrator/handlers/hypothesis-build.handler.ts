@@ -10,11 +10,20 @@ import { normalizeFeature, LAB_FEATURE_CATALOG } from '../../domain/hypothesis-r
 import type { HypothesisBuild } from '../../domain/hypothesis-build.ts';
 import type { BacktestRun } from '../../domain/backtest-run.ts';
 import type { ValidationIssue } from '../../domain/schemas.ts';
-import { event, errMsg, computeParamsHash, finalizeBacktestCompletion } from './backtest-support.ts';
+import { event, errMsg, computeParamsHash, finalizeBacktestCompletion, sha256, stableStringify } from './backtest-support.ts';
+import { runPlatformBacktest } from './run-platform-backtest.ts';
 
 export const HypothesisBuildPayloadSchema = z.object({
   hypothesisId: z.string().min(1),
   params: z.record(z.unknown()).optional(),
+  backtestBackend: z.enum(['sp4_mock', 'research_platform']).optional(),
+  platformRun: z.object({
+    datasetId: z.string().min(1),
+    symbols: z.array(z.string().min(1)).min(1),
+    timeframe: z.string().min(1),
+    period: z.object({ from: z.string().min(1), to: z.string().min(1) }),
+    seed: z.number().int(),
+  }).optional(),
 });
 
 export const hypothesisBuildHandler: WorkflowHandler = async (task, services) => {
@@ -45,6 +54,14 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   };
   await services.builds.createGenerating(build);
 
+  const backend = payload.backtestBackend ?? services.backtestBackend;
+  if (backend === 'research_platform' && payload.platformRun === undefined) {
+    const issues: ValidationIssue[] = [{ code: 'missing_platform_run_config', severity: 'error', path: 'platformRun', message: 'platformRun is required when backtestBackend is research_platform' }];
+    await services.builds.markBuildFailed(buildId, issues);
+    await services.events.append(event(task.id, 'build_failed', { buildId, codes: ['missing_platform_run_config'] }));
+    return;
+  }
+
   // Builder (failure → build_failed, terminal for this attempt; no side-effects after)
   await services.events.append(event(task.id, 'builder.started', { buildId }));
   let out;
@@ -74,17 +91,29 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   await services.builds.markCandidate(buildId, { bundleHash: bundle.bundleHash, bundleArtifactRef: ref, manifest: bundle.manifest });
   await services.events.append(event(task.id, 'artifact.stored', { buildId, artifactId: ref.artifact_id }));
 
-  // Idempotency: same hypothesis + same params + same bundle must NOT re-submit (checked
-  // BEFORE the platform side-effect, so reuse never triggers a duplicate backtest).
-  const paramsHash = computeParamsHash('sp4_mock', params);
+  // Backend-aware identity (sp4_mock hash stays byte-identical; research_platform folds in run config + baseline).
+  const baselineRef = { id: `strategy:${profile.id}`, version: services.baselineVersion };
+  const paramsHash = backend === 'research_platform'
+    ? computeParamsHash('research_platform', params, { platformRun: payload.platformRun!, baselineRef })
+    : computeParamsHash('sp4_mock', params);
+
   const existingRun = await services.backtests.findByIdentity(hypothesis.id, paramsHash, bundle.bundleHash);
   if (existingRun) {
-    await services.events.append(event(task.id, 'backtest.reused', { runId: existingRun.id, platformRunId: existingRun.platformRunId, status: existingRun.status }));
+    await services.events.append(event(task.id, 'backtest.reused', { runId: existingRun.id, platformRunId: existingRun.platformRunId, status: existingRun.status, backend: existingRun.backend }));
     return;
   }
 
-  // Submit (Orchestrator-owned side-effect)
-  const baselineModuleId = `strategy:${profile.id}`;
+  if (backend === 'research_platform') {
+    const resumeToken = sha256(stableStringify({ v: 1, hypothesisId: hypothesis.id, paramsHash, bundleHash: bundle.bundleHash }));
+    await runPlatformBacktest({
+      services, task, buildId, bundle, profile, hypothesisId: hypothesis.id,
+      params, platformRun: payload.platformRun!, paramsHash, baselineRef, resumeToken,
+    });
+    return;
+  }
+
+  // sp4_mock path (unchanged behavior).
+  const baselineModuleId = baselineRef.id;
   const variantModuleId = bundle.manifest.moduleId;
   const runRef = await services.platform.submitBacktest({ correlationId: task.correlationId, baselineModuleId, variantModuleId, params });
 
@@ -93,9 +122,9 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
     id: runId, hypothesisBuildId: buildId, hypothesisId: hypothesis.id, strategyProfileId: profile.id,
     platformRunId: runRef.platformRunId, correlationId: task.correlationId, params, paramsHash, bundleHash: bundle.bundleHash,
     status: 'submitted', baselineModuleId, variantModuleId,
-    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
     artifactRefs: [], platformContractVersion: 'pending', sdkContractVersion: SDK_CONTRACT_VERSION,
+    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     submittedAt: now(), finishedAt: null, createdAt: now(), updatedAt: now(),
   };
   await services.backtests.createSubmitted(run);
