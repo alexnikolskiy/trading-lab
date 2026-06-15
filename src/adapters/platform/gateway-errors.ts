@@ -12,3 +12,15 @@ export class GatewayValidationError extends Error {
     this.code = error.code;
   }
 }
+
+/** Thrown when a run-lifecycle gateway call returns an `ok:false` envelope. */
+export class GatewayRunError extends Error {
+  readonly category: GatewayError['category'];
+  readonly code: string;
+  constructor(error: GatewayError) {
+    super(`gateway ${error.category}/${error.code}: ${error.message}`);
+    this.name = 'GatewayRunError';
+    this.category = error.category;
+    this.code = error.code;
+  }
+}
