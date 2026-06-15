@@ -1,52 +1,487 @@
 # trading-lab
 
-Research-only multi-agent system over trading-platform. Research brain; no live authority.
+**AI-агент для исследования торговых стратегий.** Система-«исследовательский мозг»
+над торговой платформой: она онбордит стратегию, выдвигает и проверяет гипотезы о том,
+как её улучшить, генерирует код-варианты, прогоняет бэктесты в песочнице платформы и
+выносит по каждому варианту решение — стоит ли отдавать его дальше, на paper-проверку.
 
-## Dev
+> ⚠️ **Research-only. Агент ничего не торгует вживую** и физически не может разместить ордер
+> (в системе нет execution-адаптера). Любое изменение в реальном боте проверяет и одобряет
+> человек. Сгенерированный агентом код тоже не исполняется внутри trading-lab — его запускает
+> только изолированная песочница торговой платформы.
 
-    pnpm install
-    docker compose up -d
-    cp .env.example .env
-    pnpm db:generate && pnpm db:migrate
-    pnpm test
+Дипломный проект курса по инженерии AI-агентов. Стек — **TypeScript + [Mastra](https://mastra.ai)**
+(аналог LangGraph для Node), оркестрация через очередь, хранение в Postgres.
 
-## Run (SP-1 foundation slice)
+---
 
-    pnpm ingress   # POST /tasks
-    pnpm worker    # consumes queue, dispatches via WorkflowRouter
+## Статус (что готово / что доделывается)
 
-Design: docs/superpowers/specs/2026-06-10-trading-lab-design.md
+| Блок | Статус |
+|------|--------|
+| Многоагентное ядро (5 агентов на Mastra) | ✅ готово |
+| Нелинейная оркестрация, точки ветвления | ✅ готово (7 точек ветвления) |
+| ≥3 инструмента, ≥1 внешний | ✅ готово (5 портов, 2 внешних) |
+| HTTP API + CLI для запуска/демо | ✅ готово |
+| 115 файлов тестов (Vitest), детерм. ассерты + проверка tool-вызовов | ✅ готово |
+| Обоснование «почему агент» и «почему без RAG» | ✅ в этом README |
+| Security-чеклист | ✅ в этом README |
+| Единый `docker compose` (demo / local / vps) | 🟡 в разработке (Dockerfile готов, overlay'и — скоро) |
+| Бенчмарк ≥10 запросов (input/expected) + success rate | 🟡 в разработке (методология ниже) |
+| Eval: LLM-as-judge | 🟡 в разработке (ассерты и проверка tool-вызовов уже есть) |
+| Observability через **Phoenix** (трейсы) | 🟡 coming soon (есть append-only `agent_event` audit-лог; seam под трейсинг подготовлен) |
+| Метрики latency p95 / cost per run / success rate | 🟡 будут измерены после бенчмарка и Phoenix |
 
-## Platform capability discovery (SP-7 slice 1)
+Незавершённые блоки помечены 🟡 и описаны ниже вместе с методологией — они доделываются.
 
-Read-only probe of the `trading-platform` research gateway over MCP — no execution, no DB, no
-runtime boot. It spawns the gateway over stdio (anonymous, zero secrets), calls
-`discover_research_contract` + `list_datasets`, audits the five `platform.*` AgentEvents to stdout,
-prints the capability descriptor + datasets, and exits non-zero on a contract mismatch / timeout /
-unreachable gateway (fail-closed).
+---
 
-The research gateway is a **separate trading-platform service**, reached only through runtime env
-(`TRADING_PLATFORM_GATEWAY_COMMAND` / `TRADING_PLATFORM_GATEWAY_ARGS`) — it is not an install or
-build dependency of trading-lab. For a local dev run you can point it at a checked-out platform
-gateway, e.g.:
+## Содержание
 
-```bash
-TRADING_PLATFORM_GATEWAY_COMMAND=node \
-TRADING_PLATFORM_GATEWAY_ARGS="--experimental-strip-types /path/to/trading-platform/src/research/mcp-gateway/bin/start-gateway.ts" \
-pnpm platform:discover
+1. [Что делает агент](#что-делает-агент)
+2. [Инженерный контекст: 6 вопросов проектирования](#инженерный-контекст-6-вопросов-проектирования)
+3. [Архитектура](#архитектура)
+4. [Как взаимодействуют агенты](#как-взаимодействуют-агенты)
+5. [Граф и точки ветвления](#граф-и-точки-ветвления)
+6. [Инструменты (tools)](#инструменты-tools)
+7. [RAG — почему пока не нужен](#rag--почему-пока-не-нужен)
+8. [Запуск и демонстрация](#запуск-и-демонстрация)
+9. [Качество: тесты, бенчмарк, eval, метрики](#качество-тесты-бенчмарк-eval-метрики)
+10. [Observability (Phoenix)](#observability-phoenix)
+11. [Security-чеклист](#security-чеклист)
+12. [Структура проекта](#структура-проекта)
+
+---
+
+## Что делает агент
+
+trading-lab принимает торговую стратегию и её историю сделок и автоматически ведёт
+**исследовательский цикл улучшения**: анализирует, где стратегия теряет деньги, выдвигает
+гипотезы об изменениях, валидирует их, собирает из прошедших гипотез код-варианты, прогоняет
+бэктест «базовая версия против варианта» на песочнице торговой платформы и по каждому
+результату выносит детерминированное решение
+(`PASS` / `MODIFY` / `FAIL` / `INCONCLUSIVE` / `PAPER_CANDIDATE`).
+
+**Результат работы** — долговечный архив гипотез с решениями, метриками бэктестов и ссылками
+на артефакты (Postgres + content-addressable хранилище), а также поток событий
+(`agent_event`), по которому видно каждое решение агента. Сильные кандидаты помечаются
+`PAPER_CANDIDATE` — их человек может отправить на paper-проверку.
+
+---
+
+## Инженерный контекст: 6 вопросов проектирования
+
+Это ответы на вопросы, которые инженер задаёт себе, проектируя агента под прод.
+
+### 1. Какую задачу решает агент?
+Автоматизирует рутинную часть исследования торговых стратегий: от «вот стратегия и её убытки»
+до «вот проверенные бэктестом кандидаты на улучшение с обоснованием». Снимает с человека
+ручной перебор гипотез и прогон бэктестов, оставляя ему только финальное решение.
+
+### 2. Кто будет пользоваться агентом?
+Основной пользователь — **исследователь/квант-инженер** торговой команды (в т.ч. сам автор).
+Точки входа: чат (`/chat/messages`, через дашборд `trading-office` — Telegram/web), оператор и
+`cron` (`/tasks`), а также сама платформа (callback по завершении бэктеста). Браузер никогда не
+ходит в trading-lab напрямую — только через бэкенд-дашборд.
+
+### 3. С какими внешними системами и данными работает агент?
+- **Торговая платформа** (`trading-platform`) — read-only рыночные данные/режим рынка, запуск
+  бэктестов и песочница. Доступ через MCP-gateway (вендоренный `@trading-platform/sdk`).
+- **Postgres** (`pgvector`-ready) — источник истины: профили стратегий, гипотезы, бэктесты,
+  оценки, append-only audit-лог.
+- **Redis (BullMQ)** — очередь задач между ingress и worker.
+- **Файловое хранилище артефактов** (локально или S3) — equity-кривые, бандлы, логи решений.
+- **LLM-провайдеры** — Anthropic / OpenAI / OpenRouter (через AI SDK).
+
+### 4. Почему именно агент, а не обычный пайплайн?
+Задача **исследовательская**: детерминированный workflow умеет посчитать метрики, но не умеет
+решать, *что попробовать дальше*. Агенту приходится:
+- по найденным убыткам **выдвигать гипотезы** и **выбирать**, какие вообще стоит проверять;
+- **адаптироваться к результатам**: если набор гипотез не прошёл — менять направление поиска;
+- **генерировать код** варианта стратегии под конкретную гипотезу (open-ended задача, не шаблон);
+- **классифицировать намерение** пользователя из свободного текста в чате и спланировать задачу;
+- понимать, **когда остановиться** (ограниченная автономия: лимиты, явные причины остановки).
+
+При этом систему мы построили как **гибрид**: LLM-агенты живут «в узлах» графа и делают
+ровно ту работу, где нужно суждение (анализ, гипотезы, код, критика, классификация), а
+**оркестрация, гейты валидации и финальная оценка — детерминированный код**. Это осознанное
+инженерное решение: открытое суждение отдаём модели, а корректность, безопасность,
+идемпотентность и воспроизводимость держим в коде. Так агент остаётся гибким, но его решения
+проверяемы и повторяемы — критично для прод-системы, принимающей решения о деньгах.
+
+### 5. Какие сложные / нестандартные ситуации ожидаем (edge cases)?
+| Ситуация | Как обрабатывается |
+|----------|--------------------|
+| Та же стратегия онбордится повторно | Дедуп по `sourceFingerprint` — пропускаем LLM-вызов, возвращаем существующий профиль (идемпотентность) |
+| LLM выдал невалидную/«фантазийную» гипотезу (фичи вне каталога, lookahead, дубль) | Детерминированный валидатор отклоняет с причинами, до бэктеста; ничего не ломается |
+| Builder сгенерировал нерабочий код | Build-validator (fast-fail: синтаксис, импорты, манифест, bundle-hash) → статус `build_failed` |
+| Повторный запрос того же бэктеста | Идемпотентность по `(hypothesis_id, params_hash, bundle_hash)` — переиспользуем результат, не шлём дубль на платформу |
+| Внешняя платформа недоступна / таймаут / несовпадение контракта | Fail-closed: ненулевой выход, бэктест помечается отклонённым; runtime-boot платформу не дёргает |
+| Слишком мало сделок в бэктесте для вывода | Evaluator возвращает `INCONCLUSIVE`, а не ложный `PASS` |
+| Неуверенная классификация намерения в чате | Порог `INTENT_CLASSIFIER_MIN_CONFIDENCE` — ниже него задача не планируется |
+| Нет ключей LLM | Адаптеры по умолчанию `fake` — система поднимается и демонстрируется без ключей |
+
+### 6. Как поймём, что агент работает хорошо? (критерии)
+| Критерий | Приемлемый порог | Как меряем |
+|----------|------------------|------------|
+| **Success rate** на бенчмарке (≥10 запросов) | ≥ 80% «ожидаемый ↔ фактический» (валидное решение/маршрут) | прогон бенчмарка + eval-кейсы (см. ниже) |
+| **Корректность tool-вызовов** | 100% задач дают ожидаемую последовательность `agent_event` (started → completed, без лишних side-effects) | проверка audit-трейла в тестах |
+| **Latency p95 / cost per run** | p95 ≤ 30 c на цикл в `fake`-режиме; cost логируется на каждый прогон | будет измерено через Phoenix-трейсы (🟡) |
+
+---
+
+## Архитектура
+
+Слоистая архитектура по принципу **ports & adapters** (гексагональная):
+
+```
+src/
+├── domain/        # доменные типы: StrategyProfile, HypothesisProposal, BacktestRun, Evaluation
+├── ports/         # интерфейсы (PlatformGateway, ResearchPlatform, ArtifactStore, TaskQueue, ...)
+├── adapters/      # реализации портов (mock / mcp / bullmq / postgres / local-file / ...)
+├── mastra/        # композиция Mastra: 5 агентов + единый `new Mastra({ agents })`
+│   └── agents/    # strategy-analyst, researcher, critic, builder, intent-classifier
+├── orchestrator/  # WorkflowRouter + handlers (strategy-onboard / research-run-cycle / hypothesis-build)
+├── validation/    # детерминированные валидаторы + Evaluator (decision ladder)
+├── ingress/       # HTTP API (Hono): POST /tasks, /callbacks, /chat/messages
+├── chat/          # чат-ingress: классификация намерения + планирование задачи
+├── read-api/      # read-only API (/v1/*) — поток agent_event для дашборда
+├── worker/        # потребитель очереди (BullMQ)
+├── auth/          # bearer-токены (fail-closed)
+├── db/            # Drizzle ORM схема + миграции (Postgres)
+└── config/        # загрузка окружения
 ```
 
-The contract-version handshake is mandatory and fail-closed, but on-demand only: it never blocks
-`pnpm worker` / `pnpm ingress` boot. The runtime gate is `TRADING_PLATFORM_INTEGRATION` (`mock`
-default); the SDK import is confined to `src/ports/research-platform.port.ts` + `src/adapters/platform/`.
+Ключевые технологии: **Mastra `@mastra/core`** (агенты), **Hono** (HTTP), **BullMQ/Redis**
+(очередь), **Drizzle ORM + Postgres** (хранение), **Zod** (валидация), вендоренный
+**`@trading-platform/sdk`** (интеграция с платформой по MCP). Запуск — `node --experimental-strip-types`,
+без шага сборки.
 
-### Dependency note (vendored standalone SDK)
+**Почему не Mastra-workflow-граф, а WorkflowRouter + handlers?** Оркестрация и все side-effect'ы
+держатся в обычном детерминированном TypeScript — так их проще тестировать, делать идемпотентными
+и воспроизводимыми. LLM-агенты подключаются как «узлы», вызываемые из handler'ов. Ветвления —
+это явные decision-гейты в коде (см. ниже), а не скрытая логика внутри модели.
 
-`@trading-platform/sdk` is consumed as a **vendored standalone tarball**, committed at
-`vendor/trading-platform-sdk/`. The root `package.json` depends on it via
-`file:./vendor/trading-platform-sdk/trading-platform-sdk-0.1.0.tgz`. No sibling
-`../trading-platform` checkout, pnpm override, or workspace link is needed to install, typecheck,
-or test trading-lab — the SDK is a self-contained consumer package (`dependencies: decimal.js`;
-`@modelcontextprotocol/sdk` optional peer). See `vendor/trading-platform-sdk/README.md` for the
-SDK version, source commit, and the command to refresh the tarball. This vendored channel is
-temporary until the SDK is published to a private registry.
+---
+
+## Как взаимодействуют агенты
+
+В системе **5 LLM-агентов** (Mastra). Важная деталь: **агенты не вызывают друг друга напрямую** —
+они общаются через очередь задач и общие доменные объекты в Postgres. Это держит связи слабыми и
+делает каждый шаг отдельно тестируемым.
+
+| Агент | Где работает | Что делает |
+|-------|--------------|------------|
+| **intent-classifier** | chat-ingress | классифицирует свободный текст пользователя → планирует тип задачи |
+| **strategy-analyst** | handler `strategy.onboard` | по исходнику стратегии строит `StrategyProfile` |
+| **researcher** | handler `research.run_cycle` | по профилю + рыночному контексту + похожим прошлым гипотезам генерирует `HypothesisProposal[]` |
+| **critic** *(опционально)* | handler `research.run_cycle` | ревьюит/критикует гипотезы перед валидацией |
+| **builder** | handler `hypothesis.build` | генерирует код-вариант стратегии (`ModuleBundle`) под гипотезу |
+
+Поток данных между агентами — это цепочка персистентных объектов:
+
+```
+сообщение/задача → StrategyProfile → HypothesisProposal → ModuleBundle → BacktestRun → Evaluation
+   (intent)         (analyst)          (researcher/critic)   (builder)     (платформа)   (детерм. Evaluator)
+```
+
+```
+        ┌──────────── Внешние входы ────────────┐
+        │ Чат (Telegram/web)   Оператор/cron     │   trading-platform
+        │ POST /chat/messages  POST /tasks        │   POST /callbacks/...
+        └──────┬──────────────────┬───────────────┘          │
+               │(bearer)          │(bearer)                   │(bearer)
+               ▼                  ▼                           ▼
+       ┌──────────────┐   ┌──────────────────────────────────────┐
+       │ Chat ingress │   │   Task / Callback ingress (Hono)       │
+       │ intent-      │   └───────────────────┬────────────────────┘
+       │ classifier   │──задача──┐            │ enqueue
+       └──────────────┘          ▼            ▼
+                        ┌───────────────────────────────────┐
+                        │   Очередь задач — BullMQ / Redis   │
+                        └────────────────┬──────────────────┘
+                                         │ consume
+                                         ▼
+                        ┌───────────────────────────────────┐
+                        │ Worker → WorkflowRouter.dispatch   │
+                        └───┬─────────────┬─────────────┬────┘
+            strategy.onboard│  research.run_cycle  hypothesis.build
+                            ▼             ▼             ▼
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │ Узлы-агенты (LLM, Mastra)        │ Детерминированные сервисы            │
+   │  strategy-analyst                │  Validators (schema / feature)       │
+   │  researcher                      │  Evaluator (decision ladder)         │
+   │  critic (опц.)                   │  PlatformGateway ──► trading-platform │
+   │  builder                         │  SimilarHypothesisSearch (BM25)      │
+   └───────────────────┬──────────────┴──────────────┬─────────────────────┘
+                       │  читают/пишут доменные объекты│
+                       ▼                               ▼
+              ┌────────────────────────────────────────────────┐
+              │ Postgres (pgvector-ready) + ArtifactStore        │
+              │ append-only agent_event ──► Read API /v1/* ──► дашборд
+              └────────────────────────────────────────────────┘
+```
+
+---
+
+## Граф и точки ветвления
+
+Курс требует нелинейность минимум с двумя точками ветвления — у нас их **семь**. Ниже —
+жизненный цикл задачи; `[BR n]` помечает точки, где маршрут зависит от контекста.
+
+```
+ (чат) сообщение пользователя
+     │
+     ▼
+ intent-classifier ──── confidence < порога ──► уточнить у пользователя (задачи нет)   [BR 1]
+     │ confidence ≥ порога
+     ▼
+ план задачи ─► очередь ─► WorkflowRouter
+     │
+     ├─ strategy.onboard ──────────────────────────────────────────────────────────────┐
+     │     fingerprint уже известен? ── да ──► дедуп, выходим (без LLM)            [BR 2] │
+     │     └─ нет ─► strategy-analyst ─► валидация ─► StrategyProfile (persist)          │
+     │                                                                                   │
+     ├─ research.run_cycle ─────────────────────────────────────────────────────────────┤
+     │     market context + similar hypotheses (BM25)                                    │
+     │     └─► researcher ─► [critic] ─► Validator                                        │
+     │            валиден? ── нет ──► rejected (с причинами)                       [BR 3] │
+     │            └─ да ─► HypothesisProposal (validated, persist)                        │
+     │                                                                                   │
+     └─ hypothesis.build ───────────────────────────────────────────────────────────────┘
+           builder ─► ModuleBundle ─► Build-validator
+             ok? ── нет ──► build_failed                                           [BR 4]
+             └─ да ─► идемпотентность: такой бэктест уже был? ── да ──► reuse      [BR 5]
+                        └─ нет ─► PlatformGateway.submit (baseline vs variant)
+                                    │  (sandbox на trading-platform)
+                                    ▼
+                                backtest completed? ── нет ──► rejected            [BR 6]
+                                    └─ да ─► Evaluator (decision ladder)           [BR 7]
+                                              │
+          ┌──────────────┬──────────────┬────┴─────────┬──────────────────┐
+          ▼              ▼              ▼               ▼                  ▼
+     INCONCLUSIVE       FAIL          MODIFY           PASS         PAPER_CANDIDATE
+     (мало сделок)  (нет прироста) (просадка/         (улучшение)   (сильный прирост →
+                                    хрупкость)                       кандидат на paper)
+```
+
+**Точки ветвления:**
+1. **[BR 1] Уверенность классификатора** — ниже порога задача не планируется.
+2. **[BR 2] Дедуп онбординга** — известный fingerprint → без LLM (идемпотентность).
+3. **[BR 3] Гейт валидации гипотез** — невалидные отклоняются с причинами.
+4. **[BR 4] Результат сборки** — нерабочий код → `build_failed`.
+5. **[BR 5] Идемпотентность бэктеста** — уже считали → reuse, без дубля на платформу.
+6. **[BR 6] Статус бэктеста** — не `completed`/нет сравнения → отклонить.
+7. **[BR 7] Лестница Evaluator** — 5-исходное детерминированное решение.
+
+---
+
+## Инструменты (tools)
+
+Агент работает не только с текстом — у него **5 портов** (инструментов) к внешней среде,
+из них **2 внешних** (сетевые/межсервисные). Реализованы по схеме ports & adapters, что
+позволяет подменять реализацию (mock для демо/тестов, реальную — в проде).
+
+| Инструмент (порт) | Что делает | Внешний? |
+|-------------------|------------|----------|
+| **PlatformGateway** | рыночные данные, режим рынка, запуск бэктеста и получение результата | ✅ да — `trading-platform` |
+| **ResearchPlatform** | discovery возможностей платформы, список датасетов, валидация модуля (MCP) | ✅ да — `trading-platform` gateway |
+| **ArtifactStore** | content-addressable хранилище (sha256) для бандлов/кривых/логов | файловая система / S3 |
+| **TaskQueue** | постановка и потребление задач | ✅ да — Redis (BullMQ) |
+| **SimilarHypothesisSearch** | поиск похожих прошлых гипотез (сейчас BM25, pgvector — в планах) | локально (in-memory) |
+
+Адаптеры по умолчанию — `mock`/`fake`/`in-memory`, поэтому демо поднимается без ключей и без
+запущенной платформы. Реальная интеграция включается переменными окружения.
+
+---
+
+## RAG — почему пока не нужен
+
+**RAG в текущей версии не используется — и это осознанное решение.**
+
+Источник истины в системе — **таблицы Postgres** (профили, гипотезы, бэктесты, оценки), а не
+векторный индекс. Память/поиск — *производные* данные, вспомогательные, а не канонические.
+Для текущей задачи «найти похожие прошлые гипотезы, чтобы не дублировать идеи» хватает
+**лексического поиска (BM25)** в памяти: корпус небольшой, запросы короткие, а главное — нам важна
+не «похожесть текста», а точные доменные проверки (каталог фич, lookahead, дубликаты), которые
+делает детерминированный валидатор, а не retrieval.
+
+Полноценный RAG (Postgres + `pgvector` + эмбеддинги) заложен на будущее для двух сценариев:
+подсказывать **builder**'у валидные контракты/примеры кода и давать **researcher**'у больше
+исторического контекста по мере роста архива. Образ Postgres уже `pgvector`-ready — добавить
+retrieval можно без миграции инфраструктуры. Тащить RAG сейчас означало бы усложнение без
+выигрыша.
+
+---
+
+## Запуск и демонстрация
+
+Демонстрировать агента можно двумя способами: **HTTP API** (curl) и **CLI** (скрипты).
+По умолчанию все LLM-адаптеры в режиме `fake` — **система поднимается и работает без ключей**.
+
+### Вариант A — локальный запуск (работает сейчас)
+
+Требования: **Node ≥ 22**, **pnpm**, Docker (для Postgres + Redis).
+
+```bash
+# 1. зависимости
+pnpm install
+
+# 2. инфраструктура (Postgres c pgvector + Redis)
+docker compose up -d
+
+# 3. конфигурация
+cp .env.example .env          # дефолты дают key-free демо
+
+# 4. схема БД
+pnpm db:generate && pnpm db:migrate
+
+# 5. в двух терминалах:
+pnpm ingress    # HTTP API на :3000 (POST /tasks, /chat/messages, /callbacks)
+pnpm worker     # потребитель очереди → WorkflowRouter → handlers
+```
+
+#### Примеры запросов (curl)
+
+Чат — классификация намерения и планирование задачи:
+```bash
+curl -s http://localhost:3000/chat/messages \
+  -H "authorization: Bearer dev-chat-token" \
+  -H "content-type: application/json" \
+  -d '{"message":"проанализируй мою стратегию и предложи улучшения","channel":"web"}'
+```
+
+Постановка задачи напрямую (оператор/cron):
+```bash
+curl -s http://localhost:3000/tasks \
+  -H "authorization: Bearer dev-task-token" \
+  -H "content-type: application/json" \
+  -d '{"taskType":"strategy.onboard","source":"operator","correlationId":"demo-1","payload":{ /* исходник стратегии */ }}'
+```
+
+Поток событий агента (read-only API на :3100; включается, если задан `TRADING_LAB_READ_TOKEN`)
+доступен по `GET /v1/*`, health-проба — `GET /healthz`.
+
+> Каждый ingress-токен — отдельная граница (read / chat / task / callback). Без заданного токена
+> соответствующий эндпоинт отвечает **503** (fail-closed), а не пропускает запрос.
+
+#### CLI — discovery возможностей платформы (read-only)
+
+```bash
+pnpm platform:discover    # подключается к research-gateway по MCP, печатает дескриптор + датасеты
+pnpm platform:validate    # то же с подробным выводом, аудит версий контракта
+```
+(Требует заданных `TRADING_PLATFORM_GATEWAY_COMMAND/ARGS`; иначе работает mock-режим.)
+
+#### Тесты
+
+```bash
+pnpm test         # 115 файлов тестов (Vitest): unit + e2e
+pnpm typecheck    # проверка типов
+```
+
+### Вариант B — единый `docker compose` (🟡 в разработке, скоро)
+
+Сейчас в репозитории `docker compose up -d` поднимает только инфраструктуру (Postgres + Redis), а
+приложение запускается на хосте (вариант A). **Единый стек** (агент + dashboard + БД + очередь
+одной командой) собирается в отдельной ветке `docker-orchestration`: уже готов `Dockerfile`,
+дорабатываются три режима запуска. Планируемый интерфейс:
+
+```bash
+# Demo — самодостаточно, без ключей:
+cp .env.demo.example .env.demo
+docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build
+# затем открыть дашборд на http://localhost:8080
+```
+
+Также планируются режимы **local** (с опциональным подключением реальной платформы по URL) и
+**vps** (production-like, detached, restart-политики), плюс `make demo` / `make smoke` обёртки.
+
+---
+
+## Качество: тесты, бенчмарк, eval, метрики
+
+Курс требует три типа проверок — программный ассерт, LLM-as-judge и проверку корректности
+tool-вызова. Текущее состояние:
+
+| Тип проверки | Статус | Где |
+|--------------|--------|-----|
+| **Программный ассерт** | ✅ есть | 115 файлов тестов (Vitest): валидаторы, домен, Evaluator-лестница, e2e ingress→worker→persist |
+| **Корректность tool-вызова** | ✅ есть | проверка последовательности `agent_event` в audit-трейле (например `strategy_analyst.started → completed`), идемпотентность side-effect'ов |
+| **LLM-as-judge** | 🟡 в разработке | планируется судья по качеству гипотез/решений на «живых» прогонах |
+
+**Бенчмарк (🟡 в разработке).** Набор из ≥10 запросов формата `input → expected output` собирается
+сейчас. Идея: фиксированные входы (сообщения в чат / задачи) и ожидаемые исходы (тип задачи,
+решение Evaluator, accepted/rejected), по которым считается **success rate** (приемлемо ≥ 80%).
+Детерминированные `fake`/`fixture`-адаптеры делают прогоны воспроизводимыми.
+
+**Метрики (🟡 будут измерены).** После подключения Phoenix-трейсов и бенчмарка в README появятся:
+
+| Метрика | Цель | Статус |
+|---------|------|--------|
+| success rate | ≥ 80% | 🟡 после бенчмарка |
+| latency p95 | ≤ 30 c / цикл (fake) | 🟡 после Phoenix |
+| cost per run | логируется на прогон | 🟡 после Phoenix |
+
+---
+
+## Observability (Phoenix)
+
+🟡 **Coming soon.** Сейчас канонический след решений агента — это **append-only таблица
+`agent_event`** в Postgres: каждый значимый шаг (старт/финиш агента, отклонение валидации, сабмит
+бэктеста, решение Evaluator) пишется как неизменяемое событие; его отдаёт read-only API на
+дашборд.
+
+Поверх этого подключается **[Phoenix](https://phoenix.arize.com)** (OTel-совместимый трейсинг).
+Через единый seam композиции Mastra (`src/mastra/`) трейсы будут покрывать: запуск workflow,
+вызов агента, вход/выход LLM, использование токенов, имя модели, оценку стоимости, tool-вызовы,
+отказы валидации, сабмиты бэктестов и решения Evaluator. Observability — для отладки и
+cost-control; **канонические бизнес-данные остаются в Postgres**, а не в трейсах.
+
+> Изначально курс предполагает LangFuse; здесь по согласованию используется Phoenix —
+> подключение в процессе.
+
+---
+
+## Security-чеклист
+
+`✅` реализовано · `➖` неприменимо · `🟡` открыто (в работе)
+
+| Пункт | Статус | Комментарий |
+|-------|--------|-------------|
+| Аутентификация входных границ | ✅ | Bearer-токены на `/tasks`, `/callbacks`, `/chat/messages`, read API |
+| Fail-closed по умолчанию | ✅ | Незаданный токен → **503**, а не открытый доступ |
+| Изоляция границ | ✅ | Отдельный токен на каждую границу (read / chat / task / callback) |
+| Валидация входных данных | ✅ | Zod-схемы на всех входах и на выводе LLM перед использованием |
+| Защита от «фантазий» LLM | ✅ | Детерминированный валидатор: каталог фич, lookahead, дубликаты |
+| Нет execution-полномочий | ✅ | В системе нет адаптера, способного разместить ордер (research-only) |
+| Сгенерированный код не исполняется в trading-lab | ✅ | Builder отдаёт артефакт-кандидат; исполняет только песочница платформы |
+| Идемпотентность side-effect'ов | ✅ | Дедуп онбординга + дедуп бэктеста по хэшам |
+| Контроль версий контракта с платформой | ✅ | Fail-closed handshake по версии контракта SDK |
+| Секреты вне кода | ✅ | Ключи/токены — только через `.env` (в репозитории — `.env.example` без значений) |
+| Внешний вызов только через runtime-env | ✅ | Платформа дёргается on-demand, runtime-boot к ней не ходит |
+| Браузер не ходит в trading-lab напрямую | ✅ | Единственный вызывающий — бэкенд-дашборд |
+| Rate limiting / квоты на ingress | 🟡 | пока полагаемся на reverse-proxy/firewall; в планах |
+| Allowlist доменов для tool-вызовов | 🟡 | релевантно при включении сетевых tool'ов; в планах |
+| Output-guardrails (фильтры на ответ пользователю) | 🟡 | базовая валидация есть; отдельные фильтры — в планах |
+| Аудит/трейсинг доступов | 🟡 | `agent_event` есть; Phoenix-трейсинг — в работе |
+| Шифрование артефактов в покое | ➖ | для MVP неприменимо (локальное хранилище); появится с S3 |
+
+---
+
+## Структура проекта
+
+```
+trading-lab/
+├── src/                  # исходный код (см. раздел «Архитектура»)
+├── test/                 # e2e, fixtures, smoke-тесты (+ *.test.ts рядом с кодом)
+├── migrations/           # SQL-миграции (Drizzle)
+├── scripts/              # platform-discover.ts, platform-validate.ts
+├── vendor/               # вендоренный @trading-platform/sdk (tarball)
+├── docs/                 # дизайн-спеки и планы (docs/superpowers/specs, .../plans)
+├── docker-compose.yml    # инфраструктура (Postgres pgvector + Redis); единый стек — в разработке
+├── .env.example          # все переменные окружения с комментариями
+└── package.json
+```
+
+Подробный дизайн: `docs/superpowers/specs/2026-06-10-trading-lab-design.md`.
