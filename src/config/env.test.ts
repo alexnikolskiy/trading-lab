@@ -117,3 +117,29 @@ describe('SP-6.2 task + callback ingress tokens', () => {
     expect(env.TRADING_LAB_CALLBACK_TOKEN).toBe('callback-secret');
   });
 });
+
+describe('loadEnv — SP-7.2b backtest backend', () => {
+  it('defaults backtest backend + poll + baseline version', () => {
+    const e = loadEnv({ DATABASE_URL: 'x', REDIS_URL: 'y' } as NodeJS.ProcessEnv);
+    expect(e.BACKTEST_BACKEND).toBe('sp4_mock');
+    expect(e.PLATFORM_RUN_MAX_POLLS).toBe(30);
+    expect(e.PLATFORM_RUN_POLL_DELAY_MS).toBe(2000);
+    expect(e.TRADING_PLATFORM_BASELINE_VERSION).toBe('v1');
+  });
+
+  it('reads research_platform + overrides', () => {
+    const e = loadEnv({
+      BACKTEST_BACKEND: 'research_platform', PLATFORM_RUN_MAX_POLLS: '5',
+      PLATFORM_RUN_POLL_DELAY_MS: '100', TRADING_PLATFORM_BASELINE_VERSION: 'v3',
+    } as NodeJS.ProcessEnv);
+    expect(e.BACKTEST_BACKEND).toBe('research_platform');
+    expect(e.PLATFORM_RUN_MAX_POLLS).toBe(5);
+    expect(e.PLATFORM_RUN_POLL_DELAY_MS).toBe(100);
+    expect(e.TRADING_PLATFORM_BASELINE_VERSION).toBe('v3');
+  });
+
+  it('falls back to sp4_mock for an unknown backend value', () => {
+    const e = loadEnv({ BACKTEST_BACKEND: 'bogus' } as NodeJS.ProcessEnv);
+    expect(e.BACKTEST_BACKEND).toBe('sp4_mock');
+  });
+});
