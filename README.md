@@ -1,5 +1,7 @@
 # trading-lab
 
+![Trading Lab](docs/img/trading-office-exterior.png)
+
 **AI-агент для исследования торговых стратегий.** Система-«исследовательский мозг»
 над торговой платформой: она онбордит стратегию, выдвигает и проверяет гипотезы о том,
 как её улучшить, генерирует код-варианты, прогоняет бэктесты в песочнице платформы и
@@ -43,13 +45,14 @@
 3. [Архитектура](#архитектура)
 4. [Как взаимодействуют агенты](#как-взаимодействуют-агенты)
 5. [Граф и точки ветвления](#граф-и-точки-ветвления)
-6. [Инструменты (tools)](#инструменты-tools)
-7. [RAG — почему пока не нужен](#rag--почему-пока-не-нужен)
-8. [Запуск и демонстрация](#запуск-и-демонстрация)
-9. [Качество: тесты, бенчмарк, eval, метрики](#качество-тесты-бенчмарк-eval-метрики)
-10. [Observability (Phoenix)](#observability-phoenix)
-11. [Security-чеклист](#security-чеклист)
-12. [Структура проекта](#структура-проекта)
+6. [Дашборд (trading-office)](#дашборд-trading-office)
+7. [Инструменты (tools)](#инструменты-tools)
+8. [RAG — почему пока не нужен](#rag--почему-пока-не-нужен)
+9. [Запуск и демонстрация](#запуск-и-демонстрация)
+10. [Качество: тесты, бенчмарк, eval, метрики](#качество-тесты-бенчмарк-eval-метрики)
+11. [Observability (Phoenix)](#observability-phoenix)
+12. [Security-чеклист](#security-чеклист)
+13. [Структура проекта](#структура-проекта)
 
 ---
 
@@ -157,10 +160,57 @@ src/
 **`@trading-platform/sdk`** (интеграция с платформой по MCP). Запуск — `node --experimental-strip-types`,
 без шага сборки.
 
-**Почему не Mastra-workflow-граф, а WorkflowRouter + handlers?** Оркестрация и все side-effect'ы
-держатся в обычном детерминированном TypeScript — так их проще тестировать, делать идемпотентными
-и воспроизводимыми. LLM-агенты подключаются как «узлы», вызываемые из handler'ов. Ветвления —
-это явные decision-гейты в коде (см. ниже), а не скрытая логика внутри модели.
+Сквозной путь запроса — от внешнего входа через ingress, очередь и worker до агентов,
+детерминированных сервисов и хранилища:
+
+```mermaid
+flowchart TD
+    chat["Чат Telegram/web — POST /chat/messages"] -->|bearer| chatin["Chat ingress (intent-classifier)"]
+    ops["Оператор / cron — POST /tasks"] -->|bearer| taskin["Task / Callback ingress — Hono"]
+    platcb["trading-platform — POST /callbacks"] -->|bearer| taskin
+
+    chatin -->|задача| queue["Очередь задач — BullMQ / Redis"]
+    taskin -->|enqueue| queue
+    queue -->|consume| worker["Worker — WorkflowRouter.dispatch"]
+    worker --> handlers["Handlers: strategy.onboard · research.run_cycle · hypothesis.build"]
+
+    handlers --> agents["Узлы-агенты Mastra/LLM: strategy-analyst · researcher · critic · builder"]
+    handlers --> svc["Детерм. сервисы: Validators · Evaluator · PlatformGateway · SimilarHypothesisSearch"]
+
+    svc -->|backtest sandbox| platform["trading-platform — research gateway"]
+    agents --> db[("Postgres pgvector-ready · ArtifactStore · agent_event")]
+    svc --> db
+    db --> readapi["Read API /v1/*"]
+    readapi --> dash["Дашборд — trading-office"]
+```
+
+### WorkflowRouter — как устроена оркестрация
+
+`WorkflowRouter` — тонкий **детерминированный диспетчер задач** (без бизнес-логики и без вызовов
+LLM). Worker достаёт из очереди конверт задачи `{ taskId, taskType, correlationId, payload,
+dedupeKey }` и передаёт его в `router.dispatch(task, services)`. Роутер по полю `taskType`
+выбирает зарегистрированный handler:
+
+| `taskType` | handler | что делает |
+|------------|---------|------------|
+| `strategy.onboard` | `strategyOnboardHandler` | строит и сохраняет `StrategyProfile` |
+| `research.run_cycle` | `researchRunCycleHandler` | генерирует и валидирует гипотезы |
+| `hypothesis.build` | `hypothesisBuildHandler` | собирает вариант → бэктест → оценка |
+
+Ключевые свойства:
+- **Инверсия зависимостей.** Роутер прокидывает в handler готовый набор сервисов (порты:
+  репозитории, `PlatformGateway`, `ArtifactStore`, агенты Mastra). Handler не создаёт зависимости
+  сам — поэтому в тестах он получает mock/in-memory реализации без изменения кода.
+- **Side-effect'ы принадлежат коду, а не модели.** Запись в Postgres, сабмит бэктеста, эмиссия
+  `agent_event` — всё это делает handler детерминированно; LLM-агент только возвращает
+  структурированный результат, который дальше проверяет код.
+- **Каждый handler — явная цепочка шагов с decision-гейтами** (см. граф ниже): валидация,
+  идемпотентность, оценка. Ветвления видны в коде, а не спрятаны внутри модели.
+- **Fail-closed.** Неизвестный `taskType` → задача отклоняется, а не выполняется «как-нибудь».
+
+Почему так, а **не Mastra-workflow-граф**: оркестрацию из обычного детерминированного TypeScript
+проще тестировать, делать идемпотентной и воспроизводимой, а LLM подключается только там, где
+действительно нужно суждение.
 
 ---
 
@@ -178,48 +228,16 @@ src/
 | **critic** *(опционально)* | handler `research.run_cycle` | ревьюит/критикует гипотезы перед валидацией |
 | **builder** | handler `hypothesis.build` | генерирует код-вариант стратегии (`ModuleBundle`) под гипотезу |
 
-Поток данных между агентами — это цепочка персистентных объектов:
+Поток данных между агентами — это цепочка персистентных доменных объектов; в скобках указан агент
+или сервис, который её создаёт:
 
-```
-сообщение/задача → StrategyProfile → HypothesisProposal → ModuleBundle → BacktestRun → Evaluation
-   (intent)         (analyst)          (researcher/critic)   (builder)     (платформа)   (детерм. Evaluator)
-```
-
-```
-        ┌──────────── Внешние входы ────────────┐
-        │ Чат (Telegram/web)   Оператор/cron     │   trading-platform
-        │ POST /chat/messages  POST /tasks        │   POST /callbacks/...
-        └──────┬──────────────────┬───────────────┘          │
-               │(bearer)          │(bearer)                   │(bearer)
-               ▼                  ▼                           ▼
-       ┌──────────────┐   ┌──────────────────────────────────────┐
-       │ Chat ingress │   │   Task / Callback ingress (Hono)       │
-       │ intent-      │   └───────────────────┬────────────────────┘
-       │ classifier   │──задача──┐            │ enqueue
-       └──────────────┘          ▼            ▼
-                        ┌───────────────────────────────────┐
-                        │   Очередь задач — BullMQ / Redis   │
-                        └────────────────┬──────────────────┘
-                                         │ consume
-                                         ▼
-                        ┌───────────────────────────────────┐
-                        │ Worker → WorkflowRouter.dispatch   │
-                        └───┬─────────────┬─────────────┬────┘
-            strategy.onboard│  research.run_cycle  hypothesis.build
-                            ▼             ▼             ▼
-   ┌──────────────────────────────────────────────────────────────────────┐
-   │ Узлы-агенты (LLM, Mastra)        │ Детерминированные сервисы            │
-   │  strategy-analyst                │  Validators (schema / feature)       │
-   │  researcher                      │  Evaluator (decision ladder)         │
-   │  critic (опц.)                   │  PlatformGateway ──► trading-platform │
-   │  builder                         │  SimilarHypothesisSearch (BM25)      │
-   └───────────────────┬──────────────┴──────────────┬─────────────────────┘
-                       │  читают/пишут доменные объекты│
-                       ▼                               ▼
-              ┌────────────────────────────────────────────────┐
-              │ Postgres (pgvector-ready) + ArtifactStore        │
-              │ append-only agent_event ──► Read API /v1/* ──► дашборд
-              └────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A["сообщение / задача<br/>(intent-classifier)"] --> B["StrategyProfile<br/>(strategy-analyst)"]
+    B --> C["HypothesisProposal<br/>(researcher / critic)"]
+    C --> D["ModuleBundle<br/>(builder)"]
+    D --> E["BacktestRun<br/>(платформа)"]
+    E --> F["Evaluation<br/>(детерм. Evaluator)"]
 ```
 
 ---
@@ -227,52 +245,67 @@ src/
 ## Граф и точки ветвления
 
 Курс требует нелинейность минимум с двумя точками ветвления — у нас их **семь**. Ниже —
-жизненный цикл задачи; `[BR n]` помечает точки, где маршрут зависит от контекста.
+жизненный цикл задачи; `BR n` помечает точки, где маршрут зависит от контекста (ромбы — решения).
 
-```
- (чат) сообщение пользователя
-     │
-     ▼
- intent-classifier ──── confidence < порога ──► уточнить у пользователя (задачи нет)   [BR 1]
-     │ confidence ≥ порога
-     ▼
- план задачи ─► очередь ─► WorkflowRouter
-     │
-     ├─ strategy.onboard ──────────────────────────────────────────────────────────────┐
-     │     fingerprint уже известен? ── да ──► дедуп, выходим (без LLM)            [BR 2] │
-     │     └─ нет ─► strategy-analyst ─► валидация ─► StrategyProfile (persist)          │
-     │                                                                                   │
-     ├─ research.run_cycle ─────────────────────────────────────────────────────────────┤
-     │     market context + similar hypotheses (BM25)                                    │
-     │     └─► researcher ─► [critic] ─► Validator                                        │
-     │            валиден? ── нет ──► rejected (с причинами)                       [BR 3] │
-     │            └─ да ─► HypothesisProposal (validated, persist)                        │
-     │                                                                                   │
-     └─ hypothesis.build ───────────────────────────────────────────────────────────────┘
-           builder ─► ModuleBundle ─► Build-validator
-             ok? ── нет ──► build_failed                                           [BR 4]
-             └─ да ─► идемпотентность: такой бэктест уже был? ── да ──► reuse      [BR 5]
-                        └─ нет ─► PlatformGateway.submit (baseline vs variant)
-                                    │  (sandbox на trading-platform)
-                                    ▼
-                                backtest completed? ── нет ──► rejected            [BR 6]
-                                    └─ да ─► Evaluator (decision ladder)           [BR 7]
-                                              │
-          ┌──────────────┬──────────────┬────┴─────────┬──────────────────┐
-          ▼              ▼              ▼               ▼                  ▼
-     INCONCLUSIVE       FAIL          MODIFY           PASS         PAPER_CANDIDATE
-     (мало сделок)  (нет прироста) (просадка/         (улучшение)   (сильный прирост →
-                                    хрупкость)                       кандидат на paper)
+```mermaid
+flowchart TD
+    msg["(чат) сообщение пользователя"] --> ic{"intent-classifier:<br/>confidence ≥ порога? — BR1"}
+    ic -->|нет| clar["уточнить у пользователя — задачи нет"]
+    ic -->|да| plan["план задачи → очередь → WorkflowRouter"]
+
+    plan --> onb{"strategy.onboard:<br/>fingerprint известен? — BR2"}
+    onb -->|да| dedup["дедуп, выходим без LLM"]
+    onb -->|нет| analyst["strategy-analyst → валидация → StrategyProfile"]
+
+    plan --> rrc["research.run_cycle:<br/>market ctx + similar BM25 → researcher → critic"]
+    rrc --> val{"Validator: гипотеза валидна? — BR3"}
+    val -->|нет| rej1["rejected с причинами"]
+    val -->|да| hyp["HypothesisProposal validated"]
+
+    plan --> build["hypothesis.build:<br/>builder → ModuleBundle"]
+    build --> bv{"Build-validator ok? — BR4"}
+    bv -->|нет| bf["build_failed"]
+    bv -->|да| idem{"идемпотентность:<br/>бэктест уже был? — BR5"}
+    idem -->|да| reuse["reuse результата"]
+    idem -->|нет| submit["PlatformGateway.submit<br/>baseline vs variant, sandbox"]
+    submit --> bc{"backtest completed? — BR6"}
+    bc -->|нет| rej2["rejected"]
+    bc -->|да| evalr{"Evaluator — decision ladder — BR7"}
+
+    evalr --> R1["INCONCLUSIVE<br/>(мало сделок)"]
+    evalr --> R2["FAIL<br/>(нет прироста)"]
+    evalr --> R3["MODIFY<br/>(просадка / хрупкость)"]
+    evalr --> R4["PASS<br/>(улучшение)"]
+    evalr --> R5["PAPER_CANDIDATE<br/>(сильный прирост → paper)"]
 ```
 
 **Точки ветвления:**
-1. **[BR 1] Уверенность классификатора** — ниже порога задача не планируется.
-2. **[BR 2] Дедуп онбординга** — известный fingerprint → без LLM (идемпотентность).
-3. **[BR 3] Гейт валидации гипотез** — невалидные отклоняются с причинами.
-4. **[BR 4] Результат сборки** — нерабочий код → `build_failed`.
-5. **[BR 5] Идемпотентность бэктеста** — уже считали → reuse, без дубля на платформу.
-6. **[BR 6] Статус бэктеста** — не `completed`/нет сравнения → отклонить.
-7. **[BR 7] Лестница Evaluator** — 5-исходное детерминированное решение.
+1. **BR1 — Уверенность классификатора** — ниже порога задача не планируется.
+2. **BR2 — Дедуп онбординга** — известный fingerprint → без LLM (идемпотентность).
+3. **BR3 — Гейт валидации гипотез** — невалидные отклоняются с причинами.
+4. **BR4 — Результат сборки** — нерабочий код → `build_failed`.
+5. **BR5 — Идемпотентность бэктеста** — уже считали → reuse, без дубля на платформу.
+6. **BR6 — Статус бэктеста** — не `completed` / нет сравнения → отклонить.
+7. **BR7 — Лестница Evaluator** — 5-исходное детерминированное решение.
+
+---
+
+## Дашборд (trading-office)
+
+Наблюдать за работой агента можно через дашборд из соседнего репозитория
+**[trading-office](https://github.com/alexnikolskiy/trading-office)** — это отдельный сервис
+(UI + backend-gateway). Браузер ходит только в office-backend, а тот проксирует read-only API
+trading-lab (`/v1/*`, поток `agent_event`) — сам trading-lab наружу не торчит (см. раздел
+[Security](#security-чеклист)).
+
+Дашборд визуализирует мультиагентную систему как «офис»: каждый агент — сотрудник за своим столом
+(Analyst, Researcher, Builder, Critic, Evaluator, Monitor), а его активность видна в реальном
+времени по потоку событий `agent_event`.
+
+![Дашборд trading-office — этаж исследовательского офиса с агентами](docs/img/trading-office-floor.png)
+
+> Запуск дашборда вместе с агентом одной командой — часть единого `docker compose`
+> (🟡 в разработке, см. [Запуск](#запуск-и-демонстрация)).
 
 ---
 
@@ -478,10 +511,8 @@ trading-lab/
 ├── migrations/           # SQL-миграции (Drizzle)
 ├── scripts/              # platform-discover.ts, platform-validate.ts
 ├── vendor/               # вендоренный @trading-platform/sdk (tarball)
-├── docs/                 # дизайн-спеки и планы (docs/superpowers/specs, .../plans)
+├── docs/                 # дизайн-спеки, планы (docs/superpowers/specs) + img/ для README
 ├── docker-compose.yml    # инфраструктура (Postgres pgvector + Redis); единый стек — в разработке
 ├── .env.example          # все переменные окружения с комментариями
 └── package.json
 ```
-
-Подробный дизайн: `docs/superpowers/specs/2026-06-10-trading-lab-design.md`.
