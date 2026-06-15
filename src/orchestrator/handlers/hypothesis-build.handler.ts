@@ -110,6 +110,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
     id: runId, hypothesisBuildId: buildId, hypothesisId: hypothesis.id, strategyProfileId: profile.id,
     platformRunId: runRef.platformRunId, correlationId: task.correlationId, params, paramsHash, bundleHash: bundle.bundleHash,
     status: 'submitted', baselineModuleId, variantModuleId,
+    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
     artifactRefs: [], platformContractVersion: 'pending', sdkContractVersion: SDK_CONTRACT_VERSION,
     submittedAt: now(), finishedAt: null, createdAt: now(), updatedAt: now(),

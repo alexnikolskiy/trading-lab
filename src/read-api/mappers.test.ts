@@ -22,6 +22,7 @@ function backtest(over: Partial<BacktestRun> = {}): BacktestRun {
     id: 'r1', hypothesisBuildId: 'b1', hypothesisId: 'h1', strategyProfileId: 'p1', platformRunId: 'PLAT-SECRET',
     correlationId: 'CORR-SECRET', params: { foo: 'bar' }, paramsHash: 'HASH', bundleHash: 'BHASH', status: 'completed',
     baselineModuleId: 'MOD0', variantModuleId: 'MOD1',
+    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     metrics: { netPnlUsd: 250, netPnlPct: 2.5, totalTrades: 30, winRate: 0.6, profitFactor: 2, maxDrawdownPct: 8, expectancyUsd: 8, sharpe: 1.4, topTradeContributionPct: 22 },
     baselineMetrics: null, deltaNetPnlUsd: 150, deltaMaxDrawdownPct: 1, isFragile: false,
     artifactRefs: ['platform://x'], platformContractVersion: 'PCV', sdkContractVersion: 'SCV',

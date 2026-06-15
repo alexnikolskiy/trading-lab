@@ -6,6 +6,7 @@ import type { ValidationIssue } from '../domain/schemas.ts';
 import type { CriticConcern } from '../domain/critic.ts';
 import type { ModuleManifest } from '../domain/module-bundle.ts';
 import type { BacktestMetricBlock, ComparisonSummary } from '../ports/platform-gateway.port.ts';
+import type { PlatformRunConfig } from '../ports/research-platform.port.ts';
 import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 
 export const researchTask = pgTable('research_task', {
@@ -133,6 +134,9 @@ export const backtestRun = pgTable('backtest_run', {
   status: text('status').notNull(),
   baselineModuleId: text('baseline_module_id').notNull(),
   variantModuleId: text('variant_module_id').notNull(),
+  backend: text('backend').notNull().default('sp4_mock'),
+  resumeToken: text('resume_token'),
+  platformRun: jsonb('platform_run').$type<PlatformRunConfig>(),
   netPnlUsd: doublePrecision('net_pnl_usd'),
   netPnlPct: doublePrecision('net_pnl_pct'),
   totalTrades: integer('total_trades'),

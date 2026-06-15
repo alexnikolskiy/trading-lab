@@ -8,6 +8,7 @@ function run(id: string, over: Partial<BacktestRun> = {}): BacktestRun {
     id, hypothesisBuildId: 'b1', hypothesisId: 'h1', strategyProfileId: 'p1',
     platformRunId: 'mock-run', correlationId: 'c1', params: {}, paramsHash: 'sha:p', bundleHash: 'sha:b',
     status: 'completed', baselineModuleId: 'm0', variantModuleId: 'm1',
+    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
     artifactRefs: [], platformContractVersion: 'mock-0', sdkContractVersion: 'sdk-0',
     submittedAt: now, finishedAt: null, createdAt: now, updatedAt: now, ...over,

@@ -1,5 +1,6 @@
 // src/domain/backtest-run.ts
 import type { BacktestMetricBlock } from '../ports/platform-gateway.port.ts';
+import type { PlatformRunConfig } from '../ports/research-platform.port.ts';
 
 export type BacktestRunStatus = 'queued' | 'submitted' | 'running' | 'completed' | 'rejected' | 'failed' | 'evaluated';
 
@@ -16,6 +17,9 @@ export interface BacktestRun {
   status: BacktestRunStatus;
   baselineModuleId: string;
   variantModuleId: string;
+  backend: 'sp4_mock' | 'research_platform';
+  resumeToken: string | null;
+  platformRun: PlatformRunConfig | null;
   metrics: BacktestMetricBlock | null;          // variant
   baselineMetrics: BacktestMetricBlock | null;
   deltaNetPnlUsd: number | null;

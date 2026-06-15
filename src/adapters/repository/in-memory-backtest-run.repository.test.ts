@@ -13,6 +13,7 @@ function run(id: string, over: Partial<BacktestRun> = {}): BacktestRun {
     id, hypothesisBuildId: 'b1', hypothesisId: 'h1', strategyProfileId: 'p1',
     platformRunId: 'mock-run-1', correlationId: 'c1', params: {}, paramsHash: 'sha256:p', bundleHash: 'sha256:bh',
     status: 'submitted', baselineModuleId: 'strategy:p1', variantModuleId: 'overlay-h1',
+    backend: 'sp4_mock', resumeToken: null, platformRun: null,
     metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
     artifactRefs: [], platformContractVersion: 'mock-0', sdkContractVersion: 'builder-sdk-v0',
     submittedAt: now, finishedAt: null, createdAt: now, updatedAt: now, ...over,
@@ -71,5 +72,17 @@ describe('InMemoryBacktestRunRepository', () => {
     await repo.createSubmitted(run('r1'));
     expect((await repo.findByIdentity('h1', 'sha256:p', 'sha256:bh'))?.id).toBe('r1');
     expect(await repo.findByIdentity('h1', 'sha256:p', 'sha256:other')).toBeNull();
+  });
+
+  it('round-trips backend / resumeToken / platformRun', async () => {
+    const repo = new InMemoryBacktestRunRepository();
+    const r = { ...run('rp1'), id: 'rp1', backend: 'research_platform' as const, resumeToken: 'tok', platformRun: {
+      datasetId: 'ds', symbols: ['BTCUSDT'], timeframe: '1h', period: { from: '2023-01-01', to: '2023-06-30' }, seed: 7,
+    } };
+    await repo.createSubmitted(r);
+    const got = await repo.findById('rp1');
+    expect(got?.backend).toBe('research_platform');
+    expect(got?.resumeToken).toBe('tok');
+    expect(got?.platformRun?.datasetId).toBe('ds');
   });
 });

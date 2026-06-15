@@ -22,6 +22,8 @@ function toDomain(row: Row): BacktestRun {
     id: row.id, hypothesisBuildId: row.hypothesisBuildId, hypothesisId: row.hypothesisId, strategyProfileId: row.strategyProfileId,
     platformRunId: row.platformRunId, correlationId: row.correlationId, params: row.params, paramsHash: row.paramsHash, bundleHash: row.bundleHash,
     status: row.status as BacktestRunStatus, baselineModuleId: row.baselineModuleId, variantModuleId: row.variantModuleId,
+    backend: row.backend as 'sp4_mock' | 'research_platform', resumeToken: row.resumeToken,
+    platformRun: (row.platformRun as import('../../ports/research-platform.port.ts').PlatformRunConfig | null) ?? null,
     metrics: metricsFromRow(row), baselineMetrics: (row.baselineMetrics as BacktestMetricBlock | null) ?? null,
     deltaNetPnlUsd: row.deltaNetPnlUsd, deltaMaxDrawdownPct: row.deltaMaxDrawdownPct, isFragile: row.isFragile,
     artifactRefs: row.artifactRefs, platformContractVersion: row.platformContractVersion, sdkContractVersion: row.sdkContractVersion,
@@ -39,6 +41,7 @@ export class DrizzleBacktestRunRepository implements BacktestRunRepository {
       id: run.id, hypothesisBuildId: run.hypothesisBuildId, hypothesisId: run.hypothesisId, strategyProfileId: run.strategyProfileId,
       platformRunId: run.platformRunId, correlationId: run.correlationId, params: run.params, paramsHash: run.paramsHash, bundleHash: run.bundleHash,
       status: run.status, baselineModuleId: run.baselineModuleId, variantModuleId: run.variantModuleId,
+      backend: run.backend, resumeToken: run.resumeToken, platformRun: run.platformRun,
       artifactRefs: run.artifactRefs, platformContractVersion: run.platformContractVersion, sdkContractVersion: run.sdkContractVersion,
       submittedAt: new Date(run.submittedAt), createdAt: new Date(run.createdAt), updatedAt: new Date(run.updatedAt),
     });
