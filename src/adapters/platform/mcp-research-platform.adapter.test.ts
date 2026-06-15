@@ -5,6 +5,7 @@ import { McpResearchPlatformAdapter, LazyMcpResearchPlatformAdapter } from './mc
 import { ContractIncompatibleError } from './research-contract.ts';
 import { GatewayValidationError } from './gateway-errors.ts';
 import { assembleBundle, SDK_CONTRACT_VERSION, type ModuleManifest } from '../../domain/module-bundle.ts';
+import type { OverlayManifestMeta } from '../../domain/overlay-manifest-meta.ts';
 
 function fakeTransport(responses: Partial<Record<GatewayToolName, unknown>>): {
   transport: GatewayTransport; calls: Array<{ tool: string; args: unknown }>;
@@ -49,7 +50,12 @@ const manifest: ModuleManifest = {
   moduleId: 'm1', moduleKind: 'hypothesis_overlay', appliesTo: 'long',
   entry: 'index.ts', exports: ['overlay'], capabilities: ['oi'], sdkContractVersion: SDK_CONTRACT_VERSION,
 };
-const bundle = assembleBundle(manifest, { 'index.ts': 'export const overlay = {};' });
+const meta: OverlayManifestMeta = {
+  id: 'm1', version: '0.1.0', name: 'n', summary: 's', rationale: 'r', author: 'agent',
+  targetStrategyRef: 'strategy:p1', interceptionPoint: 'post_entry_management',
+  paramsSchema: { type: 'object', additionalProperties: false },
+};
+const bundle = assembleBundle(manifest, { 'index.ts': 'export const overlay = {};' }, meta);
 
 function transportReturning(result: ValidateModuleResult): { transport: GatewayTransport; calls: { tool: string; payload: unknown }[] } {
   const calls: { tool: string; payload: unknown }[] = [];
