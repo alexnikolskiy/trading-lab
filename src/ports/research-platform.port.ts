@@ -4,12 +4,15 @@ import type {
   ListDatasetsResult,
   ValidationReport,
   ValidationIssueDTO,
+  RunResultSummary,
+  ComparisonSummaryDTO,
 } from '@trading-platform/sdk/agent';
 import type { ModuleBundle } from '../domain/module-bundle.ts';
 
 export type {
   ResearchCapabilityDescriptor, ListDatasetsFilter, ListDatasetsResult,
   ValidationReport, ValidationIssueDTO,
+  RunResultSummary, ComparisonSummaryDTO,
 };
 
 export interface ValidateModuleOptions {
