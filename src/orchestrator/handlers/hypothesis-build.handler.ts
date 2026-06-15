@@ -1,38 +1,21 @@
 // src/orchestrator/handlers/hypothesis-build.handler.ts
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { WorkflowHandler } from '../workflow-router.ts';
 import { validateWithSchema } from '../../validation/validator.ts';
 import { assembleBundle, SDK_CONTRACT_VERSION, MODULE_BUNDLE_CONTRACT_VERSION } from '../../domain/module-bundle.ts';
 import { deriveOverlayManifestMeta } from '../../domain/overlay-manifest-meta.ts';
 import { validateBundle } from '../../validation/build-validator.ts';
-import { evaluateBacktest } from '../../validation/evaluator.ts';
 import { normalizeFeature, LAB_FEATURE_CATALOG } from '../../domain/hypothesis-rules.ts';
 import type { HypothesisBuild } from '../../domain/hypothesis-build.ts';
-import type { BacktestRun, BacktestCompletion } from '../../domain/backtest-run.ts';
-import type { Evaluation } from '../../domain/evaluation.ts';
+import type { BacktestRun } from '../../domain/backtest-run.ts';
 import type { ValidationIssue } from '../../domain/schemas.ts';
+import { event, errMsg, computeParamsHash, finalizeBacktestCompletion } from './backtest-support.ts';
 
 export const HypothesisBuildPayloadSchema = z.object({
   hypothesisId: z.string().min(1),
   params: z.record(z.unknown()).optional(),
 });
-
-function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
-}
-function event(taskId: string, type: string, payload: Record<string, unknown>) {
-  return { id: randomUUID(), taskId, type, payload, createdAt: new Date().toISOString() };
-}
-function sha256(input: string): string {
-  return `sha256:${createHash('sha256').update(input, 'utf8').digest('hex')}`;
-}
-function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  const obj = value as Record<string, unknown>;
-  return `{${Object.keys(obj).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
-}
 
 export const hypothesisBuildHandler: WorkflowHandler = async (task, services) => {
   const parsed = validateWithSchema(HypothesisBuildPayloadSchema, task.payload);
@@ -93,7 +76,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
 
   // Idempotency: same hypothesis + same params + same bundle must NOT re-submit (checked
   // BEFORE the platform side-effect, so reuse never triggers a duplicate backtest).
-  const paramsHash = sha256(stableStringify(params));
+  const paramsHash = computeParamsHash('sp4_mock', params);
   const existingRun = await services.backtests.findByIdentity(hypothesis.id, paramsHash, bundle.bundleHash);
   if (existingRun) {
     await services.events.append(event(task.id, 'backtest.reused', { runId: existingRun.id, platformRunId: existingRun.platformRunId, status: existingRun.status }));
@@ -126,25 +109,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
     await services.events.append(event(task.id, 'backtest.failed', { runId, runStatus: envelope.runStatus, hasComparison: !!envelope.comparison }));
     return;
   }
-  const c = envelope.comparison;
-  const completion: BacktestCompletion = {
-    metrics: c.variant, baselineMetrics: c.baseline,
-    deltaNetPnlUsd: c.variant.netPnlUsd - c.baseline.netPnlUsd,
-    deltaMaxDrawdownPct: c.variant.maxDrawdownPct - c.baseline.maxDrawdownPct,
-    isFragile: c.variant.topTradeContributionPct >= services.evaluatorThresholds.fragilityTopTradePct,
-    artifactRefs: envelope.artifactRefs, platformContractVersion: c.platformContractVersion, finishedAt: now(),
-  };
-  await services.backtests.markCompleted(runId, completion);
-  await services.events.append(event(task.id, 'backtest.completed', { runId, deltaNetPnlUsd: completion.deltaNetPnlUsd }));
-
-  // Evaluate (deterministic)
-  const outcome = evaluateBacktest(c, services.evaluatorThresholds);
-  const evaluation: Evaluation = {
-    id: randomUUID(), backtestRunId: runId, hypothesisId: hypothesis.id,
-    decision: outcome.decision, reasons: outcome.reasons, metricsSnapshot: c,
-    thresholds: services.evaluatorThresholds, createdAt: now(),
-  };
-  await services.evaluations.create(evaluation);
-  await services.backtests.markEvaluated(runId);
-  await services.events.append(event(task.id, 'evaluation.completed', { runId, decision: outcome.decision, reasons: outcome.reasons }));
+  await finalizeBacktestCompletion(services, task, {
+    runId, hypothesisId: hypothesis.id, comparison: envelope.comparison, artifactRefs: envelope.artifactRefs,
+  });
 };
