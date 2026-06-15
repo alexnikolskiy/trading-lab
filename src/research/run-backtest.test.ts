@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runOverlayBacktest } from './run-backtest.ts';
+import { runOverlayBacktest, pollOverlayRun } from './run-backtest.ts';
 import type { ResearchPlatformPort, RunStatusView, RunResultView, RunJobHandle, SubmitOverlayRunOptions } from '../ports/research-platform.port.ts';
 import type { ModuleBundle } from '../domain/module-bundle.ts';
 
@@ -34,5 +34,33 @@ describe('runOverlayBacktest', () => {
     const failed: RunResultView = { ok: true, kind: 'status', view: { jobId: 'j', runId: 'r', status: 'failed', timeline: { acceptedAtMs: 0 }, terminalCode: 'runner_failure' } } as unknown as RunResultView;
     const out = await runOverlayBacktest(fakePort(['failed'], failed), bundle, opts, { maxPolls: 3, pollDelayMs: 0, sleep: noSleep });
     expect(out.status).toBe('rejected');
+  });
+});
+
+describe('pollOverlayRun', () => {
+  it('returns completed with mapped artifactIds when status is terminal and result is a completed summary', async () => {
+    const port = {
+      getRunStatus: async () => ({ jobId: 'j', runId: 'r1', status: 'completed', timeline: { acceptedAtMs: 0, terminalAtMs: 1 } }),
+      getRunResult: async () => ({ ok: true, kind: 'summary', summary: {
+        runId: 'r1', status: 'completed', runKind: 'baseline-vs-variant', validationIssues: [],
+        metrics: {}, comparison: { baseline: {}, variant: {}, deltas: {} },
+        coverage: [], artifactRefs: [{ artifactId: 'a1', artifactType: 'metrics', availability: { status: 'available' } }],
+        evidence: { seed: 0, contractVersion: '017.2', moduleVersions: [] },
+      } }),
+    } as unknown as Parameters<typeof pollOverlayRun>[0];
+    const outcome = await pollOverlayRun(port, 'r1', { maxPolls: 3, pollDelayMs: 0 });
+    expect(outcome.status).toBe('completed');
+    if (outcome.status === 'completed') expect(outcome.artifactIds).toEqual(['a1']);
+  });
+
+  it('returns pending when no terminal status is reached within maxPolls', async () => {
+    let calls = 0;
+    const port = {
+      getRunStatus: async () => { calls += 1; return { jobId: 'j', runId: 'r1', status: 'running', timeline: { acceptedAtMs: 0 } }; },
+      getRunResult: async () => { throw new Error('should not be called'); },
+    } as unknown as Parameters<typeof pollOverlayRun>[0];
+    const outcome = await pollOverlayRun(port, 'r1', { maxPolls: 3, pollDelayMs: 0 });
+    expect(outcome.status).toBe('pending');
+    expect(calls).toBe(3);
   });
 });
