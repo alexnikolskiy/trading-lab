@@ -10,7 +10,7 @@ function summary(baseline: Record<string, number>, variant: Record<string, numbe
     metrics: topMetrics ?? baseline,
     comparison: {
       baseline, variant,
-      deltas: Object.fromEntries(Object.keys(variant).map((k) => [k, variant[k] - (baseline[k] ?? 0)])),
+      deltas: Object.fromEntries(Object.keys(variant).map((k) => [k, (variant[k] ?? 0) - (baseline[k] ?? 0)])),
     },
     coverage: [], artifactRefs: [],
     evidence: { seed: 1, contractVersion: '017.2', moduleVersions: [] },
