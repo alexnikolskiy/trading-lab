@@ -56,13 +56,34 @@ export interface CandidateResult {
   judge: JudgeVerdict | null;       // populated only when --judge ran; written to a SEPARATE file
 }
 
+export interface Stats {
+  mean: number;
+  median: number;
+  std: number; // population std (divide by n); n === 1 -> 0
+  min: number;
+  max: number;
+}
+
+export interface ModelAggregate {
+  model: string;
+  provider: string;
+  modelId: string;
+  runs: { total: number; ok: number; failed: number; failedByType: Record<string, number> };
+  passRate: number;            // PASS count / total runs (failed runs count as non-PASS)
+  det: Stats | null;           // over runs with a deterministic score (analyze() returned)
+  judge: Stats | null;         // over runs with a judge verdict; null if judge never ran
+  latency: { mean: number; median: number }; // over all runs
+}
+
 export interface EvalRunResult {
   fixture: { id: string; fingerprint: string };
   threshold: number;
+  repeat: number;
   judgeEnabled: boolean;
   models: string[];
-  perModel: CandidateResult[];
-  overallSuccess: boolean;          // >=1 PASS
+  perModel: CandidateResult[];   // flat: every run, ordered model-major then run index
+  aggregates: ModelAggregate[];  // one per model
+  overallSuccess: boolean;       // >=1 run (any model) with verdict PASS
 }
 
 export interface ManifestMeta {

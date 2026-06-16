@@ -27,6 +27,20 @@ function throwingAnalyst(message: string): StrategyAnalystPort {
   };
 }
 
+/** Throws on the first `failTimes` calls, then returns `out`. Reuse the same instance across runs. */
+function flakyAnalyst(failTimes: number, out: AnalystProfileOutput): StrategyAnalystPort {
+  let n = 0;
+  return {
+    adapter: 'fake',
+    model: 'fake',
+    async analyze(): Promise<AnalystProfileOutput> {
+      n += 1;
+      if (n <= failTimes) throw new Error('schema validation failed');
+      return out;
+    },
+  };
+}
+
 const baseInput = {
   models: ['anthropic/claude-x', 'openai/gpt-x'],
   fixtureId: 'long-oi',
@@ -95,5 +109,55 @@ describe('runEval', () => {
       deps({ 'x/y': fakeAnalyst(GOOD_LONG_OI_PROFILE) }, async () => { throw new Error('judge boom'); }));
     expect(result.perModel[0]!.verdict).toBe('PASS');
     expect(result.perModel[0]!.judge).toBeNull();
+  });
+
+  it('defaults to repeat=1 (regression: single run per model, one aggregate)', async () => {
+    const result = await runEval({ ...baseInput, models: ['x/y'] }, deps({ 'x/y': fakeAnalyst(GOOD_LONG_OI_PROFILE) }));
+    expect(result.repeat).toBe(1);
+    expect(result.perModel).toHaveLength(1);
+    expect(result.aggregates).toHaveLength(1);
+    expect(result.aggregates[0]!.runs).toEqual({ total: 1, ok: 1, failed: 0, failedByType: {} });
+  });
+});
+
+describe('runEval --repeat aggregation', () => {
+  it('repeat=3 runs each model 3x; identical outputs -> std 0, passRate 1, 3 ok', async () => {
+    const result = await runEval(
+      { ...baseInput, models: ['x/y'], repeat: 3 },
+      deps({ 'x/y': fakeAnalyst(GOOD_LONG_OI_PROFILE) }),
+    );
+    expect(result.repeat).toBe(3);
+    expect(result.perModel).toHaveLength(3); // flat list = every run
+    expect(result.aggregates).toHaveLength(1);
+    const a = result.aggregates[0]!;
+    expect(a.runs).toEqual({ total: 3, ok: 3, failed: 0, failedByType: {} });
+    expect(a.passRate).toBe(1);
+    expect(a.det!.std).toBe(0); // identical scores across runs
+    expect(a.det!.mean).toBe(a.det!.min);
+    expect(a.det!.mean).toBe(a.det!.max);
+  });
+
+  it('counts failed runs; PASS-rate denominator is N; det stats only over ok runs', async () => {
+    const result = await runEval(
+      { ...baseInput, models: ['x/y'], repeat: 3 },
+      deps({ 'x/y': flakyAnalyst(1, GOOD_LONG_OI_PROFILE) }), // run1 throws; runs 2 & 3 pass
+    );
+    const a = result.aggregates[0]!;
+    expect(a.runs.total).toBe(3);
+    expect(a.runs.ok).toBe(2);
+    expect(a.runs.failed).toBe(1);
+    expect(a.runs.failedByType.schema).toBe(1);
+    expect(a.passRate).toBeCloseTo(2 / 3, 10); // 2 PASS / 3 total (failed run counts as non-PASS)
+    expect(a.det!.std).toBe(0); // 2 identical ok scores
+    expect(result.overallSuccess).toBe(true);
+  });
+
+  it('judge disabled -> aggregate.judge is null', async () => {
+    const result = await runEval(
+      { ...baseInput, models: ['x/y'], repeat: 2 },
+      deps({ 'x/y': fakeAnalyst(GOOD_LONG_OI_PROFILE) }), // no judge in deps
+    );
+    expect(result.judgeEnabled).toBe(false);
+    expect(result.aggregates[0]!.judge).toBeNull();
   });
 });

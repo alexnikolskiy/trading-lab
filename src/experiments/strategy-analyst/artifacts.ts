@@ -16,22 +16,42 @@ function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-/** Returns the list of written file paths. Judge (if present) is written to a SEPARATE file. */
+/**
+ * Per model, writes one `<slug>.run<k>.json` per run (k = 1..N, judge excluded), a
+ * `<slug>.run<k>.judge.json` for runs that produced a judge verdict, and a
+ * `<slug>.aggregate.json`. Plus a top-level `manifest.json`. Returns the written paths.
+ */
 export function writeRunArtifacts(outDir: string, meta: ManifestMeta, result: EvalRunResult): string[] {
   mkdirSync(outDir, { recursive: true });
   const written: string[] = [];
 
-  for (const candidate of result.perModel) {
-    const slug = slugModel(candidate.model);
-    const { judge, ...withoutJudge } = candidate; // judge excluded from the per-model file
-    const modelPath = join(outDir, `${slug}.json`);
-    writeJson(modelPath, withoutJudge);
-    written.push(modelPath);
+  // Group the flat per-run results by model, preserving execution order.
+  const byModel = new Map<string, CandidateResult[]>();
+  for (const c of result.perModel) {
+    const arr = byModel.get(c.model) ?? [];
+    arr.push(c);
+    byModel.set(c.model, arr);
+  }
 
-    if (judge != null) {
-      const judgePath = join(outDir, `${slug}.judge.json`);
-      writeJson(judgePath, judge);
-      written.push(judgePath);
+  for (const [model, runs] of byModel) {
+    const slug = slugModel(model);
+    runs.forEach((candidate, i) => {
+      const k = i + 1;
+      const { judge, ...withoutJudge } = candidate; // judge excluded from the per-run file
+      const runPath = join(outDir, `${slug}.run${k}.json`);
+      writeJson(runPath, withoutJudge);
+      written.push(runPath);
+      if (judge != null) {
+        const judgePath = join(outDir, `${slug}.run${k}.judge.json`);
+        writeJson(judgePath, judge);
+        written.push(judgePath);
+      }
+    });
+    const aggregate = result.aggregates.find((a) => a.model === model);
+    if (aggregate) {
+      const aggPath = join(outDir, `${slug}.aggregate.json`);
+      writeJson(aggPath, aggregate);
+      written.push(aggPath);
     }
   }
 
@@ -44,9 +64,13 @@ export function writeRunArtifacts(outDir: string, meta: ManifestMeta, result: Ev
     mode: meta.mode,
     fixture: result.fixture,
     threshold: result.threshold,
+    repeat: result.repeat,
     judgeEnabled: result.judgeEnabled,
     models: result.models,
-    perModel: result.perModel.map((c: CandidateResult) => ({ model: c.model, verdict: c.verdict, score: c.score?.score ?? null })),
+    perModel: result.aggregates.map((a) => ({
+      model: a.model,
+      aggregate: { passRate: a.passRate, detMean: a.det?.mean ?? null, judgeMean: a.judge?.mean ?? null },
+    })),
     overallSuccess: result.overallSuccess,
   });
   written.push(manifestPath);

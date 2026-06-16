@@ -40,4 +40,19 @@ describe('planDryRun', () => {
   it('KEY_BY_PROVIDER maps each provider to its env var', () => {
     expect(KEY_BY_PROVIDER).toEqual({ anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', openrouter: 'OPENROUTER_API_KEY' });
   });
+
+  it('defaults repeat to 1 (no multiplier)', () => {
+    const plan = planDryRun({ models: ['x/y'], judge: false, env: {} });
+    expect(plan.repeat).toBe(1);
+    expect(plan.analystCalls).toBe(1);
+    expect(plan.totalPaidCalls).toBe(1);
+  });
+
+  it('multiplies planned paid calls by repeat (analyst + judge)', () => {
+    const plan = planDryRun({ models: ['x/y', 'a/b'], judge: true, env: {}, repeat: 4 });
+    expect(plan.repeat).toBe(4);
+    expect(plan.analystCalls).toBe(8); // 2 models * 4
+    expect(plan.judgeCalls).toBe(8); // 2 models * 4
+    expect(plan.totalPaidCalls).toBe(16);
+  });
 });
