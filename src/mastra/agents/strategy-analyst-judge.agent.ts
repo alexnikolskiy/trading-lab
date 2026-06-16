@@ -1,4 +1,4 @@
-// src/experiments/strategy-analyst/judge-agent.ts
+// src/mastra/agents/strategy-analyst-judge.agent.ts
 import { Agent } from '@mastra/core/agent';
 import type { ProviderModel } from '../../adapters/llm/model-provider.ts';
 

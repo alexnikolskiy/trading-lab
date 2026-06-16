@@ -4,7 +4,7 @@
 import { composeMastra, type MastraCompositionEnv } from '../../mastra/compose-mastra.ts';
 import { MastraStrategyAnalyst } from '../../adapters/analyst/mastra-strategy-analyst.ts';
 import { resolveLanguageModel, type ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
-import { createStrategyAnalystJudgeAgent } from './judge-agent.ts';
+import { createStrategyAnalystJudgeAgent } from '../../mastra/agents/strategy-analyst-judge.agent.ts';
 import { runJudge } from './judge.ts';
 import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
 import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
