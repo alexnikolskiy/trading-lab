@@ -39,4 +39,7 @@ export interface AppServices {
   evaluatorThresholds: EvaluatorThresholds;
   chatSessions: ChatSessionRepository;
   chatPlans: ChatPlanRepository;
+  backtestBackend: 'sp4_mock' | 'research_platform';
+  platformPoll: { maxPolls: number; pollDelayMs: number };
+  baselineVersion: string;
 }

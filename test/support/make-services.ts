@@ -41,6 +41,9 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     evaluatorThresholds: DEFAULT_EVALUATOR_THRESHOLDS,
     chatSessions: new InMemoryChatSessionRepository(),
     chatPlans: new InMemoryChatPlanRepository(),
+    backtestBackend: 'sp4_mock',
+    platformPoll: { maxPolls: 5, pollDelayMs: 0 },
+    baselineVersion: 'v1',
     ...overrides,
   };
 }

@@ -15,16 +15,12 @@ export type PlatformRunOutcome =
 
 const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export async function runOverlayBacktest(
+export async function pollOverlayRun(
   platform: ResearchPlatformPort,
-  bundle: ModuleBundle,
-  opts: SubmitOverlayRunOptions,
+  runId: string,
   poll: PollOptions,
 ): Promise<PlatformRunOutcome> {
   const sleep = poll.sleep ?? realSleep;
-  const handle = await platform.submitOverlayRun(bundle, opts);
-  const runId = handle.runId;
-
   let terminal = false;
   for (let i = 0; i < poll.maxPolls; i += 1) {
     const view = await platform.getRunStatus(runId);
@@ -39,4 +35,14 @@ export async function runOverlayBacktest(
   }
   const terminalCode = res.kind === 'status' ? res.view.terminalCode : undefined;
   return { status: 'rejected', runId, ...(terminalCode !== undefined ? { terminalCode } : {}) };
+}
+
+export async function runOverlayBacktest(
+  platform: ResearchPlatformPort,
+  bundle: ModuleBundle,
+  opts: SubmitOverlayRunOptions,
+  poll: PollOptions,
+): Promise<PlatformRunOutcome> {
+  const handle = await platform.submitOverlayRun(bundle, opts);
+  return pollOverlayRun(platform, handle.runId, poll);
 }
