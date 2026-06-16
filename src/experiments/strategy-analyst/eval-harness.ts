@@ -2,7 +2,8 @@
 import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
 import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
 import { scoreProfile } from './scoring.ts';
-import type { CandidateError, CandidateResult, EvalRunResult, JudgeVerdict } from './types.ts';
+import { aggregateRuns } from './aggregate.ts';
+import type { CandidateError, CandidateResult, EvalRunResult, JudgeVerdict, ModelAggregate } from './types.ts';
 
 export interface RunEvalInput {
   models: string[];
@@ -10,6 +11,7 @@ export interface RunEvalInput {
   fixtureText: string;
   fixtureFingerprint: string;
   threshold: number;
+  repeat?: number; // independent runs per model; default 1, assumed >= 1
 }
 
 export interface RunEvalDeps {
@@ -28,42 +30,58 @@ export function classifyError(err: unknown): CandidateError {
   return { type, message };
 }
 
-export async function runEval(input: RunEvalInput, deps: RunEvalDeps): Promise<EvalRunResult> {
-  const perModel: CandidateResult[] = [];
+/** One independent run for a model: analyze() -> scoreProfile() -> (optional) judge(). Never throws. */
+async function runOnce(model: string, input: RunEvalInput, deps: RunEvalDeps): Promise<CandidateResult> {
+  const { provider, modelId } = deps.providerOf(model);
+  const start = deps.clock();
+  try {
+    const analyst = deps.analystFor(model);
+    const raw = await analyst.analyze({ kind: 'manual_description', content: input.fixtureText, title: input.fixtureId });
+    const latencyMs = deps.clock() - start;
+    const score = scoreProfile(raw, { threshold: input.threshold });
 
-  for (const model of input.models) {
-    const { provider, modelId } = deps.providerOf(model);
-    const start = deps.clock();
-    try {
-      const analyst = deps.analystFor(model);
-      const raw = await analyst.analyze({ kind: 'manual_description', content: input.fixtureText, title: input.fixtureId });
-      const latencyMs = deps.clock() - start;
-      const score = scoreProfile(raw, { threshold: input.threshold });
-
-      let judge: JudgeVerdict | null = null;
-      if (deps.judge) {
-        try {
-          judge = await deps.judge(raw);
-        } catch (judgeErr) {
-          // Judge is best-effort and NEVER affects the deterministic verdict.
-          process.stderr.write(`judge failed for ${model}: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`);
-          judge = null;
-        }
+    let judge: JudgeVerdict | null = null;
+    if (deps.judge) {
+      try {
+        judge = await deps.judge(raw);
+      } catch (judgeErr) {
+        // Judge is best-effort and NEVER affects the deterministic verdict.
+        process.stderr.write(`judge failed for ${model}: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`);
+        judge = null;
       }
-
-      perModel.push({ model, provider, modelId, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge });
-    } catch (err) {
-      const latencyMs = deps.clock() - start;
-      perModel.push({ model, provider, modelId, latencyMs, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null });
     }
+
+    return { model, provider, modelId, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge };
+  } catch (err) {
+    const latencyMs = deps.clock() - start;
+    return { model, provider, modelId, latencyMs, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null };
+  }
+}
+
+export async function runEval(input: RunEvalInput, deps: RunEvalDeps): Promise<EvalRunResult> {
+  const repeat = input.repeat ?? 1;
+  const perModel: CandidateResult[] = [];
+  const aggregates: ModelAggregate[] = [];
+
+  // Sequential, model-major then run index — no parallelism, to avoid provider rate limits.
+  for (const model of input.models) {
+    const runs: CandidateResult[] = [];
+    for (let k = 0; k < repeat; k++) {
+      const r = await runOnce(model, input, deps);
+      runs.push(r);
+      perModel.push(r);
+    }
+    aggregates.push(aggregateRuns(runs));
   }
 
   return {
     fixture: { id: input.fixtureId, fingerprint: input.fixtureFingerprint },
     threshold: input.threshold,
+    repeat,
     judgeEnabled: deps.judge != null,
     models: input.models,
     perModel,
+    aggregates,
     overallSuccess: perModel.some((r) => r.verdict === 'PASS'),
   };
 }

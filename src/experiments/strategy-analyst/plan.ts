@@ -16,6 +16,7 @@ export interface DryRunModelPlan {
 }
 
 export interface DryRunPlan {
+  repeat: number;
   perModel: DryRunModelPlan[];
   analystCalls: number;
   judgeCalls: number;
@@ -31,9 +32,11 @@ export interface PlanInput {
   models: string[];
   judge: boolean;
   env: Record<string, string | undefined>;
+  repeat?: number; // independent runs per model; default 1
 }
 
 export function planDryRun(input: PlanInput): DryRunPlan {
+  const repeat = input.repeat ?? 1;
   const modelEnv: ModelProviderEnv = { MODEL_PROVIDER: input.env.MODEL_PROVIDER as ModelProvider };
 
   const perModel: DryRunModelPlan[] = input.models.map((model) => {
@@ -46,8 +49,9 @@ export function planDryRun(input: PlanInput): DryRunPlan {
   });
 
   const missingKeys = [...new Set(perModel.filter((m) => m.requiredKey != null && !m.keyPresent).map((m) => m.requiredKey as string))];
-  const analystCalls = input.models.length;
-  const judgeCalls = input.judge ? input.models.length : 0;
+  // Each model runs `repeat` times; each run is one analyst call (+ one judge call when --judge).
+  const analystCalls = input.models.length * repeat;
+  const judgeCalls = (input.judge ? input.models.length : 0) * repeat;
 
-  return { perModel, analystCalls, judgeCalls, totalPaidCalls: analystCalls + judgeCalls, missingKeys };
+  return { repeat, perModel, analystCalls, judgeCalls, totalPaidCalls: analystCalls + judgeCalls, missingKeys };
 }
