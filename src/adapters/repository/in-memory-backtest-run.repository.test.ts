@@ -85,4 +85,10 @@ describe('InMemoryBacktestRunRepository', () => {
     expect(got?.resumeToken).toBe('tok');
     expect(got?.platformRun?.datasetId).toBe('ds');
   });
+
+  it('round-trips taskId for research_platform runs', async () => {
+    const repo = new InMemoryBacktestRunRepository();
+    await repo.createSubmitted({ ...run('rt1'), backend: 'research_platform', taskId: 't-123' });
+    expect((await repo.findById('rt1'))?.taskId).toBe('t-123');
+  });
 });

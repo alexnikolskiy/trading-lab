@@ -1,0 +1,1 @@
+ALTER TABLE "backtest_run" ADD COLUMN "task_id" text;

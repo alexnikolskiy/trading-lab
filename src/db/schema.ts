@@ -135,6 +135,7 @@ export const backtestRun = pgTable('backtest_run', {
   baselineModuleId: text('baseline_module_id').notNull(),
   variantModuleId: text('variant_module_id').notNull(),
   backend: text('backend').notNull().default('sp4_mock'),
+  taskId: text('task_id'),
   resumeToken: text('resume_token'),
   platformRun: jsonb('platform_run').$type<PlatformRunConfig>(),
   netPnlUsd: doublePrecision('net_pnl_usd'),

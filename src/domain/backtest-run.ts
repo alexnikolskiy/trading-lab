@@ -18,6 +18,7 @@ export interface BacktestRun {
   baselineModuleId: string;
   variantModuleId: string;
   backend: 'sp4_mock' | 'research_platform';
+  taskId?: string;                                // originating ResearchTask.id (research_platform only); enables resume event continuity
   resumeToken: string | null;
   platformRun: PlatformRunConfig | null;
   metrics: BacktestMetricBlock | null;          // variant
