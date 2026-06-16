@@ -6,11 +6,9 @@ import { SDK_CONTRACT_VERSION } from '../../domain/module-bundle.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { BacktestRun } from '../../domain/backtest-run.ts';
 import type { ValidationIssue } from '../../domain/schemas.ts';
-import type { ComparisonSummary } from '../../ports/platform-gateway.port.ts';
 import type { PlatformRunConfig, Ref, SubmitOverlayRunOptions } from '../../ports/research-platform.port.ts';
 import { pollOverlayRun } from '../../research/run-backtest.ts';
-import { mapPlatformComparison, MetricMappingError } from '../../domain/platform-comparison.ts';
-import { event, finalizeBacktestCompletion } from './backtest-support.ts';
+import { event, applyPlatformTerminalOutcome } from './backtest-support.ts';
 
 export interface RunPlatformBacktestInput {
   services: AppServices;
@@ -57,7 +55,7 @@ export async function runPlatformBacktest(input: RunPlatformBacktestInput): Prom
     status: 'submitted', baselineModuleId: baselineRef.id, variantModuleId: bundle.manifest.moduleId,
     metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
     artifactRefs: [], platformContractVersion: 'pending', sdkContractVersion: SDK_CONTRACT_VERSION,
-    backend: 'research_platform', resumeToken, platformRun,
+    backend: 'research_platform', taskId: task.id, resumeToken, platformRun,
     submittedAt: now(), finishedAt: null, createdAt: now(), updatedAt: now(),
   };
   await services.backtests.createSubmitted(run);
@@ -73,25 +71,5 @@ export async function runPlatformBacktest(input: RunPlatformBacktestInput): Prom
     await services.events.append(event(task.id, 'backtest.pending', { runId, platformRunId: handle.runId, resumeToken }));
     return;
   }
-  if (outcome.status === 'rejected') {
-    await services.backtests.markRejected(runId);
-    await services.events.append(event(task.id, 'backtest.failed', {
-      runId, reason: 'platform_rejected', ...(outcome.terminalCode !== undefined ? { terminalCode: outcome.terminalCode } : {}),
-    }));
-    return;
-  }
-
-  // completed
-  let comparison: ComparisonSummary;
-  try {
-    comparison = mapPlatformComparison(outcome.summary);
-  } catch (err) {
-    if (err instanceof MetricMappingError) {
-      await services.backtests.markFailed(runId);
-      await services.events.append(event(task.id, 'backtest.failed', { runId, reason: 'result_invalid', detail: 'metric_mapping_error', code: err.code }));
-      return;
-    }
-    throw err;
-  }
-  await finalizeBacktestCompletion(services, task, { runId, hypothesisId, comparison, artifactRefs: [...outcome.artifactIds] });
+  await applyPlatformTerminalOutcome(services, task, { runId, hypothesisId }, outcome);
 }
