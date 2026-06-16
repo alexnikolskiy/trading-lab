@@ -52,6 +52,7 @@ describe('runPlatformBacktest', () => {
     expect(runs[0]?.backend).toBe('research_platform');
     expect(runs[0]?.platformRun?.datasetId).toBe('ds');
     expect(runs[0]?.resumeToken).toBe('rt-test');
+    expect(runs[0]?.taskId).toBe('t1');
     expect(runs[0]?.metrics?.netPnlUsd).toBe(1500);
     expect(runs[0]?.baselineMetrics?.netPnlUsd).toBe(800);
     const evals = await s.evaluations.listByBacktestRun(runs[0]!.id);

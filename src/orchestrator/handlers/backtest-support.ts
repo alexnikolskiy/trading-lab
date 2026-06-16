@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { AppServices } from '../app-services.ts';
 import type { ResearchTask } from '../../domain/types.ts';
+import type { PlatformRunOutcome } from '../../research/run-backtest.ts';
+import { mapPlatformComparison, MetricMappingError } from '../../domain/platform-comparison.ts';
 import type { AgentEvent } from '../../ports/agent-event.repository.ts';
 import type { ComparisonSummary } from '../../ports/platform-gateway.port.ts';
 import type { BacktestCompletion } from '../../domain/backtest-run.ts';
@@ -77,4 +79,44 @@ export async function finalizeBacktestCompletion(
   await services.evaluations.create(evaluation);
   await services.backtests.markEvaluated(args.runId);
   await services.events.append(event(task.id, 'evaluation.completed', { runId: args.runId, decision: outcome.decision, reasons: outcome.reasons }));
+}
+
+export type PlatformTerminalResult =
+  | { kind: 'completed' }
+  | { kind: 'failed'; reason: 'platform_rejected' | 'result_invalid' };
+
+/**
+ * Maps a TERMINAL platform outcome (rejected | completed) to persistence + canonical events,
+ * delegating the completion tail to finalizeBacktestCompletion. Pending is handled by the caller
+ * (each path emits its own pending event). Shared by the submit path (runPlatformBacktest) and the
+ * resume path (resumePlatformRun) so outcome->Evaluation lives in exactly one place.
+ */
+export async function applyPlatformTerminalOutcome(
+  services: AppServices,
+  task: ResearchTask,
+  args: { runId: string; hypothesisId: string },
+  outcome: Exclude<PlatformRunOutcome, { status: 'pending' }>,
+): Promise<PlatformTerminalResult> {
+  const { runId, hypothesisId } = args;
+  if (outcome.status === 'rejected') {
+    await services.backtests.markRejected(runId);
+    await services.events.append(event(task.id, 'backtest.failed', {
+      runId, reason: 'platform_rejected', ...(outcome.terminalCode !== undefined ? { terminalCode: outcome.terminalCode } : {}),
+    }));
+    return { kind: 'failed', reason: 'platform_rejected' };
+  }
+  // completed
+  let comparison: ComparisonSummary;
+  try {
+    comparison = mapPlatformComparison(outcome.summary);
+  } catch (err) {
+    if (err instanceof MetricMappingError) {
+      await services.backtests.markFailed(runId);
+      await services.events.append(event(task.id, 'backtest.failed', { runId, reason: 'result_invalid', detail: 'metric_mapping_error', code: err.code }));
+      return { kind: 'failed', reason: 'result_invalid' };
+    }
+    throw err;
+  }
+  await finalizeBacktestCompletion(services, task, { runId, hypothesisId, comparison, artifactRefs: [...outcome.artifactIds] });
+  return { kind: 'completed' };
 }
