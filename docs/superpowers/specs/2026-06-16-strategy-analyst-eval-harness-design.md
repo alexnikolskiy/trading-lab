@@ -116,11 +116,24 @@ docs/fixtures/strategies/long-oi-strategy-rubric.md   # checked-in judge rubric
 2. `profile.direction === 'long'`.
 
 Gate-failure semantics:
-- If **gate 1 (schema parse) fails**, the weighted checks are **not** run (the fields are
-  untrustworthy/malformed): `score = 0`, `verdict = FAIL`, and the raw object is recorded
-  for diagnostics.
+- If **gate 1 (schema parse) fails on an available raw object**, the weighted checks are
+  **not** run (the fields are untrustworthy/malformed): `score = 0`, `verdict = FAIL`, and
+  the raw object is recorded for diagnostics. *(This path is mainly defensive / for unit
+  tests — see the note below; in the real analyst path a schema-invalid object is usually
+  not observable.)*
 - If **gate 1 passes but gate 2 (direction) fails**, the weighted checks **are** computed
   and recorded for diagnostics, but `verdict = FAIL` regardless of score.
+
+> **Real-path note (important).** Production `MastraStrategyAnalyst.analyze()` runs
+> `agent.generate(..., { structuredOutput: AnalystProfileOutputSchema })` and then
+> `AnalystProfileOutputSchema.parse(result.object)` — so it returns a **schema-valid
+> `AnalystProfileOutput` or throws.** The harness therefore must **not assume** a raw
+> schema-invalid object is available to persist for real model runs. `scoreProfile(raw)`
+> still accepts an arbitrary raw object (defensive scoring + unit tests can feed
+> schema-invalid inputs directly), but when the real `analyze()` **throws**
+> (schema / provider / adapter error), the harness records the candidate as `verdict:'FAIL'`
+> with **`score = null`** and an `error` object — it does **not** require a raw invalid
+> output to exist. See §3.4 and §4.
 
 ### 3.2 Weighted checks → `score ∈ [0,1]`
 
@@ -164,11 +177,31 @@ FAIL  otherwise
 interface ScoreResult {
   gates: { schemaValid: boolean; directionLong: boolean };
   checks: Array<{ id: string; weight: number; bucketsHit: number; bucketCount: number; contribution: number; matched: string[] }>;
-  score: number;          // 0..1
+  score: number;          // 0..1 — always a number; scoreProfile only runs when a raw object exists
   threshold: number;
   verdict: 'PASS' | 'FAIL';
 }
 ```
+
+`scoreProfile` always returns a `ScoreResult` (it scores whatever raw object it is given,
+including schema-invalid ones). The `null` case lives one level up, in the harness — see
+§3.4.
+
+### 3.4 Real-path error handling (eval-harness)
+
+Per candidate model, the harness isolates failures so **one bad model never aborts the
+multi-model run**:
+
+- **`analyze()` returns a value** → run `scoreProfile(value)` → `CandidateResult` with
+  `score: ScoreResult`, `rawOutput: value`, `error: null`.
+- **`analyze()` throws** (schema parse / provider / adapter / timeout error) → record
+  `CandidateResult` with `verdict: 'FAIL'`, **`score: null`**, **`rawOutput: null`**, and
+  `error: { type, message }`. The harness does **not** assume a raw invalid object is
+  available. It logs and **continues to the next model**.
+
+`runEval` collects results for **all** models regardless of individual failures; the run
+itself only errors out on a harness-level fault (bad args, fixture not found), not on a
+per-model `analyze()` throw.
 
 ---
 
@@ -186,7 +219,12 @@ interface ScoreResult {
   `Date.now` restriction is workflow-script-only).
 - `.artifacts/` is already gitignored → no accidental commits.
 
-**`<model-slug>.json`:**
+**`<model-slug>.json`** — `CandidateResult`. `rawOutput` is present **only when
+`analyze()` returned a value**; on any error it is `null`. `score` is the `ScoreResult`
+when scored, or `null` when `analyze()` threw. `error` is `null` on success or
+`{ type, message }` on failure.
+
+Success:
 
 ```jsonc
 {
@@ -194,13 +232,31 @@ interface ScoreResult {
   "provider": "openai",
   "modelId": "gpt-5",
   "latencyMs": 4213,
-  "schemaValid": true,
-  "score": { /* ScoreResult from §3 */ },
   "verdict": "PASS",
-  "rawOutput": { /* the candidate AnalystProfileOutput verbatim, or the raw object if schema-invalid */ },
+  "score": { /* ScoreResult from §3 — includes gates.schemaValid, gates.directionLong */ },
+  "rawOutput": { /* the candidate AnalystProfileOutput verbatim */ },
   "error": null
 }
 ```
+
+Failure (`analyze()` threw — schema / provider / adapter / timeout):
+
+```jsonc
+{
+  "model": "openrouter/x-ai/grok-…",
+  "provider": "openrouter",
+  "modelId": "x-ai/grok-…",
+  "latencyMs": 1820,
+  "verdict": "FAIL",
+  "score": null,
+  "rawOutput": null,
+  "error": { "type": "schema" /* | "provider" | "adapter" | "timeout" | "unknown" */, "message": "…" }
+}
+```
+
+> `schemaValid` is no longer a top-level field; it lives inside `ScoreResult.gates`
+> (present only when scored). A throw with `error.type:'schema'` is how a real-run
+> schema failure surfaces.
 
 **`manifest.json`:**
 
@@ -345,7 +401,9 @@ A run is successful when:
 `scoring.ts` carries the bulk (pure, deterministic):
 - a hand-built "good" profile (mirroring research-notes §4–13) → `PASS`;
 - a `direction:'short'` profile → gate FAIL (verdict FAIL even if score high);
-- a schema-invalid raw object → gate FAIL (`schemaValid:false`);
+- a schema-invalid raw object fed directly to `scoreProfile` → `gates.schemaValid:false`,
+  `score:0`, `verdict:'FAIL'` (defensive scoring path; kept even though the real analyst
+  path normally throws instead of returning an invalid object);
 - a profile whose `riskManagementSummary` fabricates `leverage: 10x` / `$100 base` →
   check 5 contributes 0;
 - a profile missing TP2 in `exitConditions` → check 3 partial credit (0.15 of 0.20);
@@ -355,6 +413,11 @@ A run is successful when:
 
 Harness / CLI:
 - `runEval` with a **fake** `analystFor` → zero paid calls; asserts scoring + result shape.
+- **error isolation:** a fake analyst that **throws** (schema / adapter error) for one
+  model → that `CandidateResult` is `verdict:'FAIL'`, `score:null`, `rawOutput:null`,
+  `error:{type,message}` recorded, and the run **continues to the next model** (no raw
+  invalid object required). A mixed run (one model throws, one returns a PASS profile)
+  → both results present; the throw does **not** abort the run; `overallSuccess:true`.
 - **dry-run** path: asserts `.analyze` is **never** called and `composeMastra` is **never**
   invoked (inject a spy factory; assert no provider construction).
 - `parseRoleModel`-based key-report: asserts missing-key reporting per provider.
