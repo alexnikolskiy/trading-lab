@@ -88,8 +88,9 @@ src/experiments/strategy-analyst/
   eval-harness.ts   # runEval({ mode, models, fixture, analystFor, judge? }) -> EvalRunResult  (no fs/clock inside)
   artifacts.ts      # writeRunArtifacts(outDir, result) -> on-disk layout + manifest
   fixtures.ts       # resolveFixture('long-oi') -> { id, sourcePath, notesPath, rubricPath }
-  judge.ts          # opt-in judge orchestration (uses judge-agent + JudgeVerdictSchema)
-  judge-agent.ts    # createStrategyAnalystJudgeAgent(model)  (experimental prompt; NOT in src/mastra/agents/)
+  judge.ts          # opt-in judge orchestration: buildJudgePrompt + runJudge(agent,…); import TYPE Agent only
+src/mastra/agents/
+  strategy-analyst-judge.agent.ts  # createStrategyAnalystJudgeAgent(model) — the `new Agent(...)` lives here
   types.ts          # ScoreResult, CandidateResult, EvalRunResult, JudgeVerdictSchema, etc.
 docs/fixtures/strategies/long-oi-strategy-rubric.md   # checked-in judge rubric
 ```
@@ -346,9 +347,16 @@ Dry-run does exactly this, all without instantiating any provider SDK:
   (no default model — must be passed).
 - A judge call is a paid call → **gated by `--run`** (in dry-run, `--judge` only adds
   `+1` to the planned-call count, constructs nothing).
-- New **experimental** judge agent (`createStrategyAnalystJudgeAgent`) with its own
-  prompt and a `JudgeVerdictSchema` — lives in `src/experiments/strategy-analyst/`,
-  **not** in `src/mastra/agents/` (it is not production).
+- New judge agent factory (`createStrategyAnalystJudgeAgent`) with its own prompt and a
+  `JudgeVerdictSchema`. **The `new Agent(...)` must live in `src/mastra/agents/`** —
+  `src/mastra/agents/strategy-analyst-judge.agent.ts` — to satisfy the repo's
+  `mastra-import-boundary.guard.test.ts` invariant (all `@mastra/core` value usage and
+  `new Agent(`/`new Mastra(` stay under `src/mastra/**`; everywhere else `import type`
+  only). The judge *runner* (`buildJudgePrompt`, `runJudge`) stays experimental in
+  `src/experiments/strategy-analyst/judge.ts` and only `import type`s `Agent` — exactly
+  the production split (`createStrategyAnalystAgent` in `src/mastra/agents/` vs
+  `MastraStrategyAnalyst` adapter). The agent is still experimental and built ad-hoc by
+  the run-only factory (not registered in `composeMastra`).
 - **Inputs:** the candidate `AnalystProfileOutput` + `long-oi-strategy-rubric.md` + the
   research-notes (`long-oi-strategy-research-notes.md`).
 - **Output:** `<model-slug>.judge.json` (separate file).

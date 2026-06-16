@@ -38,7 +38,7 @@
 | `src/experiments/strategy-analyst/eval-harness.ts` | `runEval(input, deps) → EvalRunResult`. Orchestration; fs/clock/network injected. |
 | `src/experiments/strategy-analyst/artifacts.ts` | `writeRunArtifacts(outDir, meta, result)`, `slugModel`, `compactTimestamp`. |
 | `src/experiments/strategy-analyst/judge.ts` | `JudgeVerdictSchema` consumer: `runJudge(agent, {...}) → JudgeVerdict`, `buildJudgePrompt`. |
-| `src/experiments/strategy-analyst/judge-agent.ts` | `createStrategyAnalystJudgeAgent(model)` (experimental judge agent). |
+| `src/mastra/agents/strategy-analyst-judge.agent.ts` | `createStrategyAnalystJudgeAgent(model)` — the `new Agent(...)` **must live under `src/mastra/**`** (repo `mastra-import-boundary.guard.test.ts` invariant). |
 | `src/experiments/strategy-analyst/plan.ts` | `planDryRun({models, judge, env}) → DryRunPlan` (pure; no model construction). |
 | `src/experiments/strategy-analyst/real-analyst-factory.ts` | `buildRealAnalystFor(env)` + `buildRealJudge(...)`. **Only** module that imports `composeMastra`; dynamically imported under `--run`. |
 | `src/experiments/strategy-analyst/imports.guard.test.ts` | Guard test: harness modules import no forbidden modules. |
@@ -1008,8 +1008,8 @@ git commit -m "feat(analyst-eval): artifact writer (manifest + per-model + separ
 ## Task 7: Judge agent + judge runner
 
 **Files:**
-- Create: `src/experiments/strategy-analyst/judge-agent.ts`
-- Create: `src/experiments/strategy-analyst/judge.ts`
+- Create: `src/mastra/agents/strategy-analyst-judge.agent.ts`  ⚠️ **the `new Agent(...)` MUST live under `src/mastra/**`** — the repo's `mastra-import-boundary.guard.test.ts` forbids `@mastra/core` value imports / `new Agent(` anywhere else. (Mirrors the production `src/mastra/agents/strategy-analyst.agent.ts`.) Its `// path` comment and the `import { createStrategyAnalystJudgeAgent } from` line in Task 9 must use this path.
+- Create: `src/experiments/strategy-analyst/judge.ts` (runner — `import type { Agent }` only)
 - Test: `src/experiments/strategy-analyst/judge.test.ts`
 
 - [ ] **Step 1: Write the failing test**
@@ -1283,7 +1283,7 @@ This is the **only** module that imports `composeMastra`. It is dynamically impo
 import { composeMastra, type MastraCompositionEnv } from '../../mastra/compose-mastra.ts';
 import { MastraStrategyAnalyst } from '../../adapters/analyst/mastra-strategy-analyst.ts';
 import { resolveLanguageModel, type ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
-import { createStrategyAnalystJudgeAgent } from './judge-agent.ts';
+import { createStrategyAnalystJudgeAgent } from '../../mastra/agents/strategy-analyst-judge.agent.ts';
 import { runJudge } from './judge.ts';
 import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
 import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
