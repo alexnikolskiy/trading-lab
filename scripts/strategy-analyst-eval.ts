@@ -1,0 +1,112 @@
+// scripts/strategy-analyst-eval.ts
+// analyst:eval — experimental StrategyAnalyst model evaluation harness.
+// Default = DRY RUN (no real model construction, no composeMastra, no paid calls).
+// --run is the SOLE trigger for paid calls. No DB, no backtester, no persistence.
+import { parseArgs } from 'node:util';
+import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { resolveFixture, fingerprintSource } from '../src/experiments/strategy-analyst/fixtures.ts';
+import { planDryRun } from '../src/experiments/strategy-analyst/plan.ts';
+import { runEval } from '../src/experiments/strategy-analyst/eval-harness.ts';
+import { writeRunArtifacts, compactTimestamp } from '../src/experiments/strategy-analyst/artifacts.ts';
+import { parseRoleModel, type ModelProvider, type ModelProviderEnv } from '../src/adapters/llm/model-provider.ts';
+import { STRATEGY_PROFILE_CONTRACT_VERSION } from '../src/domain/strategy-profile.ts';
+import type { ManifestMeta } from '../src/experiments/strategy-analyst/types.ts';
+
+const HARNESS_VERSION = 'analyst-eval-v1';
+
+function parseCli() {
+  const { values } = parseArgs({
+    options: {
+      fixture: { type: 'string', default: 'long-oi' },
+      models: { type: 'string' },
+      run: { type: 'boolean', default: false },
+      threshold: { type: 'string', default: '0.8' },
+      judge: { type: 'boolean', default: false },
+      'judge-model': { type: 'string' },
+    },
+  });
+  const models = (values.models ?? '').split(',').map((m) => m.trim()).filter(Boolean);
+  if (models.length === 0) throw new Error('--models is required (comma-separated, e.g. anthropic/claude-x,openai/gpt-x)');
+  const threshold = Number(values.threshold);
+  if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) throw new Error(`--threshold must be in [0,1], got ${values.threshold}`);
+  if (values.judge && !values['judge-model']) throw new Error('--judge requires --judge-model <provider/model>');
+  return { fixtureId: values.fixture!, models, run: values.run!, threshold, judge: values.judge!, judgeModel: values['judge-model'] };
+}
+
+function gitSha(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return 'unknown';
+  }
+}
+
+function modelEnv(): ModelProviderEnv {
+  return {
+    MODEL_PROVIDER: process.env.MODEL_PROVIDER as ModelProvider,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  };
+}
+
+async function main(): Promise<number> {
+  const args = parseCli();
+  const fixture = resolveFixture(args.fixtureId);
+  const fixtureText = readFileSync(fixture.sourcePath, 'utf8');
+
+  // ---------- DRY RUN (default): no model construction, no composeMastra ----------
+  if (!args.run) {
+    const plan = planDryRun({ models: args.models, judge: args.judge, env: process.env });
+    process.stdout.write(`${JSON.stringify({
+      mode: 'dry-run', fixture: args.fixtureId, threshold: args.threshold, judge: args.judge,
+      plannedPaidCalls: plan.totalPaidCalls, analystCalls: plan.analystCalls, judgeCalls: plan.judgeCalls,
+      models: plan.perModel, missingKeys: plan.missingKeys,
+      note: 'DRY RUN — no real models constructed, nothing sent. Re-run with --run to make paid calls.',
+    }, null, 2)}\n`);
+    return 0;
+  }
+
+  // ---------- REAL RUN (--run): dynamically import the composeMastra-backed factory ----------
+  const env = modelEnv();
+  const { buildRealAnalystFor, buildRealJudge } = await import('../src/experiments/strategy-analyst/real-analyst-factory.ts');
+
+  let judge: Awaited<ReturnType<typeof buildRealJudge>> | undefined;
+  if (args.judge && args.judgeModel) {
+    const rubricText = readFileSync(fixture.rubricPath, 'utf8');
+    const notesText = readFileSync(fixture.notesPath, 'utf8');
+    judge = buildRealJudge(env, args.judgeModel, rubricText, notesText);
+  }
+
+  const result = await runEval(
+    { models: args.models, fixtureId: fixture.id, fixtureText, fixtureFingerprint: fingerprintSource(fixtureText), threshold: args.threshold },
+    {
+      analystFor: buildRealAnalystFor(env),
+      providerOf: (m) => { const r = parseRoleModel(env, m); return { provider: r.provider, modelId: r.modelId }; },
+      clock: () => Date.now(),
+      judge,
+    },
+  );
+
+  const now = new Date();
+  const timestamp = compactTimestamp(now);
+  const outDir = `.artifacts/experiments/strategy-analyst/${fixture.id}/${timestamp}`;
+  const meta: ManifestMeta = { timestamp, gitSha: gitSha(), harnessVersion: HARNESS_VERSION, contractVersion: STRATEGY_PROFILE_CONTRACT_VERSION, mode: 'run' };
+  const written = writeRunArtifacts(outDir, meta, result);
+
+  process.stdout.write(`${JSON.stringify({
+    mode: 'run', outDir, overallSuccess: result.overallSuccess,
+    perModel: result.perModel.map((c) => ({ model: c.model, verdict: c.verdict, score: c.score?.score ?? null, error: c.error?.type ?? null })),
+    artifacts: written,
+  }, null, 2)}\n`);
+
+  return result.overallSuccess ? 0 : 3;
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err: unknown) => {
+    process.stderr.write(`analyst:eval failed: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.exit(1);
+  });
