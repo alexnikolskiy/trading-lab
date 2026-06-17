@@ -25,7 +25,7 @@ This is a narrow **consumer-integration** increment. The bot-results are fed as 
 ## 2. Architecture / wiring
 
 Mirrors the `selectResearchPlatform` precedent:
-- `src/orchestrator/app-services.ts`: add `readonly botResults: BotResultsReadPort;` to `AppServices`.
+- `src/orchestrator/app-services.ts`: add `botResults: BotResultsReadPort;` to `AppServices` (non-`readonly`, matching the file's field style).
 - `src/composition.ts` (`composeRuntime`): add `botResults: selectBotResults(process.env),` to the `services` literal. `selectBotResults` is synchronous (no change to composition control flow) and reads its own `LAB_*` env namespace — so it takes `process.env`, NOT the parsed `env` object that `selectResearchPlatform` uses.
 
 ## 3. The raw-DTO composite + the `ResearcherInput` field
