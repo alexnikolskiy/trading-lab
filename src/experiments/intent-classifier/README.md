@@ -27,13 +27,13 @@ analyst harness.
 
 ```bash
 # DRY RUN (default): no models built, no network, no paid calls. Prints the paid-call plan.
-pnpm intent:eval --models openrouter/x-ai/grok-4.1-fast,openrouter/qwen/qwen3.6-flash
+pnpm intent:eval --models openrouter/openai/gpt-5.4-nano-20260317,openrouter/google/gemini-3.1-flash-lite-preview
 
 # PAID RUN: --run is the SOLE trigger for real calls.
-pnpm intent:eval --run --models openrouter/qwen/qwen3.6-flash --repeat 1
+pnpm intent:eval --run --models openrouter/openai/gpt-5.4-nano-20260317 --repeat 1
 
 # With the optional batch LLM judge (1 call per model per repeat):
-pnpm intent:eval --run --models openrouter/qwen/qwen3.6-flash --judge --judge-model openrouter/x-ai/grok-4.3
+pnpm intent:eval --run --models openrouter/openai/gpt-5.4-nano-20260317 --judge --judge-model openrouter/anthropic/claude-haiku-4.5
 ```
 
 Flags: `--dataset` (default `chat-intents-v1`), `--models` (CSV, **required**), `--run`,
@@ -52,7 +52,10 @@ judgeCalls    = (judge ? models : 0) × repeat
 ```
 
 With the shipped 20-case dataset, 2 models at `--repeat 1` = **40 classify calls**. Always run the
-dry-run first; keep a paid round at **≤ 40 calls** unless explicitly confirmed.
+dry-run first; keep a paid round at **≤ 40 calls** as the baseline discipline. The final model
+selection took several **explicitly confirmed** rounds above that limit (60–80 calls, i.e. 3–4
+models × 20 cases), each approved individually before running — the ≤40 ceiling is the default, not
+a hard cap, and is only raised with explicit confirmation.
 
 ## Candidate models (cheap class)
 
@@ -63,22 +66,71 @@ breaks.
 
 | Slug | Notes |
 |------|-------|
-| `openrouter/google/gemini-3.1-flash-lite-preview` | cheap default, low latency, response schema |
-| `openrouter/x-ai/grok-4.1-fast` | cheapest entry, fast variant |
-| `openrouter/qwen/qwen3.6-flash` | lowest price anchor — confirmed live ($0.1875 in / $1.125 out); the undated `qwen3.5-flash` slug is **not** a valid OpenRouter model id (400) |
-| `openrouter/x-ai/grok-4.3` | quality ceiling (current StrategyAnalyst default) |
-| `openrouter/google/gemini-3.5-flash` | quality ceiling (#1 OpenRouter intelligence) |
+| `openrouter/openai/gpt-5.4-nano-20260317` | **winner** — best price/quality ($0.20 in / $1.25 out) |
+| `openrouter/anthropic/claude-haiku-4.5` | fallback — max accuracy (0 mislabels) but ~4× pricier out ($1.00 / $5.00) |
+| `openrouter/google/gemini-3.1-flash-lite-preview` | cheapest solid option ($0.25 / $1.50); low latency |
+
+See **Results (June 2026)** below for the full ranking and the models that were eliminated.
 
 ## Results (June 2026)
 
-Two paid rounds over the cheap class:
+Final standings after the OpenAI strict-mode schema fix (see below) and three paid rounds over the
+20-case `chat-intents-v1` dataset.
 
-- **Winner — `openrouter/google/gemini-3.1-flash-lite-preview`**: intentAccuracy **0.90**, schemaValidRate **1.00**, payloadAccuracy **0.917**. Cheap and fast — the pick for chat intent classification.
-- **`openrouter/google/gemini-3.5-flash` (stable, non-preview)**: essentially identical (payloadAccuracy 0.833); a fine fallback.
-- **`openrouter/qwen/qwen3.6-flash` — eliminated**: 0/20 schemaValidRate. It invents its own intent labels, so almost nothing survives the strict ChatIntentSchema gate.
-- **`openrouter/x-ai/grok-4.1-fast` — eliminated**: 0/20 schemaValidRate. The fast variant immediately refuses structured output through the current path.
+### Winner — `openrouter/openai/gpt-5.4-nano-20260317`
 
-Note that **intentAccuracy and schemaValidRate are measured separately**: a model can recognize the right intent (counts toward intentAccuracy) while still emitting an object that fails `.strict()` (0 schemaValidRate). The eliminated models failed on schema validity, not necessarily on intent recognition — but a 0% schema-valid model is unusable in prod, where the guard re-validates against ChatIntentSchema.
+intentAccuracy **0.95** · schemaValidRate **1.00** · payloadAccuracy **1.00** · latency ~34s ·
+$0.20 in / $1.25 out. **Best price/quality balance** — the pick for chat intent classification. Its
+only mislabel was `results.trading → needs_clarification` on *«какой pnl по моей торговле за
+сегодня»*, a genuinely borderline phrasing, not a bug.
+
+### Fallback — `openrouter/anthropic/claude-haiku-4.5`
+
+The only model with **zero mislabels** (intentAccuracy **1.00**, schemaValidRate **1.00**,
+payloadAccuracy **1.00**), but ~4× pricier on output ($1.00 in / $5.00 out) and slower (~49s).
+Choose it when maximum accuracy matters more than cost.
+
+### Prior cheap champion — `openrouter/google/gemini-3.1-flash-lite-preview`
+
+intentAccuracy **0.95** · schemaValidRate **1.00** · payloadAccuracy **0.917** ($0.25 / $1.50).
+Stable, but chronically mislabels the `strategy-onboard-ru` case (onboarding read as
+`hypothesis.build` / `results.trading`); lost to nano on payload accuracy and price.
+
+### Eliminated
+
+- `openrouter/google/gemini-2.5-flash-lite` — intentAccuracy 0.85, 19/20 schema-valid; confuses research ↔ strategy.
+- `openrouter/deepseek/deepseek-v4-flash` — intentAccuracy 0.80 and ~111s latency.
+- `openrouter/qwen/qwen3.6-flash` — 0/20 schemaValidRate; invents its own intent labels.
+- `openrouter/x-ai/grok-4.1-fast` — 0/20 schemaValidRate; the fast variant immediately refuses structured output through the current path.
+
+**Expensive flagships were deliberately not tested in prod** (Gemini 3.1 Pro $2/$12, GPT-5.4 full
+$2.50/$15): ~10–12× nano's cost with no justified gain on a 9-intent classification task.
+
+Note that **intentAccuracy and schemaValidRate are measured separately**: a model can recognize the
+right intent (counts toward intentAccuracy) while still emitting an object that fails `.strict()`
+(0 schemaValidRate). The eliminated `qwen`/`grok` models failed on schema validity — and a 0%
+schema-valid model is unusable in prod, where the guard re-validates against `ChatIntentSchema`.
+
+## OpenAI strict-mode schema fix
+
+OpenAI structured outputs require the JSON-Schema `required` array to include **every** key in
+`properties`, expressing optionality via nullable (`type: [..., "null"]`) — not by omitting the key.
+Zod's `.optional()` drops fields from `required`, which Google/DeepSeek tolerate but OpenAI rejects
+at validation time: a 400 `Invalid schema for response_format: 'required' is required to be ...
+Missing 'strategyText'` — an instant reject, 0/20, before any classification happens.
+
+Fixed **eval-only**, prod untouched (commit `a011ade`):
+
+- `openai-eval-schema.ts` — `ChatIntentEvalSchema`, derived from `ChatIntentSchema.shape` by turning
+  each `.optional()` field into a required-but-`.nullable()` one (`.strict()` preserved). Deriving
+  from the prod shape means it can't drift.
+- The adapter's eval (`raw`) branch sends this variant via its `requestSchema` option; the prod
+  (`strict`) branch still sends `ChatIntentSchema` verbatim — the production request is byte-identical.
+- `scoring.ts` normalizes null-valued keys away before the `ChatIntentSchema` gate, so OpenAI's
+  `null` (= "absent") is treated as missing rather than rejected.
+
+Production `ChatIntentSchema`, the guard, and the intent-classifier agent are **not** touched; the
+contract stays optional-by-semantics, only the wire schema handed to OpenAI-compatible providers changes.
 
 ## Files
 
