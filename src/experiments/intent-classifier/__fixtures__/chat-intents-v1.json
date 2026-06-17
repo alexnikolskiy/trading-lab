@@ -2,7 +2,7 @@
   {
     "id": "strategy-onboard-ru",
     "lang": "ru",
-    "message": "проверь стратегию: лонг при росте open interest и цене выше VWAP",
+    "message": "заведи стратегию: лонг при росте open interest и цене выше VWAP",
     "expect": { "intent": "strategy.onboard", "requestedOutcome": "onboard", "hasStrategyText": true }
   },
   {
@@ -42,9 +42,9 @@
     "expect": { "intent": "results.trading" }
   },
   {
-    "id": "results-trading-ru-leader",
+    "id": "results-trading-ru-pnl",
     "lang": "ru",
-    "message": "кто лидер среди ботов в торговле",
+    "message": "какой pnl по моей торговле за сегодня",
     "expect": { "intent": "results.trading" }
   },
   {
