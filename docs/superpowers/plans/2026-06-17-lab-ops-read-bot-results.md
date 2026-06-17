@@ -38,6 +38,8 @@
 
 **Files:** replace `vendor/trading-platform-sdk/trading-platform-sdk-0.3.0.tgz`; `pnpm-lock.yaml`; create `src/adapters/platform/vendored-sdk.guard.test.ts`.
 
+> **Runtime-export precondition (confirmed):** the guard reads `OPS_READ_CONTRACT_VERSION` at **runtime** via `import('@trading-platform/sdk/ops-read')`. This requires it to be a runtime value export, not type-only. Confirmed in the SDK source: `packages/sdk/src/ops-read/version.ts` declares `export const OPS_READ_CONTRACT_VERSION = 'ops.3' as const;` and `index.ts` re-exports it as a **value** (`export { OPS_READ_CONTRACT_VERSION }`, not `export type`). Step 2 below is the executable plan-time check — if it ever prints `version: undefined`, the SDK regressed it to type-only and Task 1 must stop.
+
 - [ ] **Step 1: Re-pack the current SDK into lab's vendor dir**
 
 ```bash
@@ -56,7 +58,7 @@ pnpm install --force
 test -f node_modules/@trading-platform/sdk/dist/ops-read/index.d.ts && echo "OPS-READ PRESENT" || echo "OPS-READ MISSING"
 node -e "import('@trading-platform/sdk/ops-read').then(m => console.log('version:', m.OPS_READ_CONTRACT_VERSION))"
 ```
-Expected: `OPS-READ PRESENT` and `version: ops.3`. (`--force` makes pnpm re-extract the `file:` tarball whose bytes changed under the same filename.)
+Expected: `OPS-READ PRESENT` and `version: ops.3`. (`--force` makes pnpm re-extract the `file:` tarball whose bytes changed under the same filename.) **If `version:` prints `undefined`** the SDK exported the constant type-only — STOP and fix the SDK export before continuing (this is the runtime-export precondition above). **If it prints `ops.3`**, the runtime value export is confirmed and the guard test (Step 3) will work.
 
 - [ ] **Step 3: Write the vendored-sdk guard test (the machine guarantee)**
 
@@ -357,14 +359,26 @@ const RUN_B: BotRunRecord = { ...RUN_A, runId: 'r2' };
 const TRADE: ClosedTrade = { tradeId: 't1', runId: 'r1', symbol: 'BTC', side: 'long', openedAtMs: 1, closedAtMs: 2, realizedPnl: '1.5', pnlPct: '0.1', isWin: true, closeReason: 'tp' };
 const SUMMARY: RunSummary = { runId: 'r1', excludesReconcile: true, asOf: 9, closedTrades: 1, wins: 1, losses: 0, breakeven: 0, winratePct: 100, pnlUsd: '1.5', avgPnl: '1.5', exitReasons: { tp: 1 } };
 
-/** A fake fetch that maps url → enveloped/bare JSON; records the URLs it saw. */
+/** Normalize a path-or-URL to "pathname[?sorted=query]" so route matching is order-independent
+ *  and exact — no fragile endsWith / first-match-wins (URLSearchParams does not guarantee key order). */
+function norm(pathOrUrl: string): string {
+  const u = new URL(pathOrUrl, 'http://x');
+  const entries = [...u.searchParams.entries()]
+    .sort((a, b) => (a[0] === b[0] ? a[1].localeCompare(b[1]) : a[0].localeCompare(b[0])));
+  const qs = entries.map(([k, v]) => `${k}=${v}`).join('&');
+  return u.pathname + (qs ? `?${qs}` : '');
+}
+
+/** A fake fetch that maps a NORMALIZED route key → enveloped/bare JSON; records the URLs it saw.
+ *  Exact match on the normalized form: order-independent and unambiguous as routes grow. */
 function routed(routes: Record<string, unknown>): { fetchImpl: FetchLike; urls: string[] } {
   const urls: string[] = [];
+  const table = new Map(Object.entries(routes).map(([k, v]) => [norm(k), v] as const));
   const fetchImpl: FetchLike = async (url) => {
     urls.push(url);
-    const key = Object.keys(routes).find((k) => url.endsWith(k));
-    if (key === undefined) return { ok: false, status: 404, json: async () => ({ code: 'no_route', message: url }), text: async () => '' };
-    return { ok: true, status: 200, json: async () => routes[key], text: async () => '' };
+    const body = table.get(norm(url));
+    if (body === undefined) return { ok: false, status: 404, json: async () => ({ code: 'no_route', message: url }), text: async () => '' };
+    return { ok: true, status: 200, json: async () => body, text: async () => '' };
   };
   return { fetchImpl, urls };
 }
