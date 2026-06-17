@@ -32,18 +32,29 @@ describe('scoreCase — schema gate (ChatIntentSchema, the guard trust boundary)
     expect(r.error?.type).toBe('schema');
   });
 
-  it('surfaces a valid intent even when another field fails the enum (the real eval bug)', () => {
-    // model returned a good intent but entityRef "from_message" (invalid enum) -> schema-invalid miss
+  it('counts a correct intent even when another field fails the enum (intent vs schema split)', () => {
+    // model returned the right intent but entityRef "from_message" (invalid enum) -> still a
+    // schema-invalid object, but the intent itself matched. intentAccuracy must credit it.
     const r = scoreCase(
       { intent: 'strategy.onboard', confidence: 0.8, entityRef: 'from_message' },
       evalCase({ expect: { intent: 'strategy.onboard', requestedOutcome: 'onboard' } }),
       0,
     );
-    expect(r.schemaValid).toBe(false);
-    expect(r.actualIntent).toBe('strategy.onboard'); // visible in report.md
-    expect(r.intentMatch).toBe(false); // a value that failed the trust boundary is never a match
-    expect(r.payloadScore).toBeNull(); // payload not scored on a schema-invalid output
+    expect(r.actualIntent).toBe('strategy.onboard');
+    expect(r.intentMatch).toBe(true); // intent recognized correctly
+    expect(r.schemaValid).toBe(false); // ...but the object would NOT pass the strict gate
+    expect(r.payloadScore).toBeNull(); // payload still not scored on a schema-invalid output
     expect(r.error?.type).toBe('schema');
+  });
+
+  it('a schema-invalid object with the WRONG intent is still an intent miss', () => {
+    const r = scoreCase(
+      { intent: 'out_of_scope', confidence: 0.8, entityRef: 'from_message' },
+      evalCase({ expect: { intent: 'help' } }),
+      0,
+    );
+    expect(r.intentMatch).toBe(false);
+    expect(r.schemaValid).toBe(false);
   });
 
   it('leaves actualIntent null when the raw output has no usable intent field', () => {
@@ -140,6 +151,16 @@ describe('scoreRun — dataset aggregate', () => {
     const invalid: CaseResult = { ...cr(false, null), schemaValid: false, actualIntent: null };
     const s = scoreRun([cr(true, null), invalid], { threshold: 0.5 });
     expect(s.schemaValidCount).toBe(1);
+  });
+
+  it('separates intent accuracy from schema validity (real eval split)', () => {
+    // one fully-valid correct case + one schema-invalid case whose intent still matched
+    const valid = scoreCase({ intent: 'help', confidence: 0.9 }, { id: 'a', lang: 'en', message: 'help', expect: { intent: 'help' } }, 0);
+    const invalidButRight = scoreCase({ intent: 'help', confidence: 0.9, entityRef: 'from_message' }, { id: 'b', lang: 'en', message: 'help!', expect: { intent: 'help' } }, 0);
+    const s = scoreRun([valid, invalidButRight], { threshold: 0.5 });
+    expect(s.intentAccuracy).toBe(1); // both intents matched -> primary metric is 1.0
+    expect(s.schemaValidRate).toBe(0.5); // only one passed the strict gate
+    expect(s.verdict).toBe('PASS'); // verdict tracks intentAccuracy
   });
 
   it('uses DEFAULT_THRESHOLD when none is supplied', () => {

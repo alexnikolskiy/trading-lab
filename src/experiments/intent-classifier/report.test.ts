@@ -19,6 +19,7 @@ const cases: EvalCase[] = [
   { id: 'c-help', lang: 'en', message: 'help', expect: { intent: 'help' } },
   { id: 'c-strat', lang: 'ru', message: LONG_MSG, expect: { intent: 'strategy.onboard', requestedOutcome: 'onboard', hasStrategyText: true } },
   { id: 'c-oos', lang: 'ru', message: 'какая погода', expect: { intent: 'out_of_scope' } },
+  { id: 'c-extra', lang: 'en', message: 'show me the trading results', expect: { intent: 'results.trading' } },
 ];
 
 function caseResult(over: Partial<CaseResult> & { id: string; expectedIntent: CaseResult['expectedIntent'] }): CaseResult {
@@ -36,6 +37,7 @@ function scoreOf(cs: CaseResult[], threshold = 0.7): ScoreResult {
     intentAccuracy: acc, payloadAccuracy: pl.length ? pl.reduce((a, b) => a + b, 0) / pl.length : null,
     score: acc, threshold, verdict: acc >= threshold ? 'PASS' : 'FAIL',
     cases: cs, caseCount: total, schemaValidCount: cs.filter((c) => c.schemaValid).length,
+    schemaValidRate: total ? cs.filter((c) => c.schemaValid).length / total : 0,
   };
 }
 
@@ -48,16 +50,20 @@ const badCases: CaseResult[] = [
   caseResult({ id: 'c-help', lang: 'en', expectedIntent: 'help', actualIntent: 'out_of_scope', intentMatch: false, latencyMs: 5 }),
   caseResult({ id: 'c-strat', lang: 'ru', expectedIntent: 'strategy.onboard', actualIntent: 'research.run_cycle', intentMatch: false, payloadScore: 0, latencyMs: 10 }),
   caseResult({ id: 'c-oos', lang: 'ru', expectedIntent: 'out_of_scope', actualIntent: null, intentMatch: false, schemaValid: false, latencyMs: 4, error: { type: 'schema', message: 'bad' } }),
+  // intent correct, but the object failed the strict gate (bad secondary enum) -> NOT a mislabel
+  caseResult({ id: 'c-extra', lang: 'en', expectedIntent: 'results.trading', actualIntent: 'results.trading', intentMatch: true, schemaValid: false, latencyMs: 6, error: { type: 'schema', message: 'bad entityRef' } }),
 ];
 
 const goodAgg: ModelAggregate = {
   model: 'good-model', provider: 'openrouter', modelId: 'good', runs: { total: 1, ok: 1, failed: 0, failedByType: {} },
-  passRate: 1, det: { mean: 1, median: 1, std: 0, min: 1, max: 1 }, payload: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
+  passRate: 1, det: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
+  schemaValid: { mean: 1, median: 1, std: 0, min: 1, max: 1 }, payload: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
   judge: null, latency: { mean: 24, median: 24 },
 };
 const badAgg: ModelAggregate = {
   model: 'bad-model', provider: 'openrouter', modelId: 'bad', runs: { total: 1, ok: 1, failed: 0, failedByType: {} },
-  passRate: 0, det: { mean: 0, median: 0, std: 0, min: 0, max: 0 }, payload: { mean: 0, median: 0, std: 0, min: 0, max: 0 },
+  passRate: 0, det: { mean: 0, median: 0, std: 0, min: 0, max: 0 },
+  schemaValid: { mean: 0.5, median: 0.5, std: 0, min: 0.5, max: 0.5 }, payload: { mean: 0, median: 0, std: 0, min: 0, max: 0 },
   judge: null, latency: { mean: 19, median: 19 },
 };
 
@@ -123,6 +129,21 @@ describe('renderReport — Mislabels block', () => {
   });
 });
 
+describe('renderReport — intent vs schema-validity split', () => {
+  const md = renderReport(meta, baseResult, cases);
+
+  it('adds a Schema valid column to the summary, next to intent accuracy', () => {
+    expect(md).toContain('Schema valid');
+    expect(md).toContain('Intent acc (mean±std)');
+  });
+
+  it('surfaces schema-invalid-but-intent-correct cases in their own block (not in Mislabels)', () => {
+    expect(md).toContain('Schema-invalid but intent correct (1)');
+    expect(md).toContain('results.trading _(schema-invalid)_ — "show me the trading results"');
+    expect(md).toContain('Mislabels (3)'); // c-extra (intent correct) is NOT counted as a mislabel
+  });
+});
+
 describe('renderReport — judge block', () => {
   it('renders dimensions / overallScore / disputedCases / notes and a Judge summary column', () => {
     const verdict: JudgeVerdict = {
@@ -149,7 +170,7 @@ describe('renderReport — catastrophic run', () => {
     const result: EvalRunResult = {
       ...baseResult, models: ['broken'],
       perModel: [run('broken', null, null, { type: 'provider', message: 'boom' })],
-      aggregates: [{ ...badAgg, model: 'broken', det: null, payload: null, passRate: 0, runs: { total: 1, ok: 0, failed: 1, failedByType: { provider: 1 } } }],
+      aggregates: [{ ...badAgg, model: 'broken', det: null, schemaValid: null, payload: null, passRate: 0, runs: { total: 1, ok: 0, failed: 1, failedByType: { provider: 1 } } }],
       overallSuccess: false,
     };
     const md = renderReport(meta, result, cases);

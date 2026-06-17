@@ -67,6 +67,7 @@ export interface ScoreResult {
   cases: CaseResult[];
   caseCount: number;
   schemaValidCount: number;
+  schemaValidRate: number; // schemaValidCount / caseCount — share passing the strict gate (prod-acceptable). Independent of intentAccuracy.
 }
 
 export const JudgeVerdictSchema = z.object({
@@ -103,6 +104,7 @@ export interface ModelAggregate {
   runs: { total: number; ok: number; failed: number; failedByType: Record<string, number> };
   passRate: number; // PASS count / total runs (failed runs count as non-PASS)
   det: Stats | null; // over runs with a score — these are intentAccuracy stats
+  schemaValid: Stats | null; // over runs with a score — schemaValidRate stats (informational; not a ranking key)
   payload: Stats | null; // over runs with a payloadAccuracy; null if no run carried payload expectations
   judge: Stats | null; // over runs with a judge verdict; null if judge never ran
   latency: { mean: number; median: number }; // over all runs

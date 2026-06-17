@@ -107,6 +107,7 @@ async function main(): Promise<number> {
     passRate: r3(a.passRate),
     intentAccuracyMean: a.det ? r3(a.det.mean) : null,
     intentAccuracyStd: a.det ? r3(a.det.std) : null,
+    schemaValidMean: a.schemaValid ? r3(a.schemaValid.mean) : null,
     payloadMean: a.payload ? r3(a.payload.mean) : null,
     judgeMean: a.judge ? r3(a.judge.mean) : null,
     judgeStd: a.judge ? r3(a.judge.std) : null,

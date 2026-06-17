@@ -13,6 +13,7 @@ function score(intentAccuracy: number, payloadAccuracy: number | null): ScoreRes
     cases: [],
     caseCount: 0,
     schemaValidCount: 0,
+    schemaValidRate: 1,
   };
 }
 
@@ -45,6 +46,7 @@ describe('aggregateRuns', () => {
     expect(a.passRate).toBe(1);
     expect(a.det!.mean).toBe(1);
     expect(a.det!.std).toBe(0);
+    expect(a.schemaValid!.mean).toBe(1); // schemaValidRate aggregated independently of intent accuracy
   });
 
   it('aggregates payloadAccuracy across runs (skips null)', () => {
@@ -87,6 +89,7 @@ describe('rankAggregates', () => {
     runs: { total: 1, ok: 1, failed: 0, failedByType: {} },
     passRate: 1,
     det: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
+    schemaValid: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
     payload: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
     judge: null,
     latency: { mean: 100, median: 100 },

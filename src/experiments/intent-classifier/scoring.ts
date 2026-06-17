@@ -46,9 +46,14 @@ export function scoreCase(raw: unknown, evalCase: EvalCase, latencyMs: number): 
   const parsed = ChatIntentSchema.safeParse(raw);
   if (!parsed.success) {
     const message = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') || 'schema invalid';
+    // Intent accuracy and schema validity are scored SEPARATELY: a deviation in a secondary field
+    // (e.g. a bad entityRef enum) fails the strict gate but must not zero a correctly-recognized
+    // intent. intentMatch is judged on the best-effort intent; the case stays schemaValid:false and
+    // payload is not scored on an object that failed the gate.
+    const actualIntent = bestEffortIntent(raw);
     return {
       id: evalCase.id, lang: evalCase.lang, expectedIntent: evalCase.expect.intent,
-      actualIntent: bestEffortIntent(raw), intentMatch: false, schemaValid: false,
+      actualIntent, intentMatch: actualIntent === evalCase.expect.intent, schemaValid: false,
       payloadChecks: [], payloadScore: null, latencyMs,
       error: { type: 'schema', message },
     };
@@ -74,6 +79,8 @@ export function scoreRun(cases: CaseResult[], opts?: { threshold?: number }): Sc
   const payloadScores = cases.filter((c) => c.payloadScore != null).map((c) => c.payloadScore as number);
   const payloadAccuracy = payloadScores.length > 0 ? payloadScores.reduce((a, b) => a + b, 0) / payloadScores.length : null;
 
+  const schemaValidCount = cases.filter((c) => c.schemaValid).length;
+
   return {
     intentAccuracy,
     payloadAccuracy,
@@ -82,6 +89,7 @@ export function scoreRun(cases: CaseResult[], opts?: { threshold?: number }): Sc
     verdict: intentAccuracy >= threshold ? 'PASS' : 'FAIL',
     cases,
     caseCount: total,
-    schemaValidCount: cases.filter((c) => c.schemaValid).length,
+    schemaValidCount,
+    schemaValidRate: total > 0 ? schemaValidCount / total : 0, // share that would pass the strict gate (prod-acceptable)
   };
 }

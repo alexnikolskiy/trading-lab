@@ -76,16 +76,20 @@ describe('runEval — dataset mechanics', () => {
     expect(s.schemaValidCount).toBe(1);
   });
 
-  it('scores a schema-invalid model output as a visible miss, without aborting the run (the eval bug)', async () => {
+  it('credits intent but flags schema-invalidity separately, without aborting the run', async () => {
     // valid intent but entityRef "from_message" is an invalid enum -> raw reaches the harness
     const c = classifier(() => ({ intent: 'help', confidence: 0.9, entityRef: 'from_message' }));
-    const result = await runEval(input({ models: ['p/x'], cases: [twoCases[0]!], threshold: 0.1 }), deps({ 'p/x': c }));
+    const result = await runEval(input({ models: ['p/x'], cases: [twoCases[0]!], threshold: 0.5 }), deps({ 'p/x': c }));
     expect(result.perModel[0]!.error).toBeNull(); // run did NOT throw
-    const cr = result.perModel[0]!.score!.cases[0]!;
-    expect(cr.schemaValid).toBe(false);
-    expect(cr.actualIntent).toBe('help'); // intent stays visible for the report
-    expect(cr.intentMatch).toBe(false);
+    const score = result.perModel[0]!.score!;
+    const cr = score.cases[0]!;
+    expect(cr.actualIntent).toBe('help');
+    expect(cr.intentMatch).toBe(true); // intent recognized -> counts toward intentAccuracy
+    expect(cr.schemaValid).toBe(false); // ...but would not pass the strict gate
     expect(cr.error?.type).toBe('schema');
+    expect(score.intentAccuracy).toBe(1); // primary metric credits the correct intent
+    expect(score.schemaValidRate).toBe(0); // secondary metric: 0% passed strict validation
+    expect(result.perModel[0]!.verdict).toBe('PASS');
   });
 
   it('attaches an injected judge verdict without changing the deterministic verdict', async () => {

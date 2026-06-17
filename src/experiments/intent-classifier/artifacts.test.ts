@@ -18,7 +18,7 @@ afterEach(() => {
 
 const score = (acc: number): ScoreResult => ({
   intentAccuracy: acc, payloadAccuracy: 1, score: acc, threshold: 0.7,
-  verdict: acc >= 0.7 ? 'PASS' : 'FAIL', cases: [], caseCount: 20, schemaValidCount: 20,
+  verdict: acc >= 0.7 ? 'PASS' : 'FAIL', cases: [], caseCount: 20, schemaValidCount: 20, schemaValidRate: 1,
 });
 
 const run = (model: string, judge: CandidateResult['judge']): CandidateResult => ({
@@ -29,6 +29,7 @@ const run = (model: string, judge: CandidateResult['judge']): CandidateResult =>
 const aggregate = (model: string): ModelAggregate => ({
   model, provider: 'openrouter', modelId: 'm', runs: { total: 1, ok: 1, failed: 0, failedByType: {} },
   passRate: 1, det: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
+  schemaValid: { mean: 1, median: 1, std: 0, min: 1, max: 1 },
   payload: { mean: 1, median: 1, std: 0, min: 1, max: 1 }, judge: null, latency: { mean: 100, median: 100 },
 });
 

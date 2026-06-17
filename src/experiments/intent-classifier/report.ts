@@ -48,7 +48,7 @@ export function renderReport(meta: ManifestMeta, result: EvalRunResult, cases: E
 
   // ---- Summary table (ranked) ----
   lines.push('## Summary (ranked)', '');
-  const header = ['#', 'Model', 'Runs', 'passRate', 'Intent acc (mean±std)', 'Payload'];
+  const header = ['#', 'Model', 'Runs', 'passRate', 'Intent acc (mean±std)', 'Schema valid', 'Payload'];
   if (result.judgeEnabled) header.push('Judge');
   header.push('Latency (ms)');
   lines.push(`| ${header.join(' | ')} |`);
@@ -56,14 +56,18 @@ export function renderReport(meta: ManifestMeta, result: EvalRunResult, cases: E
   ranked.forEach((a, i) => {
     const name = a.model === winner ? `★ ${a.model}` : a.model;
     const det = a.det ? `${f3(a.det.mean)} ± ${f3(a.det.std)}` : '—';
+    const schema = a.schemaValid ? f3(a.schemaValid.mean) : '—';
     const payload = a.payload ? f3(a.payload.mean) : '—';
-    const row = [`${i + 1}`, name, `${a.runs.ok}/${a.runs.total}`, f3(a.passRate), det, payload];
+    const row = [`${i + 1}`, name, `${a.runs.ok}/${a.runs.total}`, f3(a.passRate), det, schema, payload];
     if (result.judgeEnabled) row.push(a.judge ? f3(a.judge.mean) : '—');
     row.push(`${Math.round(a.latency.mean)}`);
     lines.push(`| ${row.join(' | ')} |`);
   });
   lines.push('');
-  lines.push('★ = winner (rank #1).', '');
+  lines.push(
+    '★ = winner (rank #1). **Intent acc** is the primary, ranked metric; **Schema valid** is the share of outputs that pass the strict ChatIntentSchema gate (what prod would accept) — informational, not a ranking key.',
+    '',
+  );
 
   // ---- Per-model sections (ranked order) ----
   for (const a of ranked) {
@@ -104,6 +108,17 @@ export function renderReport(meta: ManifestMeta, result: EvalRunResult, cases: E
       for (const c of mislabels) {
         const tag = c.schemaValid ? '' : ' _(schema-invalid)_';
         lines.push(`- ${c.expectedIntent} → ${c.actualIntent ?? '—'}${tag} — "${truncate(msgById.get(c.id) ?? '')}"`);
+      }
+      lines.push('');
+    }
+
+    // Intent correct but the object failed the strict gate — invisible to Mislabels (intentMatch=true),
+    // surfaced here so the "prod would reject this" signal is not lost.
+    const schemaInvalidButRight = s.cases.filter((c) => c.intentMatch && !c.schemaValid);
+    if (schemaInvalidButRight.length > 0) {
+      lines.push(`**Schema-invalid but intent correct (${schemaInvalidButRight.length}):**`, '');
+      for (const c of schemaInvalidButRight) {
+        lines.push(`- ${c.actualIntent ?? c.expectedIntent} _(schema-invalid)_ — "${truncate(msgById.get(c.id) ?? '')}"`);
       }
       lines.push('');
     }

@@ -69,7 +69,7 @@ export function writeRunArtifacts(outDir: string, meta: ManifestMeta, result: Ev
     models: result.models,
     perModel: result.aggregates.map((a) => ({
       model: a.model,
-      aggregate: { passRate: a.passRate, intentAccuracyMean: a.det?.mean ?? null, payloadMean: a.payload?.mean ?? null, judgeMean: a.judge?.mean ?? null },
+      aggregate: { passRate: a.passRate, intentAccuracyMean: a.det?.mean ?? null, schemaValidMean: a.schemaValid?.mean ?? null, payloadMean: a.payload?.mean ?? null, judgeMean: a.judge?.mean ?? null },
     })),
     overallSuccess: result.overallSuccess,
   });

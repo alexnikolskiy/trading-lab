@@ -47,6 +47,7 @@ export function aggregateRuns(runs: CandidateResult[]): ModelAggregate {
   for (const r of failed) failedByType[r.error!.type] = (failedByType[r.error!.type] ?? 0) + 1;
 
   const detScores = runs.filter((r) => r.score != null).map((r) => r.score!.score);
+  const schemaValidRates = runs.filter((r) => r.score != null).map((r) => r.score!.schemaValidRate);
   const payloadScores = runs.filter((r) => r.score?.payloadAccuracy != null).map((r) => r.score!.payloadAccuracy as number);
   const judgeScores = runs.filter((r) => r.judge != null).map((r) => r.judge!.overallScore);
   const latencies = runs.map((r) => r.latencyMs);
@@ -59,6 +60,7 @@ export function aggregateRuns(runs: CandidateResult[]): ModelAggregate {
     runs: { total, ok: total - failed.length, failed: failed.length, failedByType },
     passRate: passCount / total, // failed runs count as non-PASS (denominator = total)
     det: detScores.length > 0 ? stats(detScores) : null,
+    schemaValid: schemaValidRates.length > 0 ? stats(schemaValidRates) : null,
     payload: payloadScores.length > 0 ? stats(payloadScores) : null,
     judge: judgeScores.length > 0 ? stats(judgeScores) : null,
     latency: { mean: mean(latencies), median: median(latencies) },
