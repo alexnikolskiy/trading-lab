@@ -29,7 +29,9 @@ export function buildRealClassifierFor(baseEnv: ModelProviderEnv): (modelId: str
     const runtime = composeMastra(env);
     const entry = runtime.agents.intentClassifier;
     if (!entry) throw new Error('intent-classifier agent was not composed (check INTENT_CLASSIFIER_ADAPTER)');
-    return new MastraIntentClassifier(entry.agent, entry.label);
+    // 'raw': the eval harness re-validates via ChatIntentSchema (single trust boundary), so a schema
+    // deviation must reach scoreCase as a per-case miss — not throw inside Mastra and kill the run.
+    return new MastraIntentClassifier(entry.agent, entry.label, { schemaValidation: 'raw' });
   };
 }
 

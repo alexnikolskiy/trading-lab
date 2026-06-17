@@ -31,7 +31,7 @@ function parseCli() {
     },
   });
   const models = (values.models ?? '').split(',').map((m) => m.trim()).filter(Boolean);
-  if (models.length === 0) throw new Error('--models is required (comma-separated, e.g. openrouter/x-ai/grok-4.1-fast,openrouter/qwen/qwen3.5-flash)');
+  if (models.length === 0) throw new Error('--models is required (comma-separated, e.g. openrouter/x-ai/grok-4.1-fast,openrouter/qwen/qwen3.6-flash)');
   const threshold = Number(values.threshold);
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) throw new Error(`--threshold must be in [0,1], got ${values.threshold}`);
   const repeat = Number(values.repeat);

@@ -116,6 +116,7 @@ describe('renderReport — Mislabels block', () => {
     expect(md).toContain('Mislabels (3)'); // bad-model: all three failed
     expect(md).toContain('help → out_of_scope');
     expect(md).toContain('out_of_scope → —');
+    expect(md).toContain('out_of_scope → — _(schema-invalid)_'); // schema-invalid miss is flagged in mislabels
     const trunc = `${LONG_MSG.slice(0, 80)}…`;
     expect(md).toContain(trunc);
     expect(md).not.toContain(LONG_MSG); // the full (untruncated) message must not appear

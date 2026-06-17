@@ -11,6 +11,16 @@ function nonEmptyString(v: unknown): boolean {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+/** Best-effort `intent` from a raw (possibly schema-invalid) output, so a deviation is a visible
+ *  miss in the report rather than a bald null. Never trusted — the case is still a schema-invalid miss. */
+function bestEffortIntent(raw: unknown): string | null {
+  if (raw != null && typeof raw === 'object' && 'intent' in raw) {
+    const v = (raw as { intent?: unknown }).intent;
+    if (typeof v === 'string') return v;
+  }
+  return null;
+}
+
 type ParsedIntent = ReturnType<typeof ChatIntentSchema.parse>;
 
 /** Build the secondary payload checks for the expectations that the case actually declares. */
@@ -38,7 +48,7 @@ export function scoreCase(raw: unknown, evalCase: EvalCase, latencyMs: number): 
     const message = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') || 'schema invalid';
     return {
       id: evalCase.id, lang: evalCase.lang, expectedIntent: evalCase.expect.intent,
-      actualIntent: null, intentMatch: false, schemaValid: false,
+      actualIntent: bestEffortIntent(raw), intentMatch: false, schemaValid: false,
       payloadChecks: [], payloadScore: null, latencyMs,
       error: { type: 'schema', message },
     };

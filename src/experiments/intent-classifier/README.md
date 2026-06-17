@@ -27,13 +27,13 @@ analyst harness.
 
 ```bash
 # DRY RUN (default): no models built, no network, no paid calls. Prints the paid-call plan.
-pnpm intent:eval --models openrouter/x-ai/grok-4.1-fast,openrouter/qwen/qwen3.5-flash
+pnpm intent:eval --models openrouter/x-ai/grok-4.1-fast,openrouter/qwen/qwen3.6-flash
 
 # PAID RUN: --run is the SOLE trigger for real calls.
-pnpm intent:eval --run --models openrouter/qwen/qwen3.5-flash --repeat 1
+pnpm intent:eval --run --models openrouter/qwen/qwen3.6-flash --repeat 1
 
 # With the optional batch LLM judge (1 call per model per repeat):
-pnpm intent:eval --run --models openrouter/qwen/qwen3.5-flash --judge --judge-model openrouter/x-ai/grok-4.3
+pnpm intent:eval --run --models openrouter/qwen/qwen3.6-flash --judge --judge-model openrouter/x-ai/grok-4.3
 ```
 
 Flags: `--dataset` (default `chat-intents-v1`), `--models` (CSV, **required**), `--run`,
@@ -65,7 +65,7 @@ breaks.
 |------|-------|
 | `openrouter/google/gemini-3.1-flash-lite-preview` | cheap default, low latency, response schema |
 | `openrouter/x-ai/grok-4.1-fast` | cheapest entry, fast variant |
-| `openrouter/qwen/qwen3.5-flash` | lowest price anchor |
+| `openrouter/qwen/qwen3.6-flash` | lowest price anchor — confirmed live ($0.1875 in / $1.125 out); the undated `qwen3.5-flash` slug is **not** a valid OpenRouter model id (400) |
 | `openrouter/x-ai/grok-4.3` | quality ceiling (current StrategyAnalyst default) |
 | `openrouter/google/gemini-3.5-flash` | quality ceiling (#1 OpenRouter intelligence) |
 

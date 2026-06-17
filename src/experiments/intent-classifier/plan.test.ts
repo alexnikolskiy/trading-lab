@@ -5,7 +5,7 @@ import { planDryRun, KEY_BY_PROVIDER } from './plan.ts';
 describe('planDryRun — paid-call accounting', () => {
   it('classifyCalls = models x repeat x caseCount (the real paid-call count)', () => {
     const plan = planDryRun({
-      models: ['openrouter/x-ai/grok-4.1-fast', 'openrouter/qwen/qwen3.5-flash'],
+      models: ['openrouter/x-ai/grok-4.1-fast', 'openrouter/qwen/qwen3.6-flash'],
       judge: false,
       env: { OPENROUTER_API_KEY: 'k' },
       caseCount: 20,
@@ -19,7 +19,7 @@ describe('planDryRun — paid-call accounting', () => {
 
   it('adds one judge call per model per repeat when judge is enabled', () => {
     const plan = planDryRun({
-      models: ['openrouter/qwen/qwen3.5-flash'],
+      models: ['openrouter/qwen/qwen3.6-flash'],
       judge: true,
       env: { OPENROUTER_API_KEY: 'k' },
       caseCount: 10,

@@ -24,12 +24,31 @@ describe('scoreCase — schema gate (ChatIntentSchema, the guard trust boundary)
     expect(r.intentMatch).toBe(false);
   });
 
-  it('rejects an unknown intent value (enum) as schema-invalid', () => {
+  it('rejects an unknown intent value (enum) but still surfaces it as a visible miss', () => {
     const r = scoreCase({ intent: 'totally.made.up', confidence: 0.9 }, evalCase({ expect: { intent: 'help' } }), 0);
     expect(r.schemaValid).toBe(false);
-    expect(r.actualIntent).toBeNull();
+    expect(r.actualIntent).toBe('totally.made.up'); // best-effort visible, not a bald null
     expect(r.intentMatch).toBe(false);
     expect(r.error?.type).toBe('schema');
+  });
+
+  it('surfaces a valid intent even when another field fails the enum (the real eval bug)', () => {
+    // model returned a good intent but entityRef "from_message" (invalid enum) -> schema-invalid miss
+    const r = scoreCase(
+      { intent: 'strategy.onboard', confidence: 0.8, entityRef: 'from_message' },
+      evalCase({ expect: { intent: 'strategy.onboard', requestedOutcome: 'onboard' } }),
+      0,
+    );
+    expect(r.schemaValid).toBe(false);
+    expect(r.actualIntent).toBe('strategy.onboard'); // visible in report.md
+    expect(r.intentMatch).toBe(false); // a value that failed the trust boundary is never a match
+    expect(r.payloadScore).toBeNull(); // payload not scored on a schema-invalid output
+    expect(r.error?.type).toBe('schema');
+  });
+
+  it('leaves actualIntent null when the raw output has no usable intent field', () => {
+    expect(scoreCase({ confidence: 0.9 }, evalCase({ expect: { intent: 'help' } }), 0).actualIntent).toBeNull();
+    expect(scoreCase('not even an object', evalCase({ expect: { intent: 'help' } }), 0).actualIntent).toBeNull();
   });
 
   it('rejects a missing confidence as schema-invalid', () => {

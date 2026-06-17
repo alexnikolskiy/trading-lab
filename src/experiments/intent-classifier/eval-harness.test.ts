@@ -76,6 +76,18 @@ describe('runEval — dataset mechanics', () => {
     expect(s.schemaValidCount).toBe(1);
   });
 
+  it('scores a schema-invalid model output as a visible miss, without aborting the run (the eval bug)', async () => {
+    // valid intent but entityRef "from_message" is an invalid enum -> raw reaches the harness
+    const c = classifier(() => ({ intent: 'help', confidence: 0.9, entityRef: 'from_message' }));
+    const result = await runEval(input({ models: ['p/x'], cases: [twoCases[0]!], threshold: 0.1 }), deps({ 'p/x': c }));
+    expect(result.perModel[0]!.error).toBeNull(); // run did NOT throw
+    const cr = result.perModel[0]!.score!.cases[0]!;
+    expect(cr.schemaValid).toBe(false);
+    expect(cr.actualIntent).toBe('help'); // intent stays visible for the report
+    expect(cr.intentMatch).toBe(false);
+    expect(cr.error?.type).toBe('schema');
+  });
+
   it('attaches an injected judge verdict without changing the deterministic verdict', async () => {
     const verdict: JudgeVerdict = { dimensions: [], overallScore: 0.9, disputedCases: [], notes: 'ok' };
     const result = await runEval(input({ models: ['p/ok'], cases: twoCases, threshold: 0.4 }),

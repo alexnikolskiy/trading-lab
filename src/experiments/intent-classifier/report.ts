@@ -102,7 +102,8 @@ export function renderReport(meta: ManifestMeta, result: EvalRunResult, cases: E
       lines.push('_none._', '');
     } else {
       for (const c of mislabels) {
-        lines.push(`- ${c.expectedIntent} → ${c.actualIntent ?? '—'} — "${truncate(msgById.get(c.id) ?? '')}"`);
+        const tag = c.schemaValid ? '' : ' _(schema-invalid)_';
+        lines.push(`- ${c.expectedIntent} → ${c.actualIntent ?? '—'}${tag} — "${truncate(msgById.get(c.id) ?? '')}"`);
       }
       lines.push('');
     }
