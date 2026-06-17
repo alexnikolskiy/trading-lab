@@ -9,6 +9,7 @@ import { loadCases, fingerprintCases } from '../src/experiments/intent-classifie
 import { planDryRun } from '../src/experiments/intent-classifier/plan.ts';
 import { runEval } from '../src/experiments/intent-classifier/eval-harness.ts';
 import { writeRunArtifacts, compactTimestamp } from '../src/experiments/intent-classifier/artifacts.ts';
+import { writeReport } from '../src/experiments/intent-classifier/report.ts';
 import { rankAggregates } from '../src/experiments/intent-classifier/aggregate.ts';
 import { DEFAULT_THRESHOLD } from '../src/experiments/intent-classifier/scoring.ts';
 import { parseRoleModel, type ModelProvider, type ModelProviderEnv } from '../src/adapters/llm/model-provider.ts';
@@ -96,6 +97,7 @@ async function main(): Promise<number> {
   const outDir = `.artifacts/experiments/intent-classifier/${args.datasetId}/${timestamp}`;
   const meta: ManifestMeta = { timestamp, gitSha: gitSha(), harnessVersion: HARNESS_VERSION, contractVersion: CONTRACT_VERSION, mode: 'run' };
   const written = writeRunArtifacts(outDir, meta, result);
+  written.push(writeReport(outDir, meta, result, cases)); // human-readable report.md alongside the JSON
 
   // Aggregated ranking summary (intent-accuracy primary; payload + latency tiebreak). Per-run detail is in the artifacts.
   const r3 = (x: number): number => Math.round(x * 1000) / 1000;
