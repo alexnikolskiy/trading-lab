@@ -51,4 +51,39 @@ describe('InMemoryActionProposalRepository', () => {
     expect(await repo.cancelPending('p1', 's1', '2026-06-18T12:05:00.000Z')).toBe(true);
     expect(await repo.cancelPending('p1', 's1', '2026-06-18T12:05:01.000Z')).toBe(false);
   });
+
+  it('confirmPending after cancel returns not_found', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal());
+    await repo.cancelPending('p1', 's1', '2026-06-18T12:05:00.000Z');
+    expect((await repo.confirmPending('p1', 's1', '2026-06-18T12:06:00.000Z')).kind).toBe('not_found');
+  });
+
+  it('confirmPending after expiry returns not_found on second call', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal());
+    // First call past expiresAt transitions status to 'expired'
+    expect((await repo.confirmPending('p1', 's1', '2026-06-18T12:11:00.000Z')).kind).toBe('expired');
+    // Second call on an already-expired proposal returns not_found
+    expect((await repo.confirmPending('p1', 's1', '2026-06-18T12:12:00.000Z')).kind).toBe('not_found');
+  });
+
+  it('attachTask sets confirmedTaskId on a confirmed proposal', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal());
+    await repo.confirmPending('p1', 's1', '2026-06-18T12:05:00.000Z');
+    await repo.attachTask('p1', 'task-1', '2026-06-18T12:05:01.000Z');
+    expect((await repo.findById('p1'))?.confirmedTaskId).toBe('task-1');
+  });
+
+  it('attachTask throws when proposal not found', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await expect(repo.attachTask('missing', 'task-1', '2026-06-18T12:05:00.000Z')).rejects.toThrow();
+  });
+
+  it('attachTask throws when proposal is not confirmed (still pending)', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal());
+    await expect(repo.attachTask('p1', 'task-1', '2026-06-18T12:05:00.000Z')).rejects.toThrow();
+  });
 });

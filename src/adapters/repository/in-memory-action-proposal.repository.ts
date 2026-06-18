@@ -1,6 +1,11 @@
 import type { ActionProposal } from '../../domain/action-proposal.ts';
 import type { ActionProposalRepository, ConfirmProposalResult } from '../../ports/action-proposal.repository.ts';
 
+// ISO-8601 UTC strings compare correctly lexicographically
+function isExpired(stored: ActionProposal, now: string): boolean {
+  return stored.expiresAt <= now;
+}
+
 export class InMemoryActionProposalRepository implements ActionProposalRepository {
   private readonly byId = new Map<string, ActionProposal>();
 
@@ -30,16 +35,22 @@ export class InMemoryActionProposalRepository implements ActionProposalRepositor
     }
 
     // Expired (even if still 'pending')
-    if (stored.status === 'pending' && stored.expiresAt <= now) {
+    // ISO-8601 UTC strings compare correctly lexicographically
+    if (stored.status === 'pending' && isExpired(stored, now)) {
       stored.status = 'expired';
       stored.updatedAt = now;
       return { kind: 'expired', proposal: structuredClone(stored) };
     }
 
     // Live pending — synchronous state change before any await boundary
-    stored.status = 'confirmed';
-    stored.updatedAt = now;
-    return { kind: 'confirmed_now', proposal: structuredClone(stored) };
+    if (stored.status === 'pending') {
+      stored.status = 'confirmed';
+      stored.updatedAt = now;
+      return { kind: 'confirmed_now', proposal: structuredClone(stored) };
+    }
+
+    // Catch-all: status is 'cancelled', 'expired', 'superseded', etc.
+    return { kind: 'not_found' };
   }
 
   async cancelPending(id: string, sessionId: string, now: string): Promise<boolean> {
@@ -49,7 +60,8 @@ export class InMemoryActionProposalRepository implements ActionProposalRepositor
       return false;
     }
 
-    if (stored.status !== 'pending' || stored.expiresAt <= now) {
+    // ISO-8601 UTC strings compare correctly lexicographically
+    if (stored.status !== 'pending' || isExpired(stored, now)) {
       return false;
     }
 
@@ -60,8 +72,11 @@ export class InMemoryActionProposalRepository implements ActionProposalRepositor
 
   async attachTask(id: string, taskId: string, now: string): Promise<void> {
     const stored = this.byId.get(id);
-    if (!stored || stored.status !== 'confirmed') {
-      return;
+    if (!stored) {
+      throw new Error(`action_proposal not found: ${id}`);
+    }
+    if (stored.status !== 'confirmed') {
+      throw new Error(`action_proposal ${id} is not confirmed (status: ${stored.status})`);
     }
     stored.confirmedTaskId = taskId;
     stored.updatedAt = now;
