@@ -413,6 +413,24 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 | `TRADING_LAB_TASK_TOKEN` | `demo-task-token` | Bearer-токен для POST /tasks (e2e) |
 | `TRADING_LAB_READ_TOKEN` | `demo-read-token` | Bearer-токен для GET /v1/* (e2e + smoke) |
 
+#### Снапшот для mock-platform
+
+`MOCK_SNAPSHOT_REF` задаёт директорию с тестовыми данными внутри образа (по умолчанию
+`fixtures/2026-06-16-synthetic` — синтетический снапшот, бандлится в образ, никаких дополнительных
+действий не требует). Для работы с реальными данными (срезы с июня 2026 из postgres/parquet
+с VPS) монтируй директорию снапшота и задай `MOCK_SNAPSHOT_REF`:
+
+```yaml
+# docker-compose.demo.yml — volume override:
+mock-platform:
+  volumes:
+    - /path/to/real-snapshot:/app/data/snapshots/real:ro
+  environment:
+    MOCK_SNAPSHOT_REF: real
+```
+
+или через симлинк в `trading-mock-platform/data/snapshots/` → реальные данные.
+
 ### Вариант B — локальный запуск на хосте (для разработки)
 
 Инфраструктуру держим в Docker, а сам агент гоняем на хосте через `pnpm` — удобно для разработки и
