@@ -101,26 +101,26 @@ describe('planChatAction', () => {
     expect(d.kind === 'respond' && d.response.kind).toBe('needs_clarification');
   });
 
-  it('strategy.onboard with text -> create_task, no chain', async () => {
+  it('strategy.onboard with text -> propose_task, action=strategy.analyze, no chain', async () => {
     const { plan } = args();
     const d = await planChatAction({ intent: 'strategy.onboard', confidence: 0.9, strategyText: 'go long on oi' }, plan);
-    expect(d.kind).toBe('create_task');
-    if (d.kind === 'create_task') {
+    expect(d.kind).toBe('propose_task');
+    if (d.kind === 'propose_task') {
+      expect(d.action).toBe('strategy.analyze');
       expect(d.taskType).toBe('strategy.onboard');
       expect(d.payload).toEqual({ kind: 'manual_description', content: 'go long on oi' });
       expect(d.chain).toBeUndefined();
     }
   });
 
-  it('strategy.onboard + research outcome -> create_task with chain fingerprint', async () => {
+  it('strategy.onboard + research outcome -> propose_task with action=research.run_cycle and chain', async () => {
     const { plan } = args();
     const text = 'go long on oi spike';
     const d = await planChatAction(
       { intent: 'strategy.onboard', confidence: 0.9, strategyText: text, requestedOutcome: 'research' }, plan,
     );
-    expect(d.kind).toBe('create_task');
-    if (d.kind === 'create_task') {
-      expect(d.chain?.nextTaskType).toBe('research.run_cycle');
+    expect(d).toMatchObject({ kind: 'propose_task', action: 'research.run_cycle', taskType: 'strategy.onboard', chain: { nextTaskType: 'research.run_cycle' } });
+    if (d.kind === 'propose_task') {
       expect(d.chain?.resolveProfileByFingerprint).toBe(sourceFingerprint('manual_description', text));
     }
   });
@@ -131,22 +131,24 @@ describe('planChatAction', () => {
     expect(d.kind === 'respond' && d.response.kind).toBe('needs_clarification');
   });
 
-  it('research.run_cycle with strategy text -> onboard create_task with chain', async () => {
+  it('research.run_cycle with strategy text -> propose_task action=research.run_cycle taskType=strategy.onboard with chain', async () => {
     const { plan } = args();
     const d = await planChatAction({ intent: 'research.run_cycle', confidence: 0.9, strategyText: 'new strat' }, plan);
-    expect(d.kind).toBe('create_task');
-    if (d.kind === 'create_task') {
+    expect(d.kind).toBe('propose_task');
+    if (d.kind === 'propose_task') {
+      expect(d.action).toBe('research.run_cycle');
       expect(d.taskType).toBe('strategy.onboard');
       expect(d.chain?.nextTaskType).toBe('research.run_cycle');
     }
   });
 
-  it('research.run_cycle via last_strategy -> create_task research.run_cycle', async () => {
+  it('research.run_cycle via last_strategy -> propose_task action=research.run_cycle taskType=research.run_cycle', async () => {
     const { plan, deps } = args({ session: session({ lastStrategyProfileId: 'p1' }) });
     await deps.strategyProfiles.create(profile('p1'));
     const d = await planChatAction({ intent: 'research.run_cycle', confidence: 0.9 }, plan);
-    expect(d.kind).toBe('create_task');
-    if (d.kind === 'create_task') {
+    expect(d.kind).toBe('propose_task');
+    if (d.kind === 'propose_task') {
+      expect(d.action).toBe('research.run_cycle');
       expect(d.taskType).toBe('research.run_cycle');
       expect(d.payload).toEqual({ strategyProfileId: 'p1', cycleDepth: 0 });
     }
@@ -158,12 +160,13 @@ describe('planChatAction', () => {
     expect(d.kind === 'respond' && d.response.kind).toBe('needs_clarification');
   });
 
-  it('hypothesis.build via latest validated by profile -> create_task', async () => {
+  it('hypothesis.build via latest validated by profile -> propose_task action=hypothesis.build', async () => {
     const { plan, deps } = args({ session: session({ lastStrategyProfileId: 'p1' }) });
     await deps.hypotheses.create(validatedHyp('h1', 'p1'));
     const d = await planChatAction({ intent: 'hypothesis.build', confidence: 0.9 }, plan);
-    expect(d.kind).toBe('create_task');
-    if (d.kind === 'create_task') {
+    expect(d.kind).toBe('propose_task');
+    if (d.kind === 'propose_task') {
+      expect(d.action).toBe('hypothesis.build');
       expect(d.taskType).toBe('hypothesis.build');
       expect(d.payload).toEqual({ hypothesisId: 'h1', cycleDepth: 0 });
     }

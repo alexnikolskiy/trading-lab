@@ -1,4 +1,5 @@
 import type { AgentTaskType } from '../domain/types.ts';
+import type { OperatorAction } from '../domain/action-proposal.ts';
 import type { ValidationIssue } from '../domain/schemas.ts';
 import type { ChatSessionContext } from '../ports/chat-session.repository.ts';
 import { validateWithSchema } from '../validation/validator.ts';
@@ -32,7 +33,8 @@ export interface ChainSpec {
 
 export type PlanDecision =
   | {
-      kind: 'create_task';
+      kind: 'propose_task';
+      action: OperatorAction;
       intent: AllowedIntent;
       taskType: AgentTaskType;
       payload: Record<string, unknown>;
@@ -59,7 +61,8 @@ function buildOnboardDecision(sid: string, intent: AllowedIntent, text: string, 
   const chain: ChainSpec | undefined = withResearch
     ? { nextTaskType: 'research.run_cycle', resolveProfileByFingerprint: sourceFingerprint(kind, text) }
     : undefined;
-  return { kind: 'create_task', intent, taskType: 'strategy.onboard', payload: v.data, chain, userGoal: intent };
+  const action: OperatorAction = withResearch ? 'research.run_cycle' : 'strategy.analyze';
+  return { kind: 'propose_task', action, intent, taskType: 'strategy.onboard', payload: v.data, chain, userGoal: intent };
 }
 
 /**
@@ -109,7 +112,7 @@ export async function planChatAction(intent: ChatIntent, args: PlanArgs): Promis
       const payload = { strategyProfileId: profile.id };
       const v = validateWithSchema(ResearchRunCyclePayloadSchema, payload);
       if (v.status === 'invalid') return { kind: 'respond', response: needsClarification(sid, 'Не удалось подготовить запуск исследования.', v.issues.map((i) => i.path)) };
-      return { kind: 'create_task', intent: 'research.run_cycle', taskType: 'research.run_cycle', payload: v.data, userGoal: 'research.run_cycle' };
+      return { kind: 'propose_task', action: 'research.run_cycle', intent: 'research.run_cycle', taskType: 'research.run_cycle', payload: v.data, userGoal: 'research.run_cycle' };
     }
 
     case 'hypothesis.build': {
@@ -118,7 +121,7 @@ export async function planChatAction(intent: ChatIntent, args: PlanArgs): Promis
       const payload = { hypothesisId: hyp.id };
       const v = validateWithSchema(HypothesisBuildPayloadSchema, payload);
       if (v.status === 'invalid') return { kind: 'respond', response: needsClarification(sid, 'Не удалось подготовить проверку гипотезы.', v.issues.map((i) => i.path)) };
-      return { kind: 'create_task', intent: 'hypothesis.build', taskType: 'hypothesis.build', payload: v.data, userGoal: 'hypothesis.build' };
+      return { kind: 'propose_task', action: 'hypothesis.build', intent: 'hypothesis.build', taskType: 'hypothesis.build', payload: v.data, userGoal: 'hypothesis.build' };
     }
 
     case 'needs_clarification':
