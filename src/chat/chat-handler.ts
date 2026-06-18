@@ -67,6 +67,7 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
 
     if (reply === 'unresolved') {
       // Stay parked on the proposal: do not classify and do not mutate any state.
+      await ev('chat.proposal.unresolved_reply', { proposalId, sessionId: sid, messageChars: input.message.length });
       return assistantMessage(sid, 'Не понял ответ. Подтвердите запуск или отмените действие.', {
         actions: PENDING_ACTIONS,
         pendingInteractionId: proposalId,
@@ -77,11 +78,14 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     const result = await deps.proposals.confirmPending(proposalId, sid, now());
     switch (result.kind) {
       case 'confirmed_now':
+        // clearPending + session upsert happen inside executeConfirmedProposal.
         return executeConfirmedProposal(result.proposal, input.session, deps, ev, now);
       case 'already_confirmed': {
         // Replay: never enqueue again. Surface the already-created task's status.
         const taskId = result.proposal.confirmedTaskId;
-        if (!taskId) return assistantMessage(sid, 'Подтверждение уже обрабатывается.', { actions: [] });
+        // Partial-write recovery: status flipped to 'confirmed' in the DB but attachTask
+        // never landed (e.g. a crash between enqueue and attach). Do NOT re-enqueue here.
+        if (!taskId) return assistantMessage(sid, 'Заявка уже подтверждена. Если задача не появилась — проверьте статус задачи.', { actions: [] });
         const task = await deps.researchTasks.findById(taskId);
         return task
           ? taskStatus(sid, taskId, task.status)
@@ -181,6 +185,10 @@ async function executeConfirmedProposal(
   now: () => string,
 ): Promise<ChatResponse> {
   const sid = session.sessionId;
+  // Snapshot once so plan.createdAt/updatedAt, attachTask, and session.updatedAt
+  // all share the same logical timestamp for this single operation.
+  const ts = now();
+
   const intake = await createAndEnqueueTask(
     {
       taskType: proposal.task.taskType,
@@ -197,7 +205,6 @@ async function executeConfirmedProposal(
   const chain = proposal.task.chain;
   if (chain) {
     const planId = randomUUID();
-    const ts = now();
     await deps.plans.create({
       id: planId, sessionId: sid, afterTaskId: intake.taskId, nextTaskType: chain.nextTaskType,
       resolveProfileByFingerprint: chain.resolveProfileByFingerprint, correlationId: randomUUID(),
@@ -207,7 +214,7 @@ async function executeConfirmedProposal(
     plannedNextStep = { taskType: chain.nextTaskType, after: proposal.task.taskType };
   }
 
-  await deps.proposals.attachTask(proposal.id, intake.taskId, now());
+  await deps.proposals.attachTask(proposal.id, intake.taskId, ts);
 
   await deps.sessions.upsert({
     ...session,
@@ -215,7 +222,7 @@ async function executeConfirmedProposal(
     lastUserGoal: proposal.task.userGoal,
     pendingPlanId,
     pendingInteraction: undefined,
-    updatedAt: now(),
+    updatedAt: ts,
   });
 
   await ev('chat.proposal.confirmed', { proposalId: proposal.id, taskId: intake.taskId, sessionId: sid });

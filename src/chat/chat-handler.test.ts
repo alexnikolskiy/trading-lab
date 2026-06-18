@@ -254,12 +254,20 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
   });
 
   it('an UNRESOLVED reply re-asks for confirm/cancel without enqueuing or classifying', async () => {
-    const { d, queue, sessions } = deps();
+    const base = deps();
+    const captured: { type: string; payload: Record<string, unknown> }[] = [];
+    const spyEvents = {
+      append: async (e: { type: string; payload: Record<string, unknown> }) => { captured.push({ type: e.type, payload: e.payload }); },
+      listByTask: async () => [],
+    };
+    const d = { ...base.d, events: spyEvents as unknown as ChatHandlerDeps['events'] };
+    const { queue, sessions } = base;
     const savedSession = await firstTurn(d, strategyMsg, sessions);
     const proposalId = savedSession.pendingInteraction!.proposalId;
     const classifySpy = vi.spyOn(d.classifier, 'classify');
 
-    const r = await handleChatMessage({ message: 'покажи похожие', session: savedSession, source: 'web' }, d);
+    const unresolvedMsg = 'покажи похожие';
+    const r = await handleChatMessage({ message: unresolvedMsg, session: savedSession, source: 'web' }, d);
     expect(r.kind).toBe('assistant_message');
     if (r.kind === 'assistant_message') {
       expect(r.pendingInteractionId).toBe(proposalId);
@@ -269,6 +277,12 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     // State untouched: still pending, same proposal.
     expect((await sessions.get('s1'))?.pendingInteraction?.proposalId).toBe(proposalId);
     expect(classifySpy).not.toHaveBeenCalled();
+    // Audit: an unresolved_reply event was emitted with length only — never raw text.
+    const unresolvedEv = captured.find((e) => e.type === 'chat.proposal.unresolved_reply');
+    expect(unresolvedEv).toBeTruthy();
+    expect(unresolvedEv?.payload.proposalId).toBe(proposalId);
+    expect(unresolvedEv?.payload.messageChars).toBe(unresolvedMsg.length);
+    expect(JSON.stringify(unresolvedEv?.payload)).not.toContain(unresolvedMsg);
   });
 
   it('confirming a RESEARCH proposal creates the ChatPlan only after confirmation and plans research.run_cycle next', async () => {
