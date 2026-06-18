@@ -11,7 +11,14 @@ export interface CheckResult {
 }
 
 export interface ScoreResult {
-  gates: { schemaValid: boolean; hasHypothesis: boolean; researchOnly: boolean; contextGrounded: boolean };
+  gates: {
+    schemaValid: boolean;
+    hasHypothesis: boolean;
+    researchOnly: boolean;
+    contextGrounded: boolean;
+    noStrategyRewrite: boolean;
+    forensicGrounded: boolean;
+  };
   checks: CheckResult[];
   score: number;
   threshold: number;
