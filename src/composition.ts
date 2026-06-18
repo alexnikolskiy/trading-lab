@@ -41,6 +41,7 @@ import { FakeIntentClassifier } from './adapters/intent/fake-intent-classifier.t
 import { MastraIntentClassifier } from './adapters/intent/mastra-intent-classifier.ts';
 import { DrizzleChatSessionRepository } from './adapters/repository/drizzle-chat-session.repository.ts';
 import { DrizzleChatPlanRepository } from './adapters/repository/drizzle-chat-plan.repository.ts';
+import { DrizzleActionProposalRepository } from './adapters/repository/drizzle-action-proposal.repository.ts';
 import type { IntentClassifierPort } from './ports/intent-classifier.port.ts';
 import type { ChatAppDeps } from './chat/chat-app.ts';
 import { sql } from 'drizzle-orm';
@@ -87,6 +88,9 @@ function buildBuilder(rt: MastraRuntime): BuilderPort {
   return new FakeBuilder();
 }
 
+/** Operator confirmation window for a proposed chat action — policy, not deployment tuning. */
+const CHAT_PROPOSAL_TTL_MS = 10 * 60 * 1000;
+
 export function composeRuntime() {
   const env = loadEnv();
   if (!env.DATABASE_URL) throw new Error('DATABASE_URL is required');
@@ -123,6 +127,7 @@ export function composeRuntime() {
     evaluatorThresholds: env.evaluatorThresholds,
     chatSessions: new DrizzleChatSessionRepository(db),
     chatPlans: new DrizzleChatPlanRepository(db),
+    actionProposals: new DrizzleActionProposalRepository(db),
     backtestBackend: env.BACKTEST_BACKEND,
     platformPoll: { maxPolls: env.PLATFORM_RUN_MAX_POLLS, pollDelayMs: env.PLATFORM_RUN_POLL_DELAY_MS },
     backtestCallbackUrl: buildBacktestCallbackUrl(env.TRADING_LAB_CALLBACK_PUBLIC_URL, env.TRADING_LAB_CALLBACK_TOKEN),
@@ -146,6 +151,8 @@ export function composeRuntime() {
     hypotheses: services.hypotheses,
     events: services.events,
     queue,
+    proposals: services.actionProposals,
+    proposalTtlMs: CHAT_PROPOSAL_TTL_MS,
     minConfidence: env.INTENT_CLASSIFIER_MIN_CONFIDENCE,
     maxMessageChars: env.CHAT_MAX_MESSAGE_CHARS,
     authToken: env.TRADING_LAB_CHAT_TOKEN,

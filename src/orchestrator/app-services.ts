@@ -19,6 +19,7 @@ import type { EvaluationRepository } from '../ports/evaluation.repository.ts';
 import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 import type { ChatSessionRepository } from '../ports/chat-session.repository.ts';
 import type { ChatPlanRepository } from '../ports/chat-plan.repository.ts';
+import type { ActionProposalRepository } from '../ports/action-proposal.repository.ts';
 import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 
 export interface AppServices {
@@ -45,6 +46,7 @@ export interface AppServices {
   evaluatorThresholds: EvaluatorThresholds;
   chatSessions: ChatSessionRepository;
   chatPlans: ChatPlanRepository;
+  actionProposals: ActionProposalRepository;
   backtestBackend: 'research_platform';
   platformPoll: { maxPolls: number; pollDelayMs: number };
   /** When set, passed to platform/backtester submit as completion webhook URL. */

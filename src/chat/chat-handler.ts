@@ -8,10 +8,12 @@ import type { StrategyProfileRepository } from '../ports/strategy-profile.reposi
 import type { HypothesisProposalRepository } from '../ports/hypothesis-proposal.repository.ts';
 import type { AgentEventRepository } from '../ports/agent-event.repository.ts';
 import type { TaskQueuePort } from '../ports/task-queue.port.ts';
-import { createAndEnqueueTask } from '../orchestrator/task-intake.ts';
-import { parseIntent, planChatAction } from './guard.ts';
+import type { ActionProposalRepository } from '../ports/action-proposal.repository.ts';
+import { parseIntent, planChatAction, type PlanDecision } from './guard.ts';
+import { buildActionProposal } from './action-proposal.ts';
 import {
-  taskCreated, rejected, errorResponse, type ChatResponse, type PlannedNextStep,
+  assistantMessage, rejected, errorResponse,
+  type ChatResponse, type EvidencePresentation, type ProposedActionView,
 } from './response.ts';
 
 export interface ChatHandlerDeps {
@@ -23,6 +25,9 @@ export interface ChatHandlerDeps {
   hypotheses: HypothesisProposalRepository;
   events: AgentEventRepository;
   queue: TaskQueuePort;
+  proposals: ActionProposalRepository;
+  /** Confirmation window for a proposed action — policy, not deployment tuning. */
+  proposalTtlMs: number;
   minConfidence: number;
 }
 
@@ -75,35 +80,49 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     return decision.response;
   }
 
-  // create_task: the deterministic write chokepoint.
-  const correlationId = randomUUID();
-  const intake = await createAndEnqueueTask(
-    { taskType: decision.taskType, source: input.source, payload: decision.payload, correlationId, dedupeKey: decision.dedupeKey },
-    { repo: deps.researchTasks, queue: deps.queue },
-  );
-  await ev('chat.task_created', { chatRequestId, sessionId: sid, taskId: intake.taskId, taskType: decision.taskType });
-
-  let pendingPlanId = input.session.pendingPlanId;
-  let plannedNextStep: PlannedNextStep | undefined;
-  if (decision.chain) {
-    const planId = randomUUID();
-    await deps.plans.create({
-      id: planId, sessionId: sid, afterTaskId: intake.taskId, nextTaskType: decision.chain.nextTaskType,
-      resolveProfileByFingerprint: decision.chain.resolveProfileByFingerprint, correlationId,
-      status: 'pending', createdAt: now(), updatedAt: now(),
-    });
-    await ev('chat.plan.created', { chatRequestId, planId, afterTaskId: intake.taskId, nextTaskType: decision.chain.nextTaskType });
-    pendingPlanId = planId;
-    plannedNextStep = { taskType: decision.chain.nextTaskType, after: decision.taskType };
-  }
+  // Propose-and-confirm: the first turn writes an ActionProposal and asks the operator
+  // to confirm. No task is created or enqueued here — that happens on confirmation (a
+  // separate turn). The session pendingInteraction points at the proposal.
+  const proposalId = randomUUID();
+  const expiresAt = new Date(Date.now() + deps.proposalTtlMs).toISOString();
+  const proposal = buildActionProposal({
+    id: proposalId, sessionId: sid, source: input.source, message: input.message, decision, now: now(), expiresAt,
+  });
+  await deps.proposals.create(proposal);
 
   await deps.sessions.upsert({
     ...input.session,
-    lastResearchTaskId: intake.taskId,
     lastUserGoal: decision.userGoal,
-    pendingPlanId,
+    pendingInteraction: { kind: 'action_confirmation', proposalId, expiresAt },
     updatedAt: now(),
   });
 
-  return taskCreated(sid, intake.taskId, decision.taskType, intake.status, plannedNextStep);
+  // Privacy: IDs / types / expiry only — never the raw message or strategy text.
+  await ev('chat.proposal.created', {
+    chatRequestId, proposalId, sessionId: sid, action: decision.action, taskType: decision.taskType, expiresAt,
+  });
+
+  const interpretation = interpretProposal(decision);
+  const evidence: EvidencePresentation[] = [{ kind: 'interpretation', text: interpretation }];
+  const actions: ProposedActionView[] = [
+    { id: 'confirm', label: 'Подтвердить', style: 'primary' },
+    { id: 'cancel', label: 'Отмена', style: 'secondary' },
+  ];
+  return assistantMessage(sid, interpretation, { evidence, actions, pendingInteractionId: proposalId });
+}
+
+/** Deterministic operator-facing interpretation, keyed by the proposed action / chain. */
+function interpretProposal(decision: Extract<PlanDecision, { kind: 'propose_task' }>): string {
+  switch (decision.action) {
+    case 'strategy.analyze':
+      return 'Вижу, что вы прислали стратегию и хотите провести анализ. Подтвердите запуск анализа.';
+    case 'research.run_cycle':
+      return decision.chain
+        ? 'Вижу стратегию и запрос на исследование. Сначала будет создан и проанализирован профиль, затем запущен исследовательский цикл. Подтвердите этот план.'
+        : 'Вижу запрос на исследование выбранной стратегии. Подтвердите запуск исследовательского цикла.';
+    case 'hypothesis.build':
+      return 'Вижу запрос на проверку гипотезы. Подтвердите запуск сборки и бэктеста гипотезы.';
+    default:
+      return 'Подтвердите запуск предложенного действия.';
+  }
 }

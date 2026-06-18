@@ -19,6 +19,7 @@ import { InMemoryEvaluationRepository } from '../../src/adapters/repository/in-m
 import { DEFAULT_EVALUATOR_THRESHOLDS } from '../../src/validation/evaluator.ts';
 import { InMemoryChatSessionRepository } from '../../src/adapters/repository/in-memory-chat-session.repository.ts';
 import { InMemoryChatPlanRepository } from '../../src/adapters/repository/in-memory-chat-plan.repository.ts';
+import { InMemoryActionProposalRepository } from '../../src/adapters/repository/in-memory-action-proposal.repository.ts';
 import { InMemoryQueueAdapter } from '../../src/adapters/queue/in-memory-queue.adapter.ts';
 
 export function makeServices(overrides: Partial<AppServices> = {}): AppServices {
@@ -47,6 +48,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     evaluatorThresholds: DEFAULT_EVALUATOR_THRESHOLDS,
     chatSessions: new InMemoryChatSessionRepository(),
     chatPlans: new InMemoryChatPlanRepository(),
+    actionProposals: new InMemoryActionProposalRepository(),
     backtestBackend: 'research_platform',
     platformPoll: { maxPolls: 5, pollDelayMs: 0 },
     baselineVersion: 'v1',

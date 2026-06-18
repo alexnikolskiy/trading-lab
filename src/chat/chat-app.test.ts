@@ -7,6 +7,7 @@ import { InMemoryHypothesisProposalRepository } from '../adapters/repository/in-
 import { InMemoryAgentEventRepository } from '../adapters/repository/in-memory-agent-event.repository.ts';
 import { InMemoryChatSessionRepository } from '../adapters/repository/in-memory-chat-session.repository.ts';
 import { InMemoryChatPlanRepository } from '../adapters/repository/in-memory-chat-plan.repository.ts';
+import { InMemoryActionProposalRepository } from '../adapters/repository/in-memory-action-proposal.repository.ts';
 import { InMemoryQueueAdapter } from '../adapters/queue/in-memory-queue.adapter.ts';
 
 const CHAT_TOKEN = 'chat-test-token';
@@ -21,6 +22,8 @@ function appDeps(over: Partial<ChatAppDeps> = {}): ChatAppDeps {
     hypotheses: new InMemoryHypothesisProposalRepository(),
     events: new InMemoryAgentEventRepository(),
     queue: new InMemoryQueueAdapter(),
+    proposals: new InMemoryActionProposalRepository(),
+    proposalTtlMs: 600_000,
     minConfidence: 0.6,
     maxMessageChars: 4000,
     authToken: CHAT_TOKEN,
@@ -80,14 +83,17 @@ describe('POST /chat/messages', () => {
     expect(body.sessionId.length).toBeGreaterThan(0);
   });
 
-  it('returns 200 + task_created and echoes the provided sessionId', async () => {
+  it('returns 200 + assistant_message proposal and echoes the provided sessionId', async () => {
     const app = createChatApp(appDeps());
     const res = await post(app, { message: 'исследуй эту стратегию: лонг при росте OI', sessionId: 'sess-42' });
     expect(res.status).toBe(200);
-    const body = await res.json() as { kind: string; sessionId: string; plannedNextStep?: { taskType: string } };
-    expect(body.kind).toBe('task_created');
+    const body = await res.json() as {
+      kind: string; sessionId: string; pendingInteractionId?: string; actions?: { id: string }[];
+    };
+    expect(body.kind).toBe('assistant_message');
     expect(body.sessionId).toBe('sess-42');
-    expect(body.plannedNextStep?.taskType).toBe('research.run_cycle');
+    expect(body.pendingInteractionId).toBeTruthy();
+    expect(body.actions?.map((a) => a.id)).toEqual(['confirm', 'cancel']);
   });
 });
 
