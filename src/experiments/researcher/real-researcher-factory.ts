@@ -1,7 +1,11 @@
 import { composeMastra, type MastraCompositionEnv } from '../../mastra/compose-mastra.ts';
 import { MastraResearcher } from '../../adapters/researcher/mastra-researcher.ts';
-import type { ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
+import { createResearcherJudgeAgent } from '../../mastra/agents/researcher-judge.agent.ts';
+import { runJudge } from './judge.ts';
+import { resolveLanguageModel, type ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
 import type { ResearcherPort } from '../../ports/researcher.port.ts';
+import type { JudgeVerdict, ResearcherEvalInput } from './types.ts';
+import type { ResearcherOutput } from '../../domain/hypothesis.ts';
 
 export function buildRealResearcherFor(baseEnv: ModelProviderEnv): (modelId: string) => ResearcherPort {
   return (modelId: string) => {
@@ -23,5 +27,22 @@ export function buildRealResearcherFor(baseEnv: ModelProviderEnv): (modelId: str
     const entry = runtime.agents.researcher;
     if (!entry) throw new Error('researcher agent was not composed (check RESEARCHER_ADAPTER)');
     return new MastraResearcher(entry.agent, entry.label);
+  };
+}
+
+export function buildRealJudgeFor(
+  baseEnv: ModelProviderEnv,
+  judgeModelId: string,
+): (output: ResearcherOutput | null, input: ResearcherEvalInput) => Promise<JudgeVerdict> {
+  const resolved = resolveLanguageModel(baseEnv, judgeModelId);
+  const agent = createResearcherJudgeAgent(resolved.model);
+  return async (output, input) => {
+    if (!output) throw new Error('no output to judge');
+    return runJudge(agent, {
+      output,
+      profile: input.profile,
+      botResults: input.botResults,
+      tradeEvidence: input.tradeEvidence,
+    });
   };
 }

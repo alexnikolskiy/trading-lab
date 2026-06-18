@@ -1,12 +1,14 @@
 import type { ResearcherPort } from '../../ports/researcher.port.ts';
 import { scoreResearcherOutput } from './scoring.ts';
 import { aggregateRuns } from './aggregate.ts';
-import type { CandidateError, CandidateResult, EvalRunResult, ResearcherEvalInput } from './types.ts';
+import type { CandidateError, CandidateResult, EvalRunResult, JudgeVerdict, ResearcherEvalInput } from './types.ts';
 
 export interface RunEvalDeps {
   researcherFor: (modelId: string) => ResearcherPort;
   providerOf: (modelId: string) => { provider: string; modelId: string };
   clock: () => number;
+  /** Optional LLM-as-a-judge. Best-effort: failure never affects the deterministic verdict. */
+  judge?: (output: CandidateResult['rawOutput'], input: ResearcherEvalInput) => Promise<JudgeVerdict>;
 }
 
 export function classifyError(err: unknown): CandidateError {
@@ -34,9 +36,19 @@ async function runOnce(model: string, input: ResearcherEvalInput, deps: RunEvalD
     });
     const latencyMs = deps.clock() - start;
     const score = scoreResearcherOutput(raw, input);
-    return { model, provider, modelId, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null };
+
+    let judge: JudgeVerdict | null = null;
+    if (deps.judge) {
+      try {
+        judge = await deps.judge(raw, input);
+      } catch (judgeErr) {
+        process.stderr.write(`judge failed for ${model}: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`);
+      }
+    }
+
+    return { model, provider, modelId, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge };
   } catch (err) {
-    return { model, provider, modelId, latencyMs: deps.clock() - start, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err) };
+    return { model, provider, modelId, latencyMs: deps.clock() - start, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null };
   }
 }
 

@@ -1,7 +1,17 @@
+import { z } from 'zod';
 import type { ResearcherOutput } from '../../domain/hypothesis.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { BotRunResultDetail } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
+
+export const JudgeVerdictSchema = z.object({
+  dimensions: z.array(z.object({ name: z.string(), score: z.number().min(0).max(1), rationale: z.string() })),
+  overallScore: z.number().min(0).max(1),
+  hallucinations: z.array(z.string()),
+  missingFromOutput: z.array(z.string()),
+  notes: z.string(),
+});
+export type JudgeVerdict = z.infer<typeof JudgeVerdictSchema>;
 
 export interface CheckResult {
   id: string;
@@ -39,6 +49,7 @@ export interface CandidateResult {
   score: ScoreResult | null;
   rawOutput: ResearcherOutput | null;
   error: CandidateError | null;
+  judge: JudgeVerdict | null;
 }
 
 export interface ModelAggregate {

@@ -17,6 +17,7 @@ function parseCli() {
       threshold: { type: 'string', default: '0.7' },
       repeat: { type: 'string', default: '1' },
       'save-outputs': { type: 'boolean', default: false },
+      judge: { type: 'string' },
     },
   });
   const models = (values.models ?? '').split(',').map((m) => m.trim()).filter(Boolean);
@@ -25,7 +26,7 @@ function parseCli() {
   if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1) throw new Error(`--threshold must be in [0,1], got ${values.threshold}`);
   const repeat = Number(values.repeat);
   if (!Number.isInteger(repeat) || repeat < 1 || repeat > 20) throw new Error(`--repeat must be an integer in [1,20], got ${values.repeat}`);
-  return { fixtureId: values.fixture!, models, run: values.run!, threshold, repeat, saveOutputs: values['save-outputs']! };
+  return { fixtureId: values.fixture!, models, run: values.run!, threshold, repeat, saveOutputs: values['save-outputs']!, judgeModel: values.judge };
 }
 
 function modelEnv(): ModelProviderEnv {
@@ -65,6 +66,14 @@ function renderMarkdownReport(result: EvalRunResult, fixtureId: string, date: st
         const failed = (Object.entries(g) as [string, boolean][]).filter(([, v]) => !v).map(([k]) => k);
         return `  - run${ri + 1} gates failed: ${failed.length === 0 ? 'none' : failed.join(', ')}`;
       });
+    const judgeRows = runs
+      .filter((r) => r.judge !== null)
+      .map((r, ri) => {
+        const j = r.judge!;
+        const dimSummary = j.dimensions.map((d) => `${d.name}=${r3(d.score)}`).join(' ');
+        return `  - run${ri + 1} judgeScore=${r3(j.overallScore)} [${dimSummary}]`;
+      });
+
     return [
       `### ${agg.model}`,
       '',
@@ -73,7 +82,7 @@ function renderMarkdownReport(result: EvalRunResult, fixtureId: string, date: st
       '',
       '**Gates per run:**',
       ...gateRows,
-      '',
+      ...(judgeRows.length > 0 ? ['', '**Judge scores (opus):**', ...judgeRows, ''] : ['']),
     ].join('\n');
   });
 
@@ -116,20 +125,24 @@ async function main(): Promise<number> {
       closedTrades: botResults.reduce((sum, d) => sum + d.trades.length, 0),
       tradeEvidenceBundles: tradeEvidence.length,
       plannedPaidCalls: args.models.length * args.repeat,
+      judge: args.judgeModel ?? null,
       note: 'DRY RUN — no real models constructed, nothing sent. Re-run with --run to make paid calls.',
     }, null, 2)}\n`);
     return 0;
   }
 
   const env = modelEnv();
-  const { buildRealResearcherFor } = await import('../src/experiments/researcher/real-researcher-factory.ts');
+  const { buildRealResearcherFor, buildRealJudgeFor } = await import('../src/experiments/researcher/real-researcher-factory.ts');
+  const evalDeps = {
+    researcherFor: buildRealResearcherFor(env),
+    providerOf: (m: string) => { const r = parseRoleModel(env, m); return { provider: r.provider, modelId: r.modelId }; },
+    clock: () => Date.now(),
+    ...(args.judgeModel ? { judge: buildRealJudgeFor(env, args.judgeModel) } : {}),
+  };
+  if (args.judgeModel) process.stderr.write(`[eval] judge: ${args.judgeModel}\n`);
   const result = await runEval(
     { models: args.models, fixtureId: fixture.id, fixtureFingerprint, profile, botResults, tradeEvidence, threshold: args.threshold, repeat: args.repeat },
-    {
-      researcherFor: buildRealResearcherFor(env),
-      providerOf: (m) => { const r = parseRoleModel(env, m); return { provider: r.provider, modelId: r.modelId }; },
-      clock: () => Date.now(),
-    },
+    evalDeps,
   );
 
   if (args.saveOutputs) {
