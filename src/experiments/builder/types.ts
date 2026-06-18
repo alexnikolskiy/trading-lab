@@ -1,6 +1,17 @@
+import { z } from 'zod';
 import type { BuilderOutput } from '../../ports/builder.port.ts';
 import type { HypothesisProposal } from '../../domain/hypothesis.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
+
+// ─── Judge ─────────────────────────────────────────────────────────────────
+
+export const BuilderJudgeVerdictSchema = z.object({
+  dimensions: z.array(z.object({ name: z.string(), score: z.number().min(0).max(1), rationale: z.string() })),
+  overallScore: z.number().min(0).max(1),
+  issues: z.array(z.string()),
+  notes: z.string(),
+});
+export type BuilderJudgeVerdict = z.infer<typeof BuilderJudgeVerdictSchema>;
 
 // ─── Eval input ────────────────────────────────────────────────────────────
 
@@ -50,6 +61,7 @@ export interface CandidateResult {
   score: ScoreResult | null;
   rawOutput: BuilderOutput | null;
   error: CandidateError | null;
+  judge: BuilderJudgeVerdict | null;
 }
 
 // ─── Aggregates ─────────────────────────────────────────────────────────────
@@ -59,6 +71,8 @@ export interface ModelAggregate {
   /** Fraction of (hypothesis × repeat) attempts that PASSed */
   passRate: number;
   scoreMean: number | null;
+  /** Mean overallScore from LLM judge (null if no judge was used) */
+  judgeScoreMean: number | null;
   latencyMeanMs: number;
   runs: { ok: number; total: number };
 }

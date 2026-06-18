@@ -1,9 +1,11 @@
-import type { BuilderPort } from '../../ports/builder.port.ts';
+import type { BuilderPort, BuilderOutput } from '../../ports/builder.port.ts';
+import type { HypothesisProposal } from '../../domain/hypothesis.ts';
 import { BUILDER_SDK_DOC } from '../../adapters/builder/builder-sdk-doc.ts';
 import { scoreBuilderOutput } from './scoring.ts';
 import type {
   BuilderEvalInput,
   BuilderEvalRunResult,
+  BuilderJudgeVerdict,
   CandidateError,
   CandidateResult,
   ModelAggregate,
@@ -13,6 +15,8 @@ export interface RunBuilderEvalDeps {
   builderFor: (modelId: string) => BuilderPort;
   providerOf: (modelId: string) => { provider: string; modelId: string };
   clock: () => number;
+  /** Optional LLM-as-a-judge. Failures are logged but never block the deterministic verdict. */
+  judge?: (hypothesis: HypothesisProposal, output: BuilderOutput) => Promise<BuilderJudgeVerdict>;
 }
 
 export function classifyError(err: unknown): CandidateError {
@@ -38,25 +42,39 @@ async function runOnce(
     const raw = await builder.build({ hypothesis, profile: input.profile, sdkDoc: BUILDER_SDK_DOC });
     const latencyMs = deps.clock() - start;
     const score = scoreBuilderOutput(raw, hypothesis, input.threshold);
-    return { model, provider, modelId, hypothesisId: hypothesis.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null };
+    let judge: BuilderJudgeVerdict | null = null;
+    if (deps.judge && score.verdict === 'PASS') {
+      try {
+        judge = await deps.judge(hypothesis, raw);
+      } catch (judgeErr) {
+        process.stderr.write(`[builder:eval] judge failed for ${model}: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`);
+      }
+    }
+    return { model, provider, modelId, hypothesisId: hypothesis.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge };
   } catch (err) {
     return {
       model, provider, modelId, hypothesisId: hypothesis.id,
       latencyMs: deps.clock() - start,
-      verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err),
+      verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null,
     };
   }
+}
+
+function avg(xs: number[]): number | null {
+  return xs.length > 0 ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 }
 
 function aggregateRuns(runs: CandidateResult[], model: string): ModelAggregate {
   const ok = runs.filter((r) => r.verdict === 'PASS').length;
   const scores = runs.filter((r) => r.score !== null).map((r) => r.score!.score);
+  const judgeScores = runs.filter((r) => r.judge !== null).map((r) => r.judge!.overallScore);
   const latencies = runs.map((r) => r.latencyMs);
   return {
     model,
     passRate: runs.length > 0 ? ok / runs.length : 0,
-    scoreMean: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
-    latencyMeanMs: latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0,
+    scoreMean: avg(scores),
+    judgeScoreMean: avg(judgeScores),
+    latencyMeanMs: avg(latencies) ?? 0,
     runs: { ok, total: runs.length },
   };
 }
