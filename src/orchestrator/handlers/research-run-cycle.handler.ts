@@ -171,6 +171,19 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
     if (result.status === 'validated') {
       validated += 1;
       await services.events.append(event(task.id, 'hypothesis.validated', { hypothesisId: hypothesis.id, fingerprint }));
+      const buildTaskId = randomUUID();
+      const buildTask: import('../../domain/types.ts').ResearchTask = {
+        id: buildTaskId, taskType: 'hypothesis.build', source: task.source,
+        correlationId: task.correlationId, status: 'queued',
+        payload: { hypothesisId: hypothesis.id },
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      await services.researchTasks.create(buildTask);
+      await services.taskQueue.enqueue({
+        taskId: buildTaskId, taskType: 'hypothesis.build',
+        correlationId: task.correlationId, source: task.source, attempt: 1,
+        dedupeKey: `hypothesis.build:${hypothesis.id}`,
+      });
       if (services.critic) {
         try {
           const review = await services.critic.review({ proposal: draft, profile });

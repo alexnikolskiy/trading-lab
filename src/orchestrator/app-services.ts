@@ -19,8 +19,10 @@ import type { EvaluationRepository } from '../ports/evaluation.repository.ts';
 import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 import type { ChatSessionRepository } from '../ports/chat-session.repository.ts';
 import type { ChatPlanRepository } from '../ports/chat-plan.repository.ts';
+import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 
 export interface AppServices {
+  taskQueue: TaskQueuePort;
   researchTasks: ResearchTaskRepository;
   strategyProfiles: StrategyProfileRepository;
   analyst: StrategyAnalystPort;
