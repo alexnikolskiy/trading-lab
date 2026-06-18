@@ -74,6 +74,13 @@ describe('InMemoryBacktestRunRepository', () => {
     expect(await repo.findByIdentity('h1', 'sha256:p', 'sha256:other')).toBeNull();
   });
 
+  it('findByPlatformRunId returns the matching run or null', async () => {
+    const repo = new InMemoryBacktestRunRepository();
+    await repo.createSubmitted(run('r1', { platformRunId: 'platform-abc' }));
+    expect((await repo.findByPlatformRunId('platform-abc'))?.id).toBe('r1');
+    expect(await repo.findByPlatformRunId('missing')).toBeNull();
+  });
+
   it('round-trips backend / resumeToken / platformRun', async () => {
     const repo = new InMemoryBacktestRunRepository();
     const r = { ...run('rp1'), id: 'rp1', backend: 'research_platform' as const, resumeToken: 'tok', platformRun: {

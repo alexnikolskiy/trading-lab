@@ -12,6 +12,8 @@ import { strategyOnboardHandler } from './orchestrator/handlers/strategy-onboard
 import { researchRunCycleHandler } from './orchestrator/handlers/research-run-cycle.handler.ts';
 import { hypothesisBuildHandler } from './orchestrator/handlers/hypothesis-build.handler.ts';
 import { backtestCompletedHandler } from './orchestrator/handlers/backtest-completed.handler.ts';
+import { backtestResumeHandler } from './orchestrator/handlers/backtest-resume.handler.ts';
+import { buildBacktestCallbackUrl } from './config/backtest-callback-url.ts';
 import type { AppServices } from './orchestrator/app-services.ts';
 import type { StrategyAnalystPort } from './ports/strategy-analyst.port.ts';
 import { MockPlatformGatewayAdapter } from './adapters/platform/mock-platform-gateway.adapter.ts';
@@ -123,6 +125,7 @@ export function composeRuntime() {
     chatPlans: new DrizzleChatPlanRepository(db),
     backtestBackend: env.BACKTEST_BACKEND,
     platformPoll: { maxPolls: env.PLATFORM_RUN_MAX_POLLS, pollDelayMs: env.PLATFORM_RUN_POLL_DELAY_MS },
+    backtestCallbackUrl: buildBacktestCallbackUrl(env.TRADING_LAB_CALLBACK_PUBLIC_URL, env.TRADING_LAB_CALLBACK_TOKEN),
     baselineVersion: env.TRADING_PLATFORM_BASELINE_VERSION,
     defaultPlatformRun: { datasetId: 'default', symbols: ['BTCUSDT'], timeframe: '1h', period: { from: '2023-01-01', to: '2023-12-31' }, seed: 42 },
   };
@@ -131,6 +134,7 @@ export function composeRuntime() {
   router.register('strategy.onboard', strategyOnboardHandler);
   router.register('research.run_cycle', researchRunCycleHandler);
   router.register('hypothesis.build', hypothesisBuildHandler);
+  router.register('backtest.resume', backtestResumeHandler());
   router.register('backtest.completed', backtestCompletedHandler);
 
   const chat: ChatAppDeps = {

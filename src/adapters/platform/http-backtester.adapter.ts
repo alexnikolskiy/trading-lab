@@ -195,6 +195,7 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort {
       ...(opts.correlationId !== undefined ? { correlationId: opts.correlationId } : {}),
       ...(opts.resumeToken !== undefined ? { resumeToken: opts.resumeToken } : {}),
       ...(opts.workflowId !== undefined ? { workflowId: opts.workflowId } : {}),
+      ...(opts.callbackUrl !== undefined ? { callbackUrl: opts.callbackUrl } : {}),
     };
     try {
       return await this.client.submitRun(req);

@@ -67,6 +67,11 @@ export class DrizzleBacktestRunRepository implements BacktestRunRepository {
     return rows[0] ? toDomain(rows[0]) : null;
   }
 
+  async findByPlatformRunId(platformRunId: string): Promise<BacktestRun | null> {
+    const rows = await this.db.select().from(backtestRun).where(eq(backtestRun.platformRunId, platformRunId)).limit(1);
+    return rows[0] ? toDomain(rows[0]) : null;
+  }
+
   async findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null> {
     const rows = await this.db.select().from(backtestRun)
       .where(and(eq(backtestRun.hypothesisId, hypothesisId), eq(backtestRun.paramsHash, paramsHash), eq(backtestRun.bundleHash, bundleHash)))

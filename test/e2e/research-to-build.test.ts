@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { researchRunCycleHandler } from '../../src/orchestrator/handlers/research-run-cycle.handler.ts';
 import { hypothesisBuildHandler } from '../../src/orchestrator/handlers/hypothesis-build.handler.ts';
+import { backtestCompletedHandler } from '../../src/orchestrator/handlers/backtest-completed.handler.ts';
 import { WorkflowRouter } from '../../src/orchestrator/workflow-router.ts';
 import { startWorker } from '../../src/worker/worker.ts';
 import { InMemoryQueueAdapter } from '../../src/adapters/queue/in-memory-queue.adapter.ts';
@@ -63,6 +64,7 @@ describe('research → build pipeline (e2e)', () => {
 
     const router = new WorkflowRouter();
     router.register('hypothesis.build', hypothesisBuildHandler);
+    router.register('backtest.completed', backtestCompletedHandler);
     startWorker({ queue, router, services });
 
     await researchRunCycleHandler(cycleTask(), services);
@@ -116,6 +118,7 @@ describe('research → build pipeline (e2e)', () => {
 
     const router = new WorkflowRouter();
     router.register('hypothesis.build', hypothesisBuildHandler);
+    router.register('backtest.completed', backtestCompletedHandler);
     startWorker({ queue, router, services });
 
     await researchRunCycleHandler(cycleTask(), services);
@@ -153,6 +156,7 @@ describe('research → build pipeline (e2e)', () => {
 
     const router = new WorkflowRouter();
     router.register('hypothesis.build', hypothesisBuildHandler);
+    router.register('backtest.completed', backtestCompletedHandler);
     startWorker({ queue, router, services });
 
     await researchRunCycleHandler(cycleTask(), services);

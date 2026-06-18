@@ -47,6 +47,8 @@ export interface AppServices {
   chatPlans: ChatPlanRepository;
   backtestBackend: 'research_platform';
   platformPoll: { maxPolls: number; pollDelayMs: number };
+  /** When set, passed to platform/backtester submit as completion webhook URL. */
+  backtestCallbackUrl?: string;
   baselineVersion: string;
   defaultPlatformRun: { datasetId: string; symbols: string[]; timeframe: string; period: { from: string; to: string }; seed: number };
 }

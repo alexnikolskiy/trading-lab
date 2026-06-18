@@ -10,6 +10,7 @@ const app = createIngressApp({
   queue,
   taskToken: env.TRADING_LAB_TASK_TOKEN,
   callbackToken: env.TRADING_LAB_CALLBACK_TOKEN,
+  findRunByPlatformRunId: (platformRunId) => services.backtests.findByPlatformRunId(platformRunId),
 });
 app.route('/chat', createChatApp(chat));
 if (!env.TRADING_LAB_CHAT_TOKEN) {

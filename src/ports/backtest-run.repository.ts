@@ -8,6 +8,8 @@ export interface BacktestRunRepository {
   markFailed(id: string): Promise<void>;
   markEvaluated(id: string): Promise<void>;
   findById(id: string): Promise<BacktestRun | null>;
+  /** Lookup by platform/backtester run id (webhook callback + resume). */
+  findByPlatformRunId(platformRunId: string): Promise<BacktestRun | null>;
   /** Identity lookup powering pre-submit idempotency (matches the DB unique key). */
   findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null>;
   listByHypothesis(hypothesisId: string): Promise<BacktestRun[]>;
