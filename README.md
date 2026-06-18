@@ -407,7 +407,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 | `TRADING_MOCK_PLATFORM_PATH` | `../trading-mock-platform` | Путь к склонированному trading-mock-platform |
 | `TRADING_BACKTESTER_PATH` | `../trading-backtester` | Путь к склонированному trading-backtester |
 | `MOCK_OPS_TOKEN` | `demo-ops-token` | Bearer-токен для запросов к mock-platform |
-| `MOCK_OPS_TOKENS` | `sha256:abc…` | SHA256-хеш токена (проверяется mock-platform) |
+| `MOCK_OPS_TOKENS` | `6dd4bdc5…` | SHA256-хеш (hex) `MOCK_OPS_TOKEN` — генерировать: `echo -n "$TOKEN" \| sha256sum` |
 | `MOCK_SNAPSHOT_REF` | `fixtures/2026-06-16-synthetic` | Имя снапшота с тестовыми данными |
 | `BACKTESTER_AUTH_TOKEN` | `demo-backtester-token` | Bearer-токен для backtester |
 | `TRADING_LAB_TASK_TOKEN` | `demo-task-token` | Bearer-токен для POST /tasks (e2e) |
