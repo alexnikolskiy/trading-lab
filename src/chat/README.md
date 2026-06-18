@@ -26,10 +26,52 @@ The browser never calls trading-lab directly; user auth lives in trading-office.
 | `sessionId` | string? | optional; omitted → a new id is generated and echoed back |
 | `channel` | `'web' \| 'telegram'` | default `'web'` |
 
+## Two-Turn Confirmation Protocol
+
+Strategy and research intents follow a two-turn flow. Read-only / static intents (`help`, `task.status`, `out_of_scope`) are still one-turn and return their response directly.
+
+```
+Turn 1 (strategy message)
+  → assistant_message + pendingInteractionId + actions:[confirm, cancel]
+  → proposal persisted; NO task enqueued; session.pendingInteraction set
+
+Turn 2 (operator sends 'да' / 'подтверждаю' / '1')
+  → task_created + taskId + plannedNextStep.taskType = 'research.run_cycle'
+  → strategy.onboard task enqueued
+
+Worker drains
+  → strategy.onboard runs (creates StrategyProfile)
+  → advanceChatPlan auto-chains research.run_cycle
+  → research.run_cycle runs and completes
+```
+
+### Key invariants
+
+- **Pending confirm/cancel bypasses the LLM classifier.** When `session.pendingInteraction` is set, the second turn is resolved against the STORED proposal using an exact allow-list only (`да`, `подтверждаю`, `подтвердить`, `1` → confirm; `нет`, `отмена`, `отменить`, `0` → cancel; anything else → `unresolved`, stays parked). The classifier is NOT consulted.
+- **Raw strategy text is absent from audit events.** `chat.proposal.created` carries only IDs / task type / expiry — never the message body. The `messageChars` field logs length only. Privacy is asserted in the E2E test (`test/e2e/chat-to-task.test.ts`).
+- **`pendingPlanId` is the post-task auto-chain pointer.** It points at the `ChatPlan` that `advanceChatPlan` will consume to enqueue the next task after completion. It is NOT the conversational confirmation pointer — that is `pendingInteraction.proposalId` (cleared on confirm or cancel).
+- **Confirmation is idempotent.** A duplicate confirm replays the already-created task's status; it never enqueues a second time.
+
+### Event ordering
+
+For any strategy/research flow the events are guaranteed to appear in this order:
+
+```
+chat.proposal.created
+chat.proposal.confirmed
+chat.task_created
+(then worker events: chat.plan.advanced, etc.)
+```
+
+### Proposal TTL
+
+`proposalTtlMs` (injected by the app factory) is the confirmation window. Expired proposals return a prompt to re-send the strategy; TTL policy is set at the app layer, not in the handler.
+
 ## Response
 
 `200` with a `ChatResponse` discriminated union (`kind`), always echoing `sessionId`:
 
+- `assistant_message` — `{ message, evidence[], actions[], pendingInteractionId? }`. Returned on turn 1 of a strategy/research proposal, and for any static response. `pendingInteractionId` is present only when a proposal awaits confirmation.
 - `task_created` — `{ taskId, taskType, status, plannedNextStep? }`. `plannedNextStep` documents an auto-chain continuation (e.g. `{ taskType: 'research.run_cycle', after: 'strategy.onboard' }`).
 - `task_status` — `{ taskId, status }`
 - `needs_clarification` — `{ question, missing[] }`
