@@ -104,6 +104,14 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   }
 
   if (backend === 'research_platform') {
+    const { datasets } = await services.researchPlatform.listDatasets();
+    if (datasets.length === 0) {
+      const issues: ValidationIssue[] = [{ code: 'datasets_unavailable', severity: 'error', path: '', message: 'No datasets available from research platform' }];
+      await services.builds.markBuildFailed(buildId, issues);
+      await services.events.append(event(task.id, 'research_platform.datasets_unavailable', { buildId, reason: 'no datasets returned — research platform may be misconfigured or data source unavailable' }));
+      await services.events.append(event(task.id, 'build_failed', { buildId, codes: ['datasets_unavailable'] }));
+      return;
+    }
     const resumeToken = sha256(stableStringify({ v: 1, hypothesisId: hypothesis.id, paramsHash, bundleHash: bundle.bundleHash }));
     await runPlatformBacktest({
       services, task, buildId, bundle, profile, hypothesisId: hypothesis.id,

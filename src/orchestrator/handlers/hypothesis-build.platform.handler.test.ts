@@ -99,4 +99,26 @@ describe('hypothesisBuildHandler — research_platform backend', () => {
     const runs = await s.backtests.listByHypothesis('h1');
     expect(runs.map((r) => r.backend).sort()).toEqual(['research_platform', 'sp4_mock']);
   });
+
+  it('research_platform: listDatasets returns [] → datasets_unavailable event + build_failed, no submit', async () => {
+    let submitted = false;
+    const stub = {
+      ...new MockResearchPlatformAdapter(),
+      listDatasets: async () => ({ datasets: [] }),
+      submitOverlayRun: async () => { submitted = true; throw new Error('should not be called'); },
+    } as unknown as ResearchPlatformPort;
+    const s = await seeded({ researchPlatform: stub, backtestBackend: 'research_platform' });
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+
+    expect(submitted).toBe(false);
+    expect(await s.backtests.listByHypothesis('h1')).toHaveLength(0);
+
+    const builds = await s.builds.listByHypothesis('h1');
+    expect(builds[0]?.status).toBe('build_failed');
+    expect(builds[0]?.issues.map((i) => i.code)).toContain('datasets_unavailable');
+
+    const evTypes = (await s.events.listByTask('t1')).map((e) => e.type);
+    expect(evTypes).toContain('research_platform.datasets_unavailable');
+    expect(evTypes).toContain('build_failed');
+  });
 });
