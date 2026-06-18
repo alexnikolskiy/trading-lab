@@ -4,11 +4,26 @@ import { ResearcherOutputSchema } from '../../domain/hypothesis.ts';
 import type { ResearcherInput } from '../../ports/researcher.port.ts';
 import type { BotRunResultDetail } from '../../ports/bot-results-read.port.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
+import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
 import { resolveLanguageModel } from '../llm/model-provider.ts';
 import { createResearcherAgent } from '../../mastra/agents/researcher.agent.ts';
 
 const baseInput: ResearcherInput = {
-  profile: { coreIdea: 'idea', direction: 'long', requiredMarketFeatures: [] } as unknown as StrategyProfile,
+  profile: {
+    coreIdea: 'idea',
+    direction: 'long',
+    requiredMarketFeatures: [],
+    profile: {
+      summary: 'Enter after a >=10% dump over 20 minutes when OI recovers and long liquidations confirm the bounce.',
+      entryConditions: ['Dump >=10% over 20m', 'OI recovery within 3 candles'],
+      exitConditions: ['TP1 +3.5%', 'TP2 +5%', 'SL -12%', 'time exit 180m'],
+      parameters: [{ name: 'dump.minDropPct', value: 10, unit: '%', description: 'Minimum dump', tunable: true }],
+      positionManagementSummary: 'Up to two DCA adds, then move stop to breakeven after TP1.',
+      riskManagementSummary: 'Runner owns leverage and execution; strategy controls overlays only.',
+      unknowns: ['exact venue'],
+      evidence: ['source quote'],
+    },
+  } as unknown as StrategyProfile,
   marketContext: { symbol: 'BTCUSDT', ts: '2026-01-01T00:00:00Z', features: {} },
   marketRegime: 'ranging',
   similarHypotheses: [],
@@ -17,15 +32,54 @@ const baseInput: ResearcherInput = {
 
 const detail: BotRunResultDetail = {
   run: { runId: 'r1', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] },
-  summary: { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 1, wins: 1, losses: 0, breakeven: 0, winratePct: 100, pnlUsd: '12.5', avgPnl: '12.5', exitReasons: { tp: 1 } },
-  trades: [],
+  summary: { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 2, wins: 1, losses: 1, breakeven: 0, winratePct: 50, pnlUsd: '7.5', avgPnl: '3.75', exitReasons: { tp: 1, stop_loss: 1 } },
+  trades: [
+    { tradeId: 't1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 60_001, realizedPnl: '-5', pnlPct: '-0.5', isWin: false, closeReason: 'stop_loss' },
+  ],
+};
+
+const bundle: TradeEvidenceBundle = {
+  tradeId: 't1',
+  runId: 'r1',
+  symbol: 'COAIUSDT',
+  side: 'long',
+  enteredAtMs: 1,
+  closedAtMs: 60_001,
+  entryPrice: '1.25',
+  exitPrice: '1.10',
+  realizedPnl: '-50.81',
+  pnlPct: '-4.1',
+  holdingDurationMs: 8_640_000,
+  closeReason: 'stop_loss',
+  lifecycleEvents: [
+    { tsMs: 1, type: 'entry', price: '1.25', qty: '100' },
+    { tsMs: 30_000, type: 'dca', price: '1.20', qty: '120' },
+    { tsMs: 60_001, type: 'sl', price: '1.10', qty: '220' },
+  ],
+  minuteContext: [
+    { tsMs: 0, close: '1.26', volume: '10000', oi: '440000', liquidationsLong: '0', liquidationsShort: '200' },
+    { tsMs: 60_000, close: '1.11', volume: '18000', oi: '390000', liquidationsLong: '1400', liquidationsShort: '0' },
+  ],
 };
 
 describe('buildPrompt bot-results block', () => {
   it('includes a bot-results block when botResults is non-empty', () => {
     const out = buildPrompt({ ...baseInput, botResults: [detail] });
-    expect(out).toContain('Live/paper bot performance');
-    expect(out).toContain('pnlUsd=12.5');
+    expect(out).toContain('Live/paper bot performance evidence');
+    expect(out).toContain('trades=2 winratePct=50 pnlUsd=7.5 avgPnl=3.75');
+    expect(out).toContain('exitReasons=stop_loss:1, tp:1');
+    expect(out).toContain('Worst losing trades:');
+    expect(out).toContain('BTCUSDT pnlUsd=-5 pnlPct=-0.5 holdingMinutes=1 closeReason=stop_loss');
+  });
+  it('includes full strategy profile details and forensic trade evidence when available', () => {
+    const out = buildPrompt({ ...baseInput, botResults: [detail], tradeEvidence: [bundle] });
+    expect(out).toContain('Strategy summary: Enter after a >=10% dump over 20 minutes');
+    expect(out).toContain('Entry conditions: Dump >=10% over 20m');
+    expect(out).toContain('Position management: Up to two DCA adds');
+    expect(out).toContain('Forensic trade evidence');
+    expect(out).toContain('COAIUSDT tradeId=t1 entryPrice=1.25 exitPrice=1.10');
+    expect(out).toContain('type=dca');
+    expect(out).toContain('close=1.11 volume=18000 oi=390000');
   });
   it('omits the block when botResults is empty or undefined', () => {
     expect(buildPrompt(baseInput)).not.toContain('Live/paper bot performance');

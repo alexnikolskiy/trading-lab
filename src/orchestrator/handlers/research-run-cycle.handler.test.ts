@@ -9,6 +9,7 @@ import type { ResearchTask } from '../../domain/types.ts';
 import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { AppServices } from '../app-services.ts';
 import type { BotResultsReadPort } from '../../ports/bot-results-read.port.ts';
+import type { TradeEvidenceReadPort } from '../../ports/trade-evidence-read.port.ts';
 
 function profile(): StrategyProfile {
   return {
@@ -218,5 +219,56 @@ describe('researchRunCycleHandler', () => {
     await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
     expect(cap.captured()?.botResults).toEqual([]);
     expect(await types(services)).toContain('researcher.bot_results_unavailable');
+  });
+
+  it('selects suspicious trades and passes forensic tradeEvidence to the researcher', async () => {
+    const cap = capturingResearcher({ hypotheses: [draft('thesis forensic')], researchSummary: 's' });
+    const tradeEvidence: TradeEvidenceReadPort = {
+      async getTradeEvidence(query) {
+        expect(query.tradeIds).toEqual(['t-loss-1', 't-loss-2']);
+        return query.tradeIds.map((tradeId) => ({
+          tradeId,
+          runId: 'r1',
+          symbol: 'BTCUSDT',
+          side: 'long',
+          enteredAtMs: 1,
+          closedAtMs: 2,
+          entryPrice: '1.0',
+          exitPrice: '0.9',
+          realizedPnl: '-10',
+          pnlPct: '-1',
+          holdingDurationMs: 60_000,
+          closeReason: 'stop_loss',
+          lifecycleEvents: [{ tsMs: 1, type: 'entry', price: '1.0', qty: '10' }],
+          minuteContext: [{ tsMs: 1, close: '1.0', volume: '100', oi: '5000', liquidationsLong: '50', liquidationsShort: '0' }],
+        }));
+      },
+    };
+    const botResults: BotResultsReadPort = {
+      async listBotRuns() {
+        return [{ runId: 'r1', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] }];
+      },
+      async getRunSummary() {
+        return { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 3, wins: 1, losses: 2, breakeven: 0, winratePct: 33.33, pnlUsd: '-20', avgPnl: '-6.66', exitReasons: { stop_loss: 2, take_profit: 1 } };
+      },
+      async getClosedTrades() {
+        return [
+          { tradeId: 't-win', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 2, realizedPnl: '5', pnlPct: '0.5', isWin: true, closeReason: 'take_profit' },
+          { tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 4, realizedPnl: '-15', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss' },
+          { tradeId: 't-loss-2', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 3, realizedPnl: '-8', pnlPct: '-0.8', isWin: false, closeReason: 'stop_loss' },
+        ];
+      },
+      async getOperationalEvents() {
+        return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' };
+      },
+      async getDecisionLog() {
+        return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' };
+      },
+    };
+    const services = makeServices({ researcher: cap.port, botResults, tradeEvidence });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
+
+    expect(cap.captured()?.tradeEvidence?.map((b) => b.tradeId)).toEqual(['t-loss-1', 't-loss-2']);
   });
 });

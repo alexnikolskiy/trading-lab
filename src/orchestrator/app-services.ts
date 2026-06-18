@@ -6,6 +6,7 @@ import type { AgentEventRepository } from '../ports/agent-event.repository.ts';
 import type { PlatformGatewayPort } from '../ports/platform-gateway.port.ts';
 import type { ResearchPlatformPort } from '../ports/research-platform.port.ts';
 import type { BotResultsReadPort } from '../ports/bot-results-read.port.ts';
+import type { TradeEvidenceReadPort } from '../ports/trade-evidence-read.port.ts';
 import type { ResearcherPort } from '../ports/researcher.port.ts';
 import type { CriticPort } from '../ports/critic.port.ts';
 import type { HypothesisProposalRepository } from '../ports/hypothesis-proposal.repository.ts';
@@ -28,6 +29,7 @@ export interface AppServices {
   platform: PlatformGatewayPort;
   researchPlatform: ResearchPlatformPort;
   botResults: BotResultsReadPort;
+  tradeEvidence: TradeEvidenceReadPort;
   researcher: ResearcherPort;
   critic: CriticPort | null;          // null when ENABLE_CRITIC_AGENT=false
   hypotheses: HypothesisProposalRepository;

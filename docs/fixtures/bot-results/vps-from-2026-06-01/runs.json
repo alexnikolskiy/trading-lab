@@ -1,0 +1,316 @@
+[
+    {
+        "mode": "paper",
+        "runId": "2955ffdc-dfb3-454e-9176-375142007355",
+        "status": "running",
+        "symbols": [
+            "BEATUSDT",
+            "BLUAIUSDT",
+            "BSBUSDT",
+            "CLOUSDT",
+            "COAIUSDT",
+            "ESPORTSUSDT",
+            "FOLKSUSDT",
+            "GRASSUSDT",
+            "HIGHUSDT",
+            "HMSTRUSDT",
+            "HOMEUSDT",
+            "HUSDT",
+            "JCTUSDT",
+            "JELLYJELLYUSDT",
+            "MYXUSDT",
+            "NAORISUSDT",
+            "NOTUSDT",
+            "OPGUSDT",
+            "ROAMUSDT",
+            "SIRENUSDT",
+            "SPACEUSDT",
+            "VELVETUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1781728081062,
+        "startedAtMs": 1781291247232,
+        "finishedAtMs": null,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "083a6c0c-5f60-4542-884b-47f913b2d6d2",
+        "status": "aborted",
+        "symbols": [
+            "ALLOUSDT",
+            "BEATUSDT",
+            "BLENDUSDT",
+            "BOBBOBUSDT",
+            "BRETTUSDT",
+            "BSBUSDT",
+            "BUSDT",
+            "CLOUSDT",
+            "COAIUSDT",
+            "ENJUSDT",
+            "EPICUSDT",
+            "ESPORTSUSDT",
+            "HIGHUSDT",
+            "HMSTRUSDT",
+            "HOMEUSDT",
+            "HUSDT",
+            "JCTUSDT",
+            "KATUSDT",
+            "LABUSDT",
+            "MAGMAUSDT",
+            "MBOXUSDT",
+            "MEUSDT",
+            "MOVEUSDT",
+            "MYXUSDT",
+            "ORCLUSDT",
+            "PIPPINUSDT",
+            "PLAYSOUTUSDT",
+            "ROAMUSDT",
+            "SAHARAUSDT",
+            "SIRENUSDT",
+            "SKYAI1USDT",
+            "SLXUSDT",
+            "SOXLUSDT",
+            "STGUSDT",
+            "UBUSDT",
+            "USUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1781291221012,
+        "startedAtMs": 1780973172508,
+        "finishedAtMs": 1781291221012,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "20c32da3-0238-4d01-8e81-90bd624583c1",
+        "status": "crashed",
+        "symbols": [
+            "ACEUSDT",
+            "ALLOUSDT",
+            "APRUSDT",
+            "ARIAUSDT",
+            "AXSUSDT",
+            "B3USDT",
+            "BANUSDT",
+            "BASEDUSDT",
+            "BEATUSDT",
+            "BILLUSDT",
+            "BIOUSDT",
+            "BLUAIUSDT",
+            "BOBBOBUSDT",
+            "BSBUSDT",
+            "CHZUSDT",
+            "CLOUSDT",
+            "COAIUSDT",
+            "COREUSDT",
+            "DEXEUSDT",
+            "EDGEUSDT",
+            "ENAUSDT",
+            "EPICUSDT",
+            "ESPORTSUSDT",
+            "FARTCOINUSDT",
+            "FIDAUSDT",
+            "GIGGLEUSDT",
+            "GRASSUSDT",
+            "GUNUSDT",
+            "HEIUSDT",
+            "HIGHUSDT",
+            "HNTUSDT",
+            "HOMEUSDT",
+            "HUSDT",
+            "JCTUSDT",
+            "KATUSDT",
+            "LABUSDT",
+            "LAUSDT",
+            "LIGHTUSDT",
+            "LYNUSDT",
+            "MAGMAUSDT",
+            "MBOXUSDT",
+            "MOVEUSDT",
+            "MYXUSDT",
+            "OPGUSDT",
+            "PIEVERSEUSDT",
+            "PIPPINUSDT",
+            "PLAYSOUTUSDT",
+            "PORTALUSDT",
+            "RAVEUSDT",
+            "RIVERUSDT",
+            "SAGAUSDT",
+            "SAHARAUSDT",
+            "SIRENUSDT",
+            "SKYAI1USDT",
+            "SLXUSDT",
+            "STGUSDT",
+            "TAUSDT",
+            "TRUTHUSDT",
+            "UBUSDT",
+            "USELESSUSDT",
+            "USUSDT",
+            "WLDUSDT",
+            "YBUSDT",
+            "ZECUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780973172637,
+        "startedAtMs": 1780393298686,
+        "finishedAtMs": 1780973170113,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "a0564b31-7f0e-47b9-a4b5-f403bfd81327",
+        "status": "finished",
+        "symbols": [
+            "BSBUSDT",
+            "EDGEUSDT",
+            "EPICUSDT",
+            "ESPORTSUSDT",
+            "HUSDT",
+            "LABUSDT",
+            "MYXUSDT",
+            "PIEVERSEUSDT",
+            "PORTALUSDT",
+            "SKYAI1USDT",
+            "SLXUSDT",
+            "STGUSDT",
+            "TAUSDT",
+            "USUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780393261079,
+        "startedAtMs": 1780335064199,
+        "finishedAtMs": 1780393297261,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "f358daf6-6951-47e5-a7fc-fdf6356df7d6",
+        "status": "finished",
+        "symbols": [
+            "EPICUSDT",
+            "HUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780335061151,
+        "startedAtMs": 1780333014096,
+        "finishedAtMs": 1780335062777,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "663a57ca-9cbd-447e-8223-defb6dcbf179",
+        "status": "crashed",
+        "symbols": [
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780333003255,
+        "startedAtMs": 1780333003255,
+        "finishedAtMs": 1780333013390,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "9dafe627-a6fa-4083-97e3-5042f7adfc64",
+        "status": "aborted",
+        "symbols": [
+            "EPICUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780332961311,
+        "startedAtMs": 1780332917135,
+        "finishedAtMs": 1780332961311,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "c73e241a-3172-4d89-bf1f-d95d2cdef7cb",
+        "status": "finished",
+        "symbols": [
+            "EPICUSDT",
+            "ESPORTSUSDT",
+            "HUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780392994239,
+        "startedAtMs": 1780332181893,
+        "finishedAtMs": 1780332915837,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "b5da910a-65e0-45a8-afe7-9d964dd95120",
+        "status": "finished",
+        "symbols": [
+            "ESPORTSUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780332120610,
+        "startedAtMs": 1780330883067,
+        "finishedAtMs": 1780332180587,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "5867badf-0cb0-4e2a-8220-f480e69b5e4f",
+        "status": "aborted",
+        "symbols": [
+            "ESPORTSUSDT",
+            "HOMEUSDT",
+            "HUSDT",
+            "JCTUSDT",
+            "LABUSDT",
+            "PORTALUSDT"
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780330680831,
+        "startedAtMs": 1780300035051,
+        "finishedAtMs": 1780330680831,
+        "hypothesisId": null
+    },
+    {
+        "mode": "paper",
+        "runId": "a57fdd56-d4ca-4f15-b607-7fbb6f69e329",
+        "status": "aborted",
+        "symbols": [
+        ],
+        "strategy": {
+            "name": "long_oi_strategy",
+            "version": "1"
+        },
+        "lastSeenMs": 1780299744681,
+        "startedAtMs": 1780299744681,
+        "finishedAtMs": 1780299744681,
+        "hypothesisId": null
+    }
+]

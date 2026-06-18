@@ -1,0 +1,1181 @@
+{
+  "fixture": {
+    "id": "long-oi-vps-2026-06-01",
+    "fingerprint": "sha256:3a033954ecd7182ecd7b3f769c4dd270896d1183407a33c2fdc5a30545bee6b2"
+  },
+  "threshold": 0.7,
+  "repeat": 3,
+  "models": [
+    "openrouter/x-ai/grok-4.3",
+    "openrouter/openai/gpt-5.5",
+    "openrouter/google/gemini-2.5-pro"
+  ],
+  "perModel": [
+    {
+      "model": "openrouter/x-ai/grok-4.3",
+      "provider": "openrouter",
+      "modelId": "x-ai/grok-4.3",
+      "latencyMs": 19034,
+      "verdict": "FAIL",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": false
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "winrate",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "falls|decreases|does not fall",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "winrate",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "10\\s*%",
+              "12\\s*%",
+              "\\bdca\\b|усредн",
+              "\\boi\\b|open interest",
+              "liquidation",
+              "dump|sharp dump|пролив",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "hard_stop",
+              "\\bdca\\b",
+              "\\bsl\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0,
+            "matched": []
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\bdca\\b",
+              "\\bsl\\b",
+              "hard_stop"
+            ]
+          }
+        ],
+        "score": 0.95,
+        "threshold": 0.7,
+        "verdict": "FAIL"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "Many hard-stop losses occur because entries trigger on short-lived bounces lacking sustained OI recovery; adding an OI threshold filter will avoid these false mean-reversion signals in ranging regimes.",
+            "targetBehavior": "Prevent entry on weak OI recovery bounces",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "dump detected and bounce confirmed but oi recovered < 3% over last 5 candles",
+                  "action": "skip_entry",
+                  "params": {},
+                  "rationale": "OI recovery is already a required feature; enforcing a minimum magnitude filters transient bounces that lead to hard stops"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "open interest",
+              "liquidations",
+              "market_regime"
+            ],
+            "validationPlan": "Backtest the overlay on the same symbol set; measure reduction in hard_stop exits and change in overall pnl and winrate vs baseline runs",
+            "expectedEffect": {
+              "metric": "hard_stop count",
+              "direction": "decrease",
+              "magnitude": "30-50%"
+            },
+            "invalidationCriteria": [
+              "No statistically significant drop in hard_stop exits",
+              "Overall pnl decreases by >10%"
+            ],
+            "confidence": 0.7
+          },
+          {
+            "thesis": "In ranging regime the -12% hard stop is too wide; tightening it on entry reduces loss magnitude on failing reversals while the partial TP ladder still captures winners.",
+            "targetBehavior": "Reduce loss size on range-bound failures",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "entry triggered and market_regime == ranging",
+                  "action": "tighten_stop",
+                  "params": {
+                    "newStopPct": -8
+                  },
+                  "rationale": "Ranging regime identified in context; tighter SL limits downside on the frequent hard-stop trades observed"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "market_regime",
+              "ohlcv"
+            ],
+            "validationPlan": "Backtest overlay on historical runs; compare max drawdown per trade and total pnl vs baseline",
+            "expectedEffect": {
+              "metric": "avg losing trade pnl",
+              "direction": "increase",
+              "magnitude": "20-40%"
+            },
+            "invalidationCriteria": [
+              "Winrate drops >15 pp",
+              "Number of TP1/TP2 exits falls >20%"
+            ],
+            "confidence": 0.65
+          }
+        ],
+        "researchSummary": "Hard-stop exits dominate losses after DCA on apparent reversals; both hypotheses target entry filtering and loss capping using existing OI/liquidation and regime signals to reduce false positives without altering core entry logic."
+      },
+      "error": null
+    },
+    {
+      "model": "openrouter/x-ai/grok-4.3",
+      "provider": "openrouter",
+      "modelId": "x-ai/grok-4.3",
+      "latencyMs": 17940,
+      "verdict": "FAIL",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": false
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "winrate",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "falls|decreases|does not fall",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "negative",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "winrate",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "3(?:[.,])?5\\s*%",
+              "\\bdca\\b|усредн",
+              "liquidation",
+              "dump|sharp dump|пролив",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "hard_stop",
+              "\\bdca\\b",
+              "\\bsl\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0,
+            "matched": []
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\bdca\\b",
+              "\\bsl\\b",
+              "hard_stop"
+            ]
+          }
+        ],
+        "score": 0.95,
+        "threshold": 0.7,
+        "verdict": "FAIL"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "In ranging regime, many hard_stop losses after DCA occur because bounces lack sustained volume confirmation, leading to re-dumps; overlay to skip_entry when market_regime=ranging and bounce candle volume < 1.5x dump-window median volume.",
+            "targetBehavior": "Avoid weak-bounce entries in ranging markets that fail to produce durable reversals",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "market_regime == 'ranging' AND bounce_volume < 1.5 * median_dump_volume",
+                  "action": "skip_entry",
+                  "params": {},
+                  "rationale": "Filter entries on low-conviction bounces that historically lead to hard_stop hits"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "volume",
+              "market_regime"
+            ],
+            "validationPlan": "Backtest on same symbols with/without the skip rule; compare hard_stop count, winrate, and avgPnl in ranging periods only",
+            "expectedEffect": {
+              "metric": "hard_stop_count",
+              "direction": "decrease",
+              "magnitude": "20-40%"
+            },
+            "invalidationCriteria": [
+              "No reduction in hard_stop exits in ranging regime backtests",
+              "Overall winrate drops >5pp after adding skip rule"
+            ],
+            "confidence": 0.72
+          },
+          {
+            "thesis": "Post-DCA adverse moves continue because long liquidations spike only momentarily; overlay to tighten_stop (move SL to -6%) if long_liquidations drop below 50th percentile within 15min of last DCA.",
+            "targetBehavior": "Cut losing DCA positions earlier when liquidation support fades",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "minutes_since_last_dca <= 15 AND long_liquidations < percentile_50(long_liquidations, 60)",
+                  "action": "tighten_stop",
+                  "params": {
+                    "new_sl_pct": -6
+                  },
+                  "rationale": "Reduce max loss when reversal confirmation via liquidations disappears"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "liquidations",
+              "market_context"
+            ],
+            "validationPlan": "Backtest identical parameters but replace hard_stop exits with the conditional tighten_stop rule; measure reduction in avg losing trade size and max drawdown",
+            "expectedEffect": {
+              "metric": "avg_loss_per_hard_stop_trade",
+              "direction": "decrease",
+              "magnitude": "25-35%"
+            },
+            "invalidationCriteria": [
+              "Backtest shows no material reduction in average loss size on formerly hard-stop trades",
+              "Winrate falls because premature stops are hit more often than original SL"
+            ],
+            "confidence": 0.65
+          }
+        ],
+        "researchSummary": "Analysis of 300+ paper trades reveals majority of negative PnL stems from hard_stop after 1-2 DCAs in ranging conditions. Proposed overlays target entry filtering via volume+regime and post-DCA exit tightening via liquidation strength; both are strictly conditional on allowed actions and use only profile-specified features."
+      },
+      "error": null
+    },
+    {
+      "model": "openrouter/x-ai/grok-4.3",
+      "provider": "openrouter",
+      "modelId": "x-ai/grok-4.3",
+      "latencyMs": 18717,
+      "verdict": "FAIL",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": false
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "winrate",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "winrate",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "12\\s*%",
+              "\\bdca\\b|усредн",
+              "\\bbreakeven\\b|\\bbe\\b|безубыт",
+              "\\boi\\b|open interest",
+              "liquidation",
+              "dump|sharp dump|пролив",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "time_exit",
+              "hard_stop",
+              "\\bdca\\b",
+              "\\bsl\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0,
+            "matched": []
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\bdca\\b",
+              "\\bsl\\b",
+              "hard_stop"
+            ]
+          }
+        ],
+        "score": 0.95,
+        "threshold": 0.7,
+        "verdict": "FAIL"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "In ranging regimes, temporary OI recovery + low long liquidation spikes produce false bounces that hit -12% SL after DCA; requiring a liquidationLong threshold filters weak reversals.",
+            "targetBehavior": "Entry confirmation on bounce",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "dump detected and bounce confirmed but liquidationsLong < 1000",
+                  "action": "skip_entry",
+                  "params": {},
+                  "rationale": "Avoid entries lacking sufficient long liquidation pressure to sustain reversal"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "open interest",
+              "liquidations"
+            ],
+            "validationPlan": "Backtest on same symbols/runs with new skip filter; measure reduction in hard_stop exits and change in winrate/pnl vs baseline",
+            "expectedEffect": {
+              "metric": "hard_stop frequency",
+              "direction": "decrease",
+              "magnitude": "at least 30%"
+            },
+            "invalidationCriteria": [
+              "No reduction in hard_stop exits after applying filter",
+              "Winrate drops more than 5pp"
+            ],
+            "confidence": 0.7
+          },
+          {
+            "thesis": "Post-TP1 BE stop in ranging markets still allows large adverse moves on DCA adds; adding a tighten_stop on OI reversal failure reduces tail losses.",
+            "targetBehavior": "Post-entry position management after DCA",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "position open after DCA and oi drops below entry oi while price < entry",
+                  "action": "tighten_stop",
+                  "params": {
+                    "newStopPct": -6
+                  },
+                  "rationale": "Protect against continued dump when OI fails to confirm reversal"
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "open interest"
+            ],
+            "validationPlan": "Backtest with overlay; compare SL hit rate, avg loss on losers, and overall pnl to original runs",
+            "expectedEffect": {
+              "metric": "avg loss on hard_stop trades",
+              "direction": "decrease",
+              "magnitude": "at least 4pp"
+            },
+            "invalidationCriteria": [
+              "No reduction in average loss magnitude on stopped trades",
+              "Increase in time_exit frequency that hurts pnl"
+            ],
+            "confidence": 0.65
+          }
+        ],
+        "researchSummary": "Both hypotheses target the dominant failure mode of continued post-entry dumps into hard SL after DCA, using OI/liquidation features to add falsifiable entry filters or dynamic stops; limited to 2 as requested."
+      },
+      "error": null
+    },
+    {
+      "model": "openrouter/openai/gpt-5.5",
+      "provider": "openrouter",
+      "modelId": "openai/gpt-5.5",
+      "latencyMs": 921,
+      "verdict": "FAIL",
+      "score": null,
+      "rawOutput": null,
+      "error": {
+        "type": "schema",
+        "message": "[Azure] Invalid schema for response_format 'response': In context=('properties', 'hypotheses', 'items', 'properties', 'ruleAction', 'properties', 'rules', 'items'), 'required' is required to be supplied and to be an array including every key in properties. Missing 'rationale'."
+      }
+    },
+    {
+      "model": "openrouter/openai/gpt-5.5",
+      "provider": "openrouter",
+      "modelId": "openai/gpt-5.5",
+      "latencyMs": 1606,
+      "verdict": "FAIL",
+      "score": null,
+      "rawOutput": null,
+      "error": {
+        "type": "schema",
+        "message": "[Azure] Invalid schema for response_format 'response': In context=('properties', 'hypotheses', 'items', 'properties', 'ruleAction', 'properties', 'rules', 'items'), 'required' is required to be supplied and to be an array including every key in properties. Missing 'rationale'."
+      }
+    },
+    {
+      "model": "openrouter/openai/gpt-5.5",
+      "provider": "openrouter",
+      "modelId": "openai/gpt-5.5",
+      "latencyMs": 957,
+      "verdict": "FAIL",
+      "score": null,
+      "rawOutput": null,
+      "error": {
+        "type": "schema",
+        "message": "[Azure] Invalid schema for response_format 'response': In context=('properties', 'hypotheses', 'items', 'properties', 'ruleAction', 'properties', 'rules', 'items'), 'required' is required to be supplied and to be an array including every key in properties. Missing 'rationale'."
+      }
+    },
+    {
+      "model": "openrouter/google/gemini-2.5-pro",
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-pro",
+      "latencyMs": 233509,
+      "verdict": "PASS",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": true
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "does not improve",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "negative",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "12\\s*%",
+              "\\bdca\\b|усредн",
+              "\\bbreakeven\\b|\\bbe\\b|безубыт",
+              "\\boi\\b|open interest",
+              "dump|sharp dump|пролив",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.05,
+            "matched": [
+              "\\bdca\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "esportsusdt",
+              "edgeusdt",
+              "coaiusdt"
+            ]
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.075,
+            "matched": [
+              "\\bdca\\b"
+            ]
+          }
+        ],
+        "score": 0.975,
+        "threshold": 0.7,
+        "verdict": "PASS"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "The strategy enters on reversals that are not supported by sufficient market participation, leading to 'dead cat bounces' that result in large losses. By requiring a significant increase in volume during the bounce confirmation phase, we can filter for entries with stronger conviction and avoid these traps.",
+            "targetBehavior": "Filtering low-conviction entry signals to avoid subsequent hard stop-loss events.",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "The average 1-minute volume over the last 3 minutes is less than 1.5 times the average 1-minute volume over the last 60 minutes at the time of the entry signal.",
+                  "action": "skip_entry",
+                  "params": {
+                    "short_window": "3m",
+                    "long_window": "60m",
+                    "threshold_multiplier": 1.5
+                  },
+                  "rationale": "Ensures that the price bounce is accompanied by a surge in trading activity, indicating stronger conviction behind the move and reducing the probability of entering a fakeout."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "volume"
+            ],
+            "validationPlan": "Backtest the strategy with this overlay against the baseline. Compare key metrics including Sharpe Ratio, Profit Factor, Max Drawdown, and the frequency/magnitude of trades hitting the hard stop loss. A successful validation will show an improvement in risk-adjusted returns.",
+            "expectedEffect": {
+              "metric": "Avg. PnL per trade",
+              "direction": "increase",
+              "magnitude": "Moderate. We expect fewer trades, but a higher average quality, leading to an increased average PnL and a better win rate."
+            },
+            "invalidationCriteria": [
+              "The overlay causes the strategy's Sharpe Ratio or Profit Factor to decrease compared to the baseline.",
+              "The win rate does not improve, or the reduction in trade count is so severe that it makes the strategy unprofitable due to missed opportunities."
+            ],
+            "confidence": 0.6
+          },
+          {
+            "thesis": "The wide -12% stop loss allows losing trades to inflict significant damage, especially when the initial mean-reversion thesis is quickly invalidated. A valid bounce should demonstrate upward momentum and sustained open interest. If a trade turns negative and OI begins to decline shortly after entry, the thesis is broken and the position should be exited immediately to mitigate the loss.",
+            "targetBehavior": "Proactive risk management for in-progress trades that are failing.",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "More than 15 minutes have passed since the last entry/DCA, the position's unrealized PnL is negative, and the current Open Interest is lower than the Open Interest at the time of the last entry/DCA.",
+                  "action": "exit_now",
+                  "params": {
+                    "time_since_entry_minutes": 15,
+                    "pnl_threshold_pct": 0
+                  },
+                  "rationale": "This rule serves as a dynamic trade invalidation condition. Waiting for a wide stop is unnecessary if market data (price and OI) shows the initial reason for entry is no longer valid. This aims to cut losses short before they reach the hard stop."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "open_interest",
+              "ohlcv"
+            ],
+            "validationPlan": "Backtest the overlay and analyze the exit reasons. Compare the PnL distribution of losses against the baseline. The primary success criterion is a significant reduction in the average PnL of losing trades and a lower overall maximum drawdown.",
+            "expectedEffect": {
+              "metric": "Max Drawdown",
+              "direction": "decrease",
+              "magnitude": "Significant. By converting large -12% losses into smaller, earlier exits, the overall portfolio drawdown should be substantially reduced."
+            },
+            "invalidationCriteria": [
+              "The rule results in a high number of premature exits on trades that would have ultimately become profitable, leading to a net decrease in total PnL.",
+              "The average loss per trade is not meaningfully reduced, indicating the rule does not trigger early enough or on the correct trades."
+            ],
+            "confidence": 0.7
+          }
+        ],
+        "researchSummary": "The performance analysis reveals that while the strategy can achieve a high win rate, its profitability is severely undermined by large losses on a subset of trades that hit the -12% hard stop. The forensic analysis of losing trades (e.g., ESPORTSUSDT, EDGEUSDT, COAIUSDT) consistently shows a pattern of entering on a bounce that quickly fails and continues to dump. This indicates a weakness in either entry signal quality or post-entry risk management. The proposed hypotheses address these two areas directly: 1) Improving entry quality by adding a volume confirmation filter to avoid low-conviction 'dead cat bounces', and 2) Improving risk management by implementing an early exit rule to cut losses when the trade's core thesis (a strong bounce with OI support) is clearly invalidated, rather than waiting for the wide stop-loss."
+      },
+      "error": null
+    },
+    {
+      "model": "openrouter/google/gemini-2.5-pro",
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-pro",
+      "latencyMs": 212531,
+      "verdict": "PASS",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": true
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "negative",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "12\\s*%",
+              "\\bdca\\b|усредн",
+              "\\bbreakeven\\b|\\bbe\\b|безубыт",
+              "\\boi\\b|open interest",
+              "liquidation",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.05,
+            "matched": [
+              "\\bdca\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "esportsusdt",
+              "edgeusdt",
+              "coaiusdt"
+            ]
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.075,
+            "matched": [
+              "\\bdca\\b"
+            ]
+          }
+        ],
+        "score": 0.975,
+        "threshold": 0.7,
+        "verdict": "PASS"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "The strategy's entry criteria are susceptible to 'fakeouts'—bounces that lack genuine conviction and subsequently fail, leading to large losses. A true reversal should be supported by a significant increase in trading volume. By filtering for entries that coincide with a volume spike, we can avoid low-conviction setups and improve the strategy's precision.",
+            "targetBehavior": "Entry Selection",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "volume_1m < (sma(volume_1m, 20) * 1.5)",
+                  "action": "skip_entry",
+                  "params": {
+                    "volumePeriod": 20,
+                    "volumeMultiplier": 1.5
+                  },
+                  "rationale": "Skips the entry if the volume of the entry candle is not at least 50% greater than the 20-period simple moving average of volume, indicating insufficient buying pressure to sustain a bounce."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "volume"
+            ],
+            "validationPlan": "Backtest the overlay against the base strategy. Compare the number of trades, win rate, Sharpe ratio, and maximum drawdown. Specifically, analyze the trades that were skipped to confirm if they were predominantly losing ones (e.g., ESPORTSUSDT, EDGEUSDT).",
+            "expectedEffect": {
+              "metric": "Sharpe Ratio",
+              "direction": "increase",
+              "magnitude": "moderate"
+            },
+            "invalidationCriteria": [
+              "The application of the volume filter results in a lower Sharpe ratio or total PnL.",
+              "The filter removes a significant number of winning trades while failing to filter out the large losing trades, thereby reducing overall expectancy."
+            ],
+            "confidence": 0.7
+          },
+          {
+            "thesis": "The strategy suffers from large losses when a mean-reversion entry fails and the price continues to drop, hitting the wide -12% stop-loss, often after DCA has increased position size. A sustained decline in Open Interest (OI) after entry is a strong signal that the initial buying pressure has vanished and the bounce has failed. By tightening the stop-loss dynamically upon observing a post-entry OI decline, we can cut losses short and mitigate the impact of these failed trades.",
+            "targetBehavior": "Position Risk Management (Stop-Loss)",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "is_in_position AND consecutive_count(open_interest_1m < sma(open_interest_1m, 5), 3) > 0",
+                  "action": "tighten_stop",
+                  "params": {
+                    "newStopLossPct": -0.04
+                  },
+                  "rationale": "If, after entry, Open Interest closes below its 5-period SMA for 3 consecutive minutes, it signals a weakening thesis. The stop-loss is moved to 4% below the current mark price to exit the position before a potential cascade to the original -12% hard stop."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "open_interest",
+              "ohlcv"
+            ],
+            "validationPlan": "Backtest the overlay. Compare the average loss size and maximum drawdown against the base strategy. Verify that large losses (e.g., COAIUSDT, ESPORTSUSDT) are reduced. Evaluate the impact on win rate, as some trades might be stopped out early before a potential recovery.",
+            "expectedEffect": {
+              "metric": "Maximum Drawdown",
+              "direction": "decrease",
+              "magnitude": "significant"
+            },
+            "invalidationCriteria": [
+              "The dynamic stop tightener results in a lower risk-adjusted return (Sharpe or Calmar ratio) by primarily closing trades that would have otherwise recovered to be profitable.",
+              "The reduction in average loss is not significant enough to offset the potential decrease in win rate and overall PnL."
+            ],
+            "confidence": 0.65
+          }
+        ],
+        "researchSummary": "The performance analysis reveals a pattern of high win rates undermined by large, infrequent losses, characteristic of a negative skew strategy. The primary failure mode occurs when the long mean-reversion entry is triggered on a 'fake' bounce that subsequently reverses, leading to a full stop-out, with losses amplified by the DCA logic. The forensic analysis of trades like ESPORTSUSDT and EDGEUSDT confirms they entered on valid signals (OI recovery, liquidations) but the bounce had no momentum. The proposed hypotheses aim to address this in two ways: 1) improve entry-signal quality by requiring volume confirmation to filter out weak bounces, and 2) improve risk management by dynamically tightening the stop-loss based on post-entry Open Interest decline, thereby cutting losses on failed bounces before they reach the maximum stop-loss."
+      },
+      "error": null
+    },
+    {
+      "model": "openrouter/google/gemini-2.5-pro",
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-pro",
+      "latencyMs": 51901,
+      "verdict": "PASS",
+      "score": {
+        "gates": {
+          "schemaValid": true,
+          "hasHypothesis": true,
+          "researchOnly": true,
+          "contextGrounded": true,
+          "noStrategyRewrite": true,
+          "forensicGrounded": true
+        },
+        "checks": [
+          {
+            "id": "uses_bot_results",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\btrade",
+              "\\bpnl\\b",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit",
+              "holding"
+            ]
+          },
+          {
+            "id": "falsifiable_validation",
+            "weight": 0.2,
+            "contribution": 0.2,
+            "matched": [
+              "invalidation",
+              "compare",
+              "falls|decreases|does not fall",
+              "\\b(pnl|winrate|holding|trade count)\\b"
+            ]
+          },
+          {
+            "id": "targets_failure_pattern",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "loss",
+              "stop[_ -]?loss|be_stop|hard_stop|time_exit",
+              "holding"
+            ]
+          },
+          {
+            "id": "builder_ready_overlay",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "skip_entry|allow_entry|scale_in|scale_out|tighten_stop|widen_stop|exit_now|adjust_size|no_op"
+            ]
+          },
+          {
+            "id": "metric_specific",
+            "weight": 0.05,
+            "contribution": 0.05,
+            "matched": [
+              "pnl",
+              "holding",
+              "trade"
+            ]
+          },
+          {
+            "id": "profile_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "12\\s*%",
+              "\\bdca\\b|усредн",
+              "\\bbreakeven\\b|\\bbe\\b|безубыт",
+              "bounce|reversal|отскок"
+            ]
+          },
+          {
+            "id": "evidence_specificity",
+            "weight": 0.1,
+            "contribution": 0.1,
+            "matched": [
+              "hard_stop",
+              "\\bdca\\b"
+            ]
+          },
+          {
+            "id": "forensic_symbol_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "esportsusdt",
+              "edgeusdt",
+              "coaiusdt"
+            ]
+          },
+          {
+            "id": "lifecycle_sequence_grounding",
+            "weight": 0.15,
+            "contribution": 0.15,
+            "matched": [
+              "\\bdca\\b",
+              "hard_stop"
+            ]
+          }
+        ],
+        "score": 1.0999999999999999,
+        "threshold": 0.7,
+        "verdict": "PASS"
+      },
+      "rawOutput": {
+        "hypotheses": [
+          {
+            "thesis": "The strategy's current entry criteria are susceptible to 'dead-cat bounces' which lack genuine buying momentum. A true, sustainable reversal should be accompanied by a significant increase in trading volume, indicating new capital commitment. By filtering for this, we can avoid entering on weak bounces destined to fail.",
+            "targetBehavior": "Filtering weak entries that occur on low volume, which often lead to hitting the hard stop loss as seen in the forensic trade analysis.",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "volume_1m < sma(volume_1m, 20)",
+                  "action": "skip_entry",
+                  "params": {},
+                  "rationale": "The volume on the entry confirmation candle is below its recent 20-period average, suggesting a lack of conviction behind the bounce and a higher probability of failure."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv",
+              "volume"
+            ],
+            "validationPlan": "Backtest the overlay. Compare the number of hard-stop losses, the average PnL of losing trades, and the overall Sharpe ratio against the baseline strategy. We expect fewer trades overall, but a lower frequency of large losses.",
+            "expectedEffect": {
+              "metric": "Sharpe Ratio",
+              "direction": "increase",
+              "magnitude": "Moderate"
+            },
+            "invalidationCriteria": [
+              "The strategy's overall Sharpe ratio or total PnL decreases compared to the baseline.",
+              "A significant number of profitable trades were filtered out, as determined by analyzing the hypothetical PnL of the skipped entry signals."
+            ],
+            "confidence": 0.7
+          },
+          {
+            "thesis": "The strategy's largest losses are amplified by holding onto failed bounces and executing DCAs. If a bounce does not show immediate upward follow-through and instead breaks its recent momentum structure (e.g., makes a new short-term low), it is a strong signal the entry thesis is invalidated. Exiting immediately will cut losses short before they are magnified.",
+            "targetBehavior": "Aggressively exiting positions that show immediate signs of failure post-entry, preventing them from escalating into large losses that hit the hard stop-loss, especially after DCA.",
+            "ruleAction": {
+              "appliesTo": "long",
+              "rules": [
+                {
+                  "when": "close < min(low, 5)",
+                  "action": "exit_now",
+                  "params": {
+                    "reason": "Failed bounce momentum"
+                  },
+                  "rationale": "The price has made a new 5-minute low after entry, which invalidates the bounce thesis and indicates sellers have regained control. Exiting now avoids a larger potential loss."
+                }
+              ]
+            },
+            "requiredFeatures": [
+              "ohlcv"
+            ],
+            "validationPlan": "Backtest the overlay. Analyze the distribution of exit reasons and the PnL per exit type. We expect a significant reduction in 'hard_stop' exits and the introduction of 'exit_now' exits with a much smaller average loss.",
+            "expectedEffect": {
+              "metric": "max_drawdown",
+              "direction": "decrease",
+              "magnitude": "Significant"
+            },
+            "invalidationCriteria": [
+              "The strategy's total PnL is significantly reduced because a majority of the early-exited trades would have ultimately recovered to become profitable.",
+              "The average loss on 'exit_now' trades is not statistically better than the average loss on 'hard_stop' trades in the baseline."
+            ],
+            "confidence": 0.75
+          }
+        ],
+        "researchSummary": "Analysis of performance data, particularly the worst losing trades across multiple paper runs, reveals a primary failure mode: the strategy enters on apparent bounces that are actually brief pauses in a continued downtrend ('bull traps' or 'falling knives'). The use of DCA (Dollar Cost Averaging) significantly amplifies the losses on these failed trades, as seen in the forensic analysis of ESPORTSUSDT, EDGEUSDT, and COAIUSDT trades, all of which hit their hard stop after two DCAs, resulting in >12% losses. The proposed hypotheses aim to mitigate this issue by either 1) increasing the selectivity of entries to avoid these traps, or 2) exiting failing trades more quickly to prevent losses from escalating."
+      },
+      "error": null
+    }
+  ],
+  "aggregates": [
+    {
+      "model": "openrouter/x-ai/grok-4.3",
+      "provider": "openrouter",
+      "modelId": "x-ai/grok-4.3",
+      "runs": {
+        "total": 3,
+        "ok": 3,
+        "failed": 0,
+        "failedByType": {}
+      },
+      "passRate": 0,
+      "scoreMean": 0.9499999999999998,
+      "latencyMeanMs": 18563.666666666668
+    },
+    {
+      "model": "openrouter/openai/gpt-5.5",
+      "provider": "openrouter",
+      "modelId": "openai/gpt-5.5",
+      "runs": {
+        "total": 3,
+        "ok": 0,
+        "failed": 3,
+        "failedByType": {
+          "schema": 3
+        }
+      },
+      "passRate": 0,
+      "scoreMean": null,
+      "latencyMeanMs": 1161.3333333333333
+    },
+    {
+      "model": "openrouter/google/gemini-2.5-pro",
+      "provider": "openrouter",
+      "modelId": "google/gemini-2.5-pro",
+      "runs": {
+        "total": 3,
+        "ok": 3,
+        "failed": 0,
+        "failedByType": {}
+      },
+      "passRate": 1,
+      "scoreMean": 1.0166666666666666,
+      "latencyMeanMs": 165980.33333333334
+    }
+  ],
+  "overallSuccess": true
+}

@@ -1,0 +1,176 @@
+{
+    "083a6c0c-5f60-4542-884b-47f913b2d6d2": {
+        "asOf": 1781288760561,
+        "wins": 43,
+        "runId": "083a6c0c-5f60-4542-884b-47f913b2d6d2",
+        "avgPnl": "5.838346828644067797",
+        "losses": 16,
+        "pnlUsd": "344.462462890000000000",
+        "breakeven": 0,
+        "winratePct": 72.88,
+        "exitReasons": {
+            "tp2": 41,
+            "be_stop": 7,
+            "hard_stop": 3,
+            "time_exit": 8
+        },
+        "closedTrades": 59,
+        "excludesReconcile": true
+    },
+    "20c32da3-0238-4d01-8e81-90bd624583c1": {
+        "asOf": 1780973172637,
+        "wins": 82,
+        "runId": "20c32da3-0238-4d01-8e81-90bd624583c1",
+        "avgPnl": "0.21566860915966386555",
+        "losses": 37,
+        "pnlUsd": "25.664564490000000000",
+        "breakeven": 0,
+        "winratePct": 68.91,
+        "exitReasons": {
+            "tp2": 68,
+            "be_stop": 12,
+            "hard_stop": 17,
+            "time_exit": 21,
+            "run_terminated": 1
+        },
+        "closedTrades": 119,
+        "excludesReconcile": true
+    },
+    "2955ffdc-dfb3-454e-9176-375142007355": {
+        "asOf": 1781728081062,
+        "wins": 56,
+        "runId": "2955ffdc-dfb3-454e-9176-375142007355",
+        "avgPnl": "0.89584159186666666667",
+        "losses": 19,
+        "pnlUsd": "67.188119390000000000",
+        "breakeven": 0,
+        "winratePct": 74.67,
+        "exitReasons": {
+            "tp2": 55,
+            "hard_stop": 13,
+            "time_exit": 7
+        },
+        "closedTrades": 75,
+        "excludesReconcile": true
+    },
+    "5867badf-0cb0-4e2a-8220-f480e69b5e4f": {
+        "asOf": 1780323361260,
+        "wins": 4,
+        "runId": "5867badf-0cb0-4e2a-8220-f480e69b5e4f",
+        "avgPnl": "-0.93270403285714285714",
+        "losses": 3,
+        "pnlUsd": "-6.528928230000000000",
+        "breakeven": 0,
+        "winratePct": 57.14,
+        "exitReasons": {
+            "tp2": 4,
+            "be_stop": 1,
+            "hard_stop": 2
+        },
+        "closedTrades": 7,
+        "excludesReconcile": true
+    },
+    "663a57ca-9cbd-447e-8223-defb6dcbf179": {
+        "asOf": 0,
+        "wins": 0,
+        "runId": "663a57ca-9cbd-447e-8223-defb6dcbf179",
+        "avgPnl": "0",
+        "losses": 0,
+        "pnlUsd": "0",
+        "breakeven": 1,
+        "winratePct": 0,
+        "exitReasons": {
+        },
+        "closedTrades": 0,
+        "excludesReconcile": true
+    },
+    "9dafe627-a6fa-4083-97e3-5042f7adfc64": {
+        "asOf": 0,
+        "wins": 0,
+        "runId": "9dafe627-a6fa-4083-97e3-5042f7adfc64",
+        "avgPnl": "0",
+        "losses": 0,
+        "pnlUsd": "0",
+        "breakeven": 1,
+        "winratePct": 0,
+        "exitReasons": {
+        },
+        "closedTrades": 0,
+        "excludesReconcile": true
+    },
+    "a0564b31-7f0e-47b9-a4b5-f403bfd81327": {
+        "asOf": 1780393081140,
+        "wins": 5,
+        "runId": "a0564b31-7f0e-47b9-a4b5-f403bfd81327",
+        "avgPnl": "-7.116969300833333333",
+        "losses": 7,
+        "pnlUsd": "-85.403631610000000000",
+        "breakeven": 0,
+        "winratePct": 41.67,
+        "exitReasons": {
+            "tp2": 5,
+            "be_stop": 3,
+            "hard_stop": 2,
+            "time_exit": 2
+        },
+        "closedTrades": 12,
+        "excludesReconcile": true
+    },
+    "a57fdd56-d4ca-4f15-b607-7fbb6f69e329": {
+        "asOf": 0,
+        "wins": 0,
+        "runId": "a57fdd56-d4ca-4f15-b607-7fbb6f69e329",
+        "avgPnl": "0",
+        "losses": 0,
+        "pnlUsd": "0",
+        "breakeven": 1,
+        "winratePct": 0,
+        "exitReasons": {
+        },
+        "closedTrades": 0,
+        "excludesReconcile": true
+    },
+    "b5da910a-65e0-45a8-afe7-9d964dd95120": {
+        "asOf": 0,
+        "wins": 0,
+        "runId": "b5da910a-65e0-45a8-afe7-9d964dd95120",
+        "avgPnl": "0",
+        "losses": 0,
+        "pnlUsd": "0",
+        "breakeven": 1,
+        "winratePct": 0,
+        "exitReasons": {
+        },
+        "closedTrades": 0,
+        "excludesReconcile": true
+    },
+    "c73e241a-3172-4d89-bf1f-d95d2cdef7cb": {
+        "asOf": 1780392994239,
+        "wins": 0,
+        "runId": "c73e241a-3172-4d89-bf1f-d95d2cdef7cb",
+        "avgPnl": "0.00000000000000000000",
+        "losses": 1,
+        "pnlUsd": "0.000000000000000000",
+        "breakeven": 0,
+        "winratePct": 0,
+        "exitReasons": {
+            "run_terminated": 1
+        },
+        "closedTrades": 1,
+        "excludesReconcile": true
+    },
+    "f358daf6-6951-47e5-a7fc-fdf6356df7d6": {
+        "asOf": 0,
+        "wins": 0,
+        "runId": "f358daf6-6951-47e5-a7fc-fdf6356df7d6",
+        "avgPnl": "0",
+        "losses": 0,
+        "pnlUsd": "0",
+        "breakeven": 1,
+        "winratePct": 0,
+        "exitReasons": {
+        },
+        "closedTrades": 0,
+        "excludesReconcile": true
+    }
+}

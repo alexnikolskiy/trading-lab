@@ -1,0 +1,4828 @@
+{
+  "trd-c3efc6a50740c6617fc2cec2ec9b049d": {
+    "tradeId": "trd-c3efc6a50740c6617fc2cec2ec9b049d",
+    "runId": "20c32da3-0238-4d01-8e81-90bd624583c1",
+    "symbol": "ESPORTSUSDT",
+    "side": "long",
+    "enteredAtMs": 1780907700000,
+    "closedAtMs": 1780911000000,
+    "entryPrice": "0.078999733843000000",
+    "exitPrice": "0.066440000000000000",
+    "realizedPnl": "-58.824268080000000000",
+    "pnlPct": "-15.898451000000000000",
+    "holdingDurationMs": 3300000,
+    "closeReason": "hard_stop",
+    "lifecycleEvents": [
+      {
+        "tsMs": 1780907700000,
+        "type": "entry",
+        "price": "0.080640000000000000",
+        "qty": "1240.079365079365000000",
+        "note": "watch_entry"
+      },
+      {
+        "tsMs": 1780908360000,
+        "type": "dca",
+        "price": "0.081400000000000000",
+        "qty": "1474.201474201474000000",
+        "note": "DCA1"
+      },
+      {
+        "tsMs": 1780909620000,
+        "type": "dca",
+        "price": "0.076170000000000000",
+        "qty": "1969.279243796770000000",
+        "note": "DCA2"
+      },
+      {
+        "tsMs": 1780911000000,
+        "type": "sl",
+        "price": "0.066440000000000000",
+        "qty": "4683.560083077609000000",
+        "note": "hard_stop"
+      }
+    ],
+    "minuteContext": [
+      {
+        "tsMs": 1780906500000,
+        "close": "0.08257",
+        "volume": "1587903.0",
+        "oi": "23187671.85805203",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "207.01121"
+      },
+      {
+        "tsMs": 1780906560000,
+        "close": "0.07725",
+        "volume": "5172565.0",
+        "oi": "21754088.2961",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "26554.139369999994"
+      },
+      {
+        "tsMs": 1780906620000,
+        "close": "0.07756",
+        "volume": "1847789.0",
+        "oi": "22137321.9989311",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780906680000,
+        "close": "0.07752",
+        "volume": "1354388.0",
+        "oi": "20859884.516",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780906740000,
+        "close": "0.07889",
+        "volume": "1561720.0",
+        "oi": "20871357.00003592",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780906800000,
+        "close": "0.0752",
+        "volume": "2811491.0",
+        "oi": "20088654.78578007",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "3028.5182400000003"
+      },
+      {
+        "tsMs": 1780906860000,
+        "close": "0.07496",
+        "volume": "2103492.0",
+        "oi": "21338562.2382",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "7121.6833799999995"
+      },
+      {
+        "tsMs": 1780906920000,
+        "close": "0.07612",
+        "volume": "1475746.0",
+        "oi": "21657685.87490376",
+        "liquidationsLong": "298.0889",
+        "liquidationsShort": "5.4481"
+      },
+      {
+        "tsMs": 1780906980000,
+        "close": "0.07433",
+        "volume": "1954582.0",
+        "oi": "21296481.1985",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "663.62204"
+      },
+      {
+        "tsMs": 1780907040000,
+        "close": "0.07444",
+        "volume": "836489.0",
+        "oi": "21161588.914379768",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907100000,
+        "close": "0.0754",
+        "volume": "1130806.0",
+        "oi": "21585798.90416126",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907160000,
+        "close": "0.07581",
+        "volume": "1333492.0",
+        "oi": "21648109.95507856",
+        "liquidationsLong": "93.08995",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907220000,
+        "close": "0.07827",
+        "volume": "1480010.0",
+        "oi": "22067524.56816128",
+        "liquidationsLong": "2203.07571",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907280000,
+        "close": "0.07814",
+        "volume": "673558.0",
+        "oi": "22153097.096900005",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907340000,
+        "close": "0.08022",
+        "volume": "2386955.0",
+        "oi": "21406326.803337947",
+        "liquidationsLong": "63.613760000000006",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907400000,
+        "close": "0.08165",
+        "volume": "2271703.0",
+        "oi": "21846584.306146678",
+        "liquidationsLong": "158.74872000000002",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907460000,
+        "close": "0.08298",
+        "volume": "1666040.0",
+        "oi": "23421612.732",
+        "liquidationsLong": "751.4533999999999",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907520000,
+        "close": "0.07879",
+        "volume": "2859230.0",
+        "oi": "22732208.62518175",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907580000,
+        "close": "0.07899",
+        "volume": "1866095.0",
+        "oi": "22469975.75048",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "961.66281"
+      },
+      {
+        "tsMs": 1780907640000,
+        "close": "0.07956",
+        "volume": "1845933.0",
+        "oi": "22683859.507306166",
+        "liquidationsLong": "3909.14804",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907700000,
+        "close": "0.08064",
+        "volume": "1499591.0",
+        "oi": "22821698.57204",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907760000,
+        "close": "0.0818",
+        "volume": "2143192.0",
+        "oi": "23393522.756580003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907820000,
+        "close": "0.08213",
+        "volume": "1532453.0",
+        "oi": "23383900.2178904",
+        "liquidationsLong": "31.68",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907880000,
+        "close": "0.08185",
+        "volume": "755420.0",
+        "oi": "23346650.6602495",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780907940000,
+        "close": "0.0813",
+        "volume": "692941.0",
+        "oi": "23207064.524000004",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908000000,
+        "close": "0.08167",
+        "volume": "824346.0",
+        "oi": "23384762.044540003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908060000,
+        "close": "0.08223",
+        "volume": "679231.0",
+        "oi": "22171449.019599997",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908120000,
+        "close": "0.08236",
+        "volume": "565593.0",
+        "oi": "22369723.6282",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908180000,
+        "close": "0.08091",
+        "volume": "547829.0",
+        "oi": "21918706.77460621",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908240000,
+        "close": "0.07969",
+        "volume": "1633692.0",
+        "oi": "22963782.74297308",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "70.59426"
+      },
+      {
+        "tsMs": 1780908300000,
+        "close": "0.07921",
+        "volume": "1249315.0",
+        "oi": "22685266.112419236",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "1125.75294"
+      },
+      {
+        "tsMs": 1780908360000,
+        "close": "0.0814",
+        "volume": "1561793.0",
+        "oi": "23125117.258700002",
+        "liquidationsLong": "39.95124",
+        "liquidationsShort": "12.132819999999999"
+      },
+      {
+        "tsMs": 1780908420000,
+        "close": "0.08065",
+        "volume": "804190.0",
+        "oi": "23025861.4104844",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908480000,
+        "close": "0.08205",
+        "volume": "1550355.0",
+        "oi": "23222714.40008",
+        "liquidationsLong": "1334.53162",
+        "liquidationsShort": "265.58142"
+      },
+      {
+        "tsMs": 1780908540000,
+        "close": "0.08167",
+        "volume": "1036115.0",
+        "oi": "22010994.350199997",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908600000,
+        "close": "0.08155",
+        "volume": "431905.0",
+        "oi": "21998919.57365787",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908660000,
+        "close": "0.08187",
+        "volume": "336608.0",
+        "oi": "23360485.40488",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908720000,
+        "close": "0.0809",
+        "volume": "574492.0",
+        "oi": "23098099.79377127",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908780000,
+        "close": "0.0814",
+        "volume": "839019.0",
+        "oi": "23202464.672538318",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780908840000,
+        "close": "0.07856",
+        "volume": "737443.0",
+        "oi": "22425140.0697",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "2140.86514"
+      },
+      {
+        "tsMs": 1780908900000,
+        "close": "0.07881",
+        "volume": "4105794.0",
+        "oi": "22358511.0296",
+        "liquidationsLong": "540.6918",
+        "liquidationsShort": "6810.6117699999995"
+      },
+      {
+        "tsMs": 1780908960000,
+        "close": "0.07747",
+        "volume": "819480.0",
+        "oi": "22211499.18426304",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909020000,
+        "close": "0.07582",
+        "volume": "923817.0",
+        "oi": "21712995.069382124",
+        "liquidationsLong": "4348.6164",
+        "liquidationsShort": "4.6584"
+      },
+      {
+        "tsMs": 1780909080000,
+        "close": "0.07566",
+        "volume": "1376801.0",
+        "oi": "21578872.88213981",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "1201.49858"
+      },
+      {
+        "tsMs": 1780909140000,
+        "close": "0.07579",
+        "volume": "469390.0",
+        "oi": "21725078.60841776",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909200000,
+        "close": "0.07516",
+        "volume": "508209.0",
+        "oi": "21609808.99038",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909260000,
+        "close": "0.0758",
+        "volume": "630172.0",
+        "oi": "21790358.1722",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909320000,
+        "close": "0.0758",
+        "volume": "495040.0",
+        "oi": "20669333.7516",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909380000,
+        "close": "0.0756",
+        "volume": "288320.0",
+        "oi": "20515828.38601648",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909440000,
+        "close": "0.0761",
+        "volume": "378453.0",
+        "oi": "20688369.53769368",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909500000,
+        "close": "0.07556",
+        "volume": "288814.0",
+        "oi": "21772941.87430614",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909560000,
+        "close": "0.07577",
+        "volume": "998551.0",
+        "oi": "21970344.29501",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909620000,
+        "close": "0.07617",
+        "volume": "490658.0",
+        "oi": "21895624.96082",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909680000,
+        "close": "0.07602",
+        "volume": "389802.0",
+        "oi": "20748850.62342",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909740000,
+        "close": "0.07528",
+        "volume": "766787.0",
+        "oi": "21781390.4404",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909800000,
+        "close": "0.07525",
+        "volume": "785250.0",
+        "oi": "21820710.74615",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909860000,
+        "close": "0.0745",
+        "volume": "638895.0",
+        "oi": "21710376.24742126",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780909920000,
+        "close": "0.07227",
+        "volume": "4573024.0",
+        "oi": "20916365.69478252",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "505.2759500000001"
+      },
+      {
+        "tsMs": 1780909980000,
+        "close": "0.07226",
+        "volume": "841057.0",
+        "oi": "21018304.02267108",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910040000,
+        "close": "0.07227",
+        "volume": "612190.0",
+        "oi": "21057959.1893",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910100000,
+        "close": "0.07153",
+        "volume": "812680.0",
+        "oi": "19673921.861",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "4.886699999999999"
+      },
+      {
+        "tsMs": 1780910160000,
+        "close": "0.07338",
+        "volume": "808858.0",
+        "oi": "20160940.379720002",
+        "liquidationsLong": "1350.0775800000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910220000,
+        "close": "0.07404",
+        "volume": "446930.0",
+        "oi": "21389795.8206",
+        "liquidationsLong": "358.49438",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910280000,
+        "close": "0.07482",
+        "volume": "1380270.0",
+        "oi": "21697632.612",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910340000,
+        "close": "0.07438",
+        "volume": "651941.0",
+        "oi": "21551182.209200002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "36.4"
+      },
+      {
+        "tsMs": 1780910400000,
+        "close": "0.07446",
+        "volume": "462337.0",
+        "oi": "21626092.285937987",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910460000,
+        "close": "0.07346",
+        "volume": "267874.0",
+        "oi": "21424117.60411191",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910520000,
+        "close": "0.07399",
+        "volume": "160781.0",
+        "oi": "21537675.300500512",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910580000,
+        "close": "0.07348",
+        "volume": "447718.0",
+        "oi": "21437979.4846",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910640000,
+        "close": "0.07387",
+        "volume": "177433.0",
+        "oi": "21585819.67842587",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910700000,
+        "close": "0.0736",
+        "volume": "264702.0",
+        "oi": "21568312.433374017",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910760000,
+        "close": "0.07338",
+        "volume": "162377.0",
+        "oi": "21462927.58756",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910820000,
+        "close": "0.07295",
+        "volume": "209350.0",
+        "oi": "21390221.404195502",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780910880000,
+        "close": "0.07109",
+        "volume": "2402381.0",
+        "oi": "20884820.795365922",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "5092.7343200000005"
+      },
+      {
+        "tsMs": 1780910940000,
+        "close": "0.07101",
+        "volume": "851441.0",
+        "oi": "19710998.694741257",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911000000,
+        "close": "0.06644",
+        "volume": "7568935.0",
+        "oi": "18229144.6705",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "8873.58429"
+      },
+      {
+        "tsMs": 1780911060000,
+        "close": "0.0629",
+        "volume": "6982567.0",
+        "oi": "17252755.859455",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "14200.03618"
+      },
+      {
+        "tsMs": 1780911120000,
+        "close": "0.06429",
+        "volume": "3593097.0",
+        "oi": "18862545.3167",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911180000,
+        "close": "0.064",
+        "volume": "1591781.0",
+        "oi": "18731276.36468",
+        "liquidationsLong": "4355.2938",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911240000,
+        "close": "0.06414",
+        "volume": "1717454.0",
+        "oi": "18829680.9414987",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "183.5314"
+      },
+      {
+        "tsMs": 1780911300000,
+        "close": "0.06243",
+        "volume": "2049239.0",
+        "oi": "18340991.84029",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "480.9168"
+      },
+      {
+        "tsMs": 1780911360000,
+        "close": "0.06249",
+        "volume": "3403458.0",
+        "oi": "18310693.86937654",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "3353.0795699999994"
+      },
+      {
+        "tsMs": 1780911420000,
+        "close": "0.06344",
+        "volume": "1294983.0",
+        "oi": "18610820.82438",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911480000,
+        "close": "0.0635",
+        "volume": "621331.0",
+        "oi": "17661237.8668",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911540000,
+        "close": "0.06389",
+        "volume": "568741.0",
+        "oi": "17776262.7522",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911600000,
+        "close": "0.06374",
+        "volume": "860620.0",
+        "oi": "17772927.617",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911660000,
+        "close": "0.06396",
+        "volume": "579535.0",
+        "oi": "18831975.7448",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911720000,
+        "close": "0.06274",
+        "volume": "674763.0",
+        "oi": "18648454.98847149",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911780000,
+        "close": "0.06419",
+        "volume": "809511.0",
+        "oi": "18638153.40312895",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911840000,
+        "close": "0.0644",
+        "volume": "1567467.0",
+        "oi": "18849187.058480002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911900000,
+        "close": "0.06456",
+        "volume": "936590.0",
+        "oi": "18851681.332560003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780911960000,
+        "close": "0.06446",
+        "volume": "673748.0",
+        "oi": "18934249.7964",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912020000,
+        "close": "0.06444",
+        "volume": "486721.0",
+        "oi": "17893462.13558368",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912080000,
+        "close": "0.0642",
+        "volume": "659523.0",
+        "oi": "17864356.895490002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912140000,
+        "close": "0.06405",
+        "volume": "457308.0",
+        "oi": "18825230.929677483",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912200000,
+        "close": "0.06401",
+        "volume": "907335.0",
+        "oi": "18866314.081530742",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912260000,
+        "close": "0.06319",
+        "volume": "277869.0",
+        "oi": "18647903.34944",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912320000,
+        "close": "0.06354",
+        "volume": "455134.0",
+        "oi": "18747223.00344",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912380000,
+        "close": "0.06405",
+        "volume": "342940.0",
+        "oi": "17911915.06665",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912440000,
+        "close": "0.06387",
+        "volume": "384657.0",
+        "oi": "17882158.39030094",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912500000,
+        "close": "0.06374",
+        "volume": "460141.0",
+        "oi": "18848886.12524",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912560000,
+        "close": "0.06411",
+        "volume": "150555.0",
+        "oi": "18914295.601516765",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912620000,
+        "close": "0.06485",
+        "volume": "613922.0",
+        "oi": "18138319.956259202",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912680000,
+        "close": "0.06418",
+        "volume": "571471.0",
+        "oi": "17985302.60166034",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912740000,
+        "close": "0.06426",
+        "volume": "274349.0",
+        "oi": "18015472.84404",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912800000,
+        "close": "0.06402",
+        "volume": "146801.0",
+        "oi": "17989894.22177104",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912860000,
+        "close": "0.06437",
+        "volume": "227167.0",
+        "oi": "19091984.808409996",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912920000,
+        "close": "0.06383",
+        "volume": "346897.0",
+        "oi": "18934719.929399997",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780912980000,
+        "close": "0.06382",
+        "volume": "531818.0",
+        "oi": "18848972.2152537",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913040000,
+        "close": "0.06384",
+        "volume": "138191.0",
+        "oi": "18911297.674619522",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913100000,
+        "close": "0.06326",
+        "volume": "364935.0",
+        "oi": "18733594.73258",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913160000,
+        "close": "0.06419",
+        "volume": "421930.0",
+        "oi": "17924960.846",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913220000,
+        "close": "0.06355",
+        "volume": "511567.0",
+        "oi": "17880661.2971",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913280000,
+        "close": "0.06414",
+        "volume": "687433.0",
+        "oi": "19012995.385500003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913340000,
+        "close": "0.06394",
+        "volume": "587437.0",
+        "oi": "19047779.0374",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913400000,
+        "close": "0.06419",
+        "volume": "224301.0",
+        "oi": "19109630.76808",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913460000,
+        "close": "0.06441",
+        "volume": "218620.0",
+        "oi": "18150959.4812432",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913520000,
+        "close": "0.06436",
+        "volume": "589812.0",
+        "oi": "19194745.961656343",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913580000,
+        "close": "0.06442",
+        "volume": "164230.0",
+        "oi": "19228916.711340982",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913640000,
+        "close": "0.06598",
+        "volume": "2070395.0",
+        "oi": "19595198.154012162",
+        "liquidationsLong": "2896.7033599999995",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913700000,
+        "close": "0.06644",
+        "volume": "984563.0",
+        "oi": "18737208.64732744",
+        "liquidationsLong": "182.47671",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913760000,
+        "close": "0.0669",
+        "volume": "1097843.0",
+        "oi": "18736512.85592",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913820000,
+        "close": "0.06624",
+        "volume": "677956.0",
+        "oi": "18759669.73942",
+        "liquidationsLong": "13.639999999999999",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913880000,
+        "close": "0.06642",
+        "volume": "224438.0",
+        "oi": "18796105.28408295",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780913940000,
+        "close": "0.06539",
+        "volume": "510701.0",
+        "oi": "19602083.80432",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914000000,
+        "close": "0.06448",
+        "volume": "620402.0",
+        "oi": "19292175.34206",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "322.91718"
+      },
+      {
+        "tsMs": 1780914060000,
+        "close": "0.06502",
+        "volume": "532645.0",
+        "oi": "19400813.38811944",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914120000,
+        "close": "0.06428",
+        "volume": "460399.0",
+        "oi": "18236826.8121",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914180000,
+        "close": "0.06363",
+        "volume": "1122964.0",
+        "oi": "19059521.61779",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914240000,
+        "close": "0.0642",
+        "volume": "849634.0",
+        "oi": "19125019.63634",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914300000,
+        "close": "0.06486",
+        "volume": "592382.0",
+        "oi": "19303931.72655352",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914360000,
+        "close": "0.06475",
+        "volume": "433150.0",
+        "oi": "18342082.14796",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914420000,
+        "close": "0.06435",
+        "volume": "333014.0",
+        "oi": "18195931.80582532",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914480000,
+        "close": "0.06478",
+        "volume": "359697.0",
+        "oi": "19355421.721920002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914540000,
+        "close": "0.06454",
+        "volume": "88770.0",
+        "oi": "19289778.5036",
+        "liquidationsLong": "76.512",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914600000,
+        "close": "0.0642",
+        "volume": "251672.0",
+        "oi": "19167551.1661",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914660000,
+        "close": "0.06454",
+        "volume": "107678.0",
+        "oi": "19264266.623905238",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914720000,
+        "close": "0.06438",
+        "volume": "229227.0",
+        "oi": "18240717.3435326",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914780000,
+        "close": "0.06427",
+        "volume": "304146.0",
+        "oi": "18185876.7875",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914840000,
+        "close": "0.06457",
+        "volume": "99714.0",
+        "oi": "18271360.475500003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914900000,
+        "close": "0.06466",
+        "volume": "278136.0",
+        "oi": "18246047.25873288",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780914960000,
+        "close": "0.06463",
+        "volume": "99851.0",
+        "oi": "19308948.7839875",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915020000,
+        "close": "0.06478",
+        "volume": "87696.0",
+        "oi": "19365687.318511",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915080000,
+        "close": "0.06486",
+        "volume": "195343.0",
+        "oi": "18344942.110589996",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915140000,
+        "close": "0.06509",
+        "volume": "85464.0",
+        "oi": "18395931.42332897",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915200000,
+        "close": "0.06545",
+        "volume": "197253.0",
+        "oi": "18515551.601444323",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915260000,
+        "close": "0.06556",
+        "volume": "148382.0",
+        "oi": "18557141.24445702",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915320000,
+        "close": "0.0655",
+        "volume": "159550.0",
+        "oi": "19586256.6567",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915380000,
+        "close": "0.0654",
+        "volume": "193661.0",
+        "oi": "19588402.62198155",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915440000,
+        "close": "0.06538",
+        "volume": "140884.0",
+        "oi": "19562083.251280002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915500000,
+        "close": "0.06528",
+        "volume": "168440.0",
+        "oi": "19574802.47326926",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915560000,
+        "close": "0.06535",
+        "volume": "242596.0",
+        "oi": "19573705.33299",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915620000,
+        "close": "0.0652",
+        "volume": "243434.0",
+        "oi": "19528277.01572",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915680000,
+        "close": "0.06522",
+        "volume": "105998.0",
+        "oi": "19495746.95364",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915740000,
+        "close": "0.06559",
+        "volume": "116336.0",
+        "oi": "18532491.17024",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915800000,
+        "close": "0.06592",
+        "volume": "455736.0",
+        "oi": "18582536.06588",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915860000,
+        "close": "0.06599",
+        "volume": "86521.0",
+        "oi": "19679617.1339",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915920000,
+        "close": "0.06607",
+        "volume": "81412.0",
+        "oi": "19720359.58384",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780915980000,
+        "close": "0.06583",
+        "volume": "267653.0",
+        "oi": "18593998.13938",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916040000,
+        "close": "0.06618",
+        "volume": "179624.0",
+        "oi": "18714238.38568706",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916100000,
+        "close": "0.0661",
+        "volume": "153124.0",
+        "oi": "18744789.3598",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916160000,
+        "close": "0.06536",
+        "volume": "274204.0",
+        "oi": "18523764.91116",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916220000,
+        "close": "0.06502",
+        "volume": "746336.0",
+        "oi": "18376701.029962298",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916280000,
+        "close": "0.06524",
+        "volume": "128030.0",
+        "oi": "18460310.18202",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916340000,
+        "close": "0.06519",
+        "volume": "96915.0",
+        "oi": "19508987.79164681",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916400000,
+        "close": "0.06535",
+        "volume": "100972.0",
+        "oi": "19520286.366623458",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916460000,
+        "close": "0.06563",
+        "volume": "267066.0",
+        "oi": "19617242.181357637",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916520000,
+        "close": "0.06642",
+        "volume": "542711.0",
+        "oi": "18783522.614120662",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916580000,
+        "close": "0.06462",
+        "volume": "2025328.0",
+        "oi": "19252028.558025118",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916640000,
+        "close": "0.06401",
+        "volume": "580765.0",
+        "oi": "19170931.380928177",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916700000,
+        "close": "0.06423",
+        "volume": "686246.0",
+        "oi": "19190023.30432",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "2295.86159"
+      },
+      {
+        "tsMs": 1780916760000,
+        "close": "0.06576",
+        "volume": "1045396.0",
+        "oi": "19573674.715602696",
+        "liquidationsLong": "97.61309999999999",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916820000,
+        "close": "0.06542",
+        "volume": "386909.0",
+        "oi": "19469032.21532",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916880000,
+        "close": "0.0654",
+        "volume": "351012.0",
+        "oi": "19488703.92824",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780916940000,
+        "close": "0.0656",
+        "volume": "172474.0",
+        "oi": "18500467.8711157",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917000000,
+        "close": "0.06584",
+        "volume": "207903.0",
+        "oi": "18609192.71325",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917060000,
+        "close": "0.06577",
+        "volume": "373718.0",
+        "oi": "18601033.265224718",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917120000,
+        "close": "0.06607",
+        "volume": "280914.0",
+        "oi": "19718679.47973",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917180000,
+        "close": "0.0661",
+        "volume": "158689.0",
+        "oi": "19704668.52018701",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917240000,
+        "close": "0.06624",
+        "volume": "158967.0",
+        "oi": "19739933.472524103",
+        "liquidationsLong": "1.41645",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917300000,
+        "close": "0.06677",
+        "volume": "472973.0",
+        "oi": "19918865.43374",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917360000,
+        "close": "0.06674",
+        "volume": "490810.0",
+        "oi": "18840928.20082124",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917420000,
+        "close": "0.06689",
+        "volume": "146082.0",
+        "oi": "18915152.966684602",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917480000,
+        "close": "0.0668",
+        "volume": "206585.0",
+        "oi": "19940620.07168",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917540000,
+        "close": "0.06672",
+        "volume": "219460.0",
+        "oi": "19901914.33351392",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917600000,
+        "close": "0.0662",
+        "volume": "257664.0",
+        "oi": "19759440.086850002",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917660000,
+        "close": "0.06536",
+        "volume": "740517.0",
+        "oi": "19533484.65255569",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917720000,
+        "close": "0.06596",
+        "volume": "893459.0",
+        "oi": "19623627.38285",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917780000,
+        "close": "0.06642",
+        "volume": "986935.0",
+        "oi": "19999685.677540004",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917840000,
+        "close": "0.06554",
+        "volume": "490377.0",
+        "oi": "19692762.37032",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917900000,
+        "close": "0.06477",
+        "volume": "711558.0",
+        "oi": "19464461.47331758",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780917960000,
+        "close": "0.06432",
+        "volume": "878939.0",
+        "oi": "19292810.464746863",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "1480.6507900000001"
+      },
+      {
+        "tsMs": 1780918020000,
+        "close": "0.0639",
+        "volume": "357905.0",
+        "oi": "19175782.44091736",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918080000,
+        "close": "0.06384",
+        "volume": "256265.0",
+        "oi": "19176592.202200003",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918140000,
+        "close": "0.06413",
+        "volume": "330725.0",
+        "oi": "18207085.603599958",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918200000,
+        "close": "0.06406",
+        "volume": "136307.0",
+        "oi": "18194028.56353923",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918260000,
+        "close": "0.06438",
+        "volume": "320182.0",
+        "oi": "18247818.327999998",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918320000,
+        "close": "0.06408",
+        "volume": "211488.0",
+        "oi": "18165616.40264",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918380000,
+        "close": "0.06374",
+        "volume": "1565493.0",
+        "oi": "18094181.81285854",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "104.31257000000001"
+      },
+      {
+        "tsMs": 1780918440000,
+        "close": "0.06371",
+        "volume": "982481.0",
+        "oi": "18095011.6996",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780918500000,
+        "close": "0.06384",
+        "volume": "225027.0",
+        "oi": "18098313.748829864",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      }
+    ]
+  },
+  "trd-3ae5dbb99c953e0ae05042e68e0fa822": {
+    "tradeId": "trd-3ae5dbb99c953e0ae05042e68e0fa822",
+    "runId": "a0564b31-7f0e-47b9-a4b5-f403bfd81327",
+    "symbol": "EDGEUSDT",
+    "side": "long",
+    "enteredAtMs": 1780348560000,
+    "closedAtMs": 1780350000000,
+    "entryPrice": "0.777957552068000000",
+    "exitPrice": "0.660900000000000000",
+    "realizedPnl": "-55.673081580000000000",
+    "pnlPct": "-15.046779000000000000",
+    "holdingDurationMs": 1440000,
+    "closeReason": "hard_stop",
+    "lifecycleEvents": [
+      {
+        "tsMs": 1780348560000,
+        "type": "entry",
+        "price": "0.821500000000000000",
+        "qty": "121.728545343883000000",
+        "note": "watch_entry"
+      },
+      {
+        "tsMs": 1780348800000,
+        "type": "dca",
+        "price": "0.789800000000000000",
+        "qty": "151.937199290960000000",
+        "note": "DCA1"
+      },
+      {
+        "tsMs": 1780349160000,
+        "type": "dca",
+        "price": "0.742800000000000000",
+        "qty": "201.938610662359000000",
+        "note": "DCA2"
+      },
+      {
+        "tsMs": 1780350000000,
+        "type": "sl",
+        "price": "0.660900000000000000",
+        "qty": "475.604355297202000000",
+        "note": "hard_stop"
+      }
+    ],
+    "minuteContext": [
+      {
+        "tsMs": 1780347360000,
+        "close": "1.1187",
+        "volume": "9226.0",
+        "oi": "31781543.38602421",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347420000,
+        "close": "1.1076",
+        "volume": "33637.0",
+        "oi": "31511367.154500004",
+        "liquidationsLong": "12355.851999999999",
+        "liquidationsShort": "953.4449000000001"
+      },
+      {
+        "tsMs": 1780347480000,
+        "close": "1.103",
+        "volume": "65196.0",
+        "oi": "31389704.08411944",
+        "liquidationsLong": "140.71200000000002",
+        "liquidationsShort": "1408.5968999999998"
+      },
+      {
+        "tsMs": 1780347540000,
+        "close": "1.101",
+        "volume": "35633.0",
+        "oi": "31387666.10480402",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347600000,
+        "close": "1.0981",
+        "volume": "40881.0",
+        "oi": "31284911.097220138",
+        "liquidationsLong": "6615.0960000000005",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347660000,
+        "close": "1.0948",
+        "volume": "27955.0",
+        "oi": "31323557.54780149",
+        "liquidationsLong": "318.246",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347720000,
+        "close": "1.0795",
+        "volume": "39694.0",
+        "oi": "30886476.58061271",
+        "liquidationsLong": "24499.112000000005",
+        "liquidationsShort": "2131.6436"
+      },
+      {
+        "tsMs": 1780347780000,
+        "close": "1.0724",
+        "volume": "49004.0",
+        "oi": "30601613.6924",
+        "liquidationsLong": "952.2900000000001",
+        "liquidationsShort": "378.9976"
+      },
+      {
+        "tsMs": 1780347840000,
+        "close": "1.0802",
+        "volume": "41898.0",
+        "oi": "30922224.640861683",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347900000,
+        "close": "1.0736",
+        "volume": "26757.0",
+        "oi": "30795799.987588897",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780347960000,
+        "close": "1.082",
+        "volume": "16828.0",
+        "oi": "30822949.77896925",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780348020000,
+        "close": "1.0688",
+        "volume": "18867.0",
+        "oi": "30700444.947195075",
+        "liquidationsLong": "2187.944",
+        "liquidationsShort": "11.515899999999998"
+      },
+      {
+        "tsMs": 1780348080000,
+        "close": "1.0456",
+        "volume": "31803.0",
+        "oi": "30140305.9396",
+        "liquidationsLong": "3427.9309999999996",
+        "liquidationsShort": "2996.8929000000003"
+      },
+      {
+        "tsMs": 1780348140000,
+        "close": "1.0359",
+        "volume": "50822.0",
+        "oi": "29865132.0028",
+        "liquidationsLong": "8279.096",
+        "liquidationsShort": "4023.8439"
+      },
+      {
+        "tsMs": 1780348200000,
+        "close": "1.0311",
+        "volume": "28222.0",
+        "oi": "29736700.97425478",
+        "liquidationsLong": "80.932",
+        "liquidationsShort": "93.104"
+      },
+      {
+        "tsMs": 1780348260000,
+        "close": "1.0043",
+        "volume": "85770.0",
+        "oi": "29634813.713600002",
+        "liquidationsLong": "100.6",
+        "liquidationsShort": "511.938"
+      },
+      {
+        "tsMs": 1780348320000,
+        "close": "0.9268",
+        "volume": "1116988.0",
+        "oi": "26659312.7602",
+        "liquidationsLong": "14943.514",
+        "liquidationsShort": "20171.4044"
+      },
+      {
+        "tsMs": 1780348380000,
+        "close": "0.7682",
+        "volume": "1917263.0",
+        "oi": "20652219.475813933",
+        "liquidationsLong": "217393.1305",
+        "liquidationsShort": "404126.9763"
+      },
+      {
+        "tsMs": 1780348440000,
+        "close": "0.7659",
+        "volume": "1061278.0",
+        "oi": "20461427.09703461",
+        "liquidationsLong": "29737.131",
+        "liquidationsShort": "227.0832"
+      },
+      {
+        "tsMs": 1780348500000,
+        "close": "0.7561",
+        "volume": "941728.0",
+        "oi": "20066722.15531104",
+        "liquidationsLong": "39098.225000000006",
+        "liquidationsShort": "1059.2954"
+      },
+      {
+        "tsMs": 1780348560000,
+        "close": "0.8215",
+        "volume": "371676.0",
+        "oi": "21910864.51396707",
+        "liquidationsLong": "36367.3584",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780348620000,
+        "close": "0.7929",
+        "volume": "232649.0",
+        "oi": "21538769.312800005",
+        "liquidationsLong": "1421.784",
+        "liquidationsShort": "316.113"
+      },
+      {
+        "tsMs": 1780348680000,
+        "close": "0.7684",
+        "volume": "183087.0",
+        "oi": "21118516.705900002",
+        "liquidationsLong": "6679.05",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780348740000,
+        "close": "0.7718",
+        "volume": "276656.0",
+        "oi": "20212935.9576",
+        "liquidationsLong": "7698.152499999999",
+        "liquidationsShort": "1906.4144000000001"
+      },
+      {
+        "tsMs": 1780348800000,
+        "close": "0.7898",
+        "volume": "151384.0",
+        "oi": "21143070.60233884",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780348860000,
+        "close": "0.7364",
+        "volume": "176970.0",
+        "oi": "20118218.456085477",
+        "liquidationsLong": "669.764",
+        "liquidationsShort": "1340.1345999999999"
+      },
+      {
+        "tsMs": 1780348920000,
+        "close": "0.7248",
+        "volume": "421159.0",
+        "oi": "19811245.384697996",
+        "liquidationsLong": "340.128",
+        "liquidationsShort": "1944.5647"
+      },
+      {
+        "tsMs": 1780348980000,
+        "close": "0.7285",
+        "volume": "316591.0",
+        "oi": "20208768.2892",
+        "liquidationsLong": "3014.3508",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349040000,
+        "close": "0.725",
+        "volume": "305571.0",
+        "oi": "19905521.0442",
+        "liquidationsLong": "16584.516",
+        "liquidationsShort": "973.1478000000001"
+      },
+      {
+        "tsMs": 1780349100000,
+        "close": "0.7357",
+        "volume": "208054.0",
+        "oi": "20289092.733739",
+        "liquidationsLong": "5769.280000000001",
+        "liquidationsShort": "68.46"
+      },
+      {
+        "tsMs": 1780349160000,
+        "close": "0.7428",
+        "volume": "126519.0",
+        "oi": "20331195.468290754",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349220000,
+        "close": "0.7505",
+        "volume": "358900.0",
+        "oi": "20886973.219846077",
+        "liquidationsLong": "1291.4361000000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349280000,
+        "close": "0.768",
+        "volume": "163584.0",
+        "oi": "21269857.40368592",
+        "liquidationsLong": "252.39499999999998",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349340000,
+        "close": "0.7498",
+        "volume": "127634.0",
+        "oi": "20801159.723204557",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "1226.4652"
+      },
+      {
+        "tsMs": 1780349400000,
+        "close": "0.7512",
+        "volume": "111969.0",
+        "oi": "20960197.85304164",
+        "liquidationsLong": "2028.0302000000004",
+        "liquidationsShort": "113.4744"
+      },
+      {
+        "tsMs": 1780349460000,
+        "close": "0.7407",
+        "volume": "131727.0",
+        "oi": "20566131.72582845",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349520000,
+        "close": "0.7438",
+        "volume": "126333.0",
+        "oi": "20629042.786199998",
+        "liquidationsLong": "1876.42",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349580000,
+        "close": "0.7375",
+        "volume": "107794.0",
+        "oi": "20710347.58295156",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349640000,
+        "close": "0.73",
+        "volume": "59100.0",
+        "oi": "20364380.75179135",
+        "liquidationsLong": "179.29999999999998",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349700000,
+        "close": "0.7272",
+        "volume": "127073.0",
+        "oi": "20158930.651536718",
+        "liquidationsLong": "399.36",
+        "liquidationsShort": "67.925"
+      },
+      {
+        "tsMs": 1780349760000,
+        "close": "0.7186",
+        "volume": "75292.0",
+        "oi": "20140977.9446",
+        "liquidationsLong": "117.92269999999999",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349820000,
+        "close": "0.7008",
+        "volume": "102848.0",
+        "oi": "19625866.2144",
+        "liquidationsLong": "425.286",
+        "liquidationsShort": "367.1541"
+      },
+      {
+        "tsMs": 1780349880000,
+        "close": "0.7128",
+        "volume": "117319.0",
+        "oi": "20193781.5877706",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780349940000,
+        "close": "0.694",
+        "volume": "148067.0",
+        "oi": "19462815.689686246",
+        "liquidationsLong": "34.0",
+        "liquidationsShort": "148.874"
+      },
+      {
+        "tsMs": 1780350000000,
+        "close": "0.6609",
+        "volume": "195173.0",
+        "oi": "18856236.13871957",
+        "liquidationsLong": "819.05",
+        "liquidationsShort": "70.6876"
+      },
+      {
+        "tsMs": 1780350060000,
+        "close": "0.6241",
+        "volume": "891365.0",
+        "oi": "17020512.783600003",
+        "liquidationsLong": "9035.383999999998",
+        "liquidationsShort": "20119.9094"
+      },
+      {
+        "tsMs": 1780350120000,
+        "close": "0.6284",
+        "volume": "296782.0",
+        "oi": "17734036.21801612",
+        "liquidationsLong": "983.1641000000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780350180000,
+        "close": "0.6213",
+        "volume": "256745.0",
+        "oi": "17579681.591599997",
+        "liquidationsLong": "1706.4856000000002",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780350240000,
+        "close": "0.594",
+        "volume": "377667.0",
+        "oi": "16616356.72109548",
+        "liquidationsLong": "2661.8759999999997",
+        "liquidationsShort": "698.5115000000001"
+      },
+      {
+        "tsMs": 1780350300000,
+        "close": "0.5767",
+        "volume": "494470.0",
+        "oi": "16463082.45982224",
+        "liquidationsLong": "1867.9205000000002",
+        "liquidationsShort": "343.46709999999996"
+      },
+      {
+        "tsMs": 1780350360000,
+        "close": "0.5385",
+        "volume": "559034.0",
+        "oi": "15458144.811950332",
+        "liquidationsLong": "1782.3998000000001",
+        "liquidationsShort": "3686.2791"
+      },
+      {
+        "tsMs": 1780350420000,
+        "close": "0.5173",
+        "volume": "755539.0",
+        "oi": "14756194.29271104",
+        "liquidationsLong": "6622.7924",
+        "liquidationsShort": "13957.722999999998"
+      },
+      {
+        "tsMs": 1780350480000,
+        "close": "0.5038",
+        "volume": "505331.0",
+        "oi": "13947791.88198938",
+        "liquidationsLong": "2569.5570000000002",
+        "liquidationsShort": "2110.7591"
+      },
+      {
+        "tsMs": 1780350540000,
+        "close": "0.5261",
+        "volume": "762665.0",
+        "oi": "14438869.043591922",
+        "liquidationsLong": "6896.7292",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780350600000,
+        "close": "0.5",
+        "volume": "350544.0",
+        "oi": "14212202.4572",
+        "liquidationsLong": "1426.039",
+        "liquidationsShort": "5152.3595000000005"
+      },
+      {
+        "tsMs": 1780350660000,
+        "close": "0.4972",
+        "volume": "411029.0",
+        "oi": "13797774.2469",
+        "liquidationsLong": "1381.9085",
+        "liquidationsShort": "4946.703200000001"
+      },
+      {
+        "tsMs": 1780350720000,
+        "close": "0.4811",
+        "volume": "316464.0",
+        "oi": "13655546.5554448",
+        "liquidationsLong": "1874.152",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780350780000,
+        "close": "0.4513",
+        "volume": "645974.0",
+        "oi": "13022431.57689988",
+        "liquidationsLong": "14642.399000000001",
+        "liquidationsShort": "14731.289499999999"
+      },
+      {
+        "tsMs": 1780350840000,
+        "close": "0.4232",
+        "volume": "1045761.0",
+        "oi": "12310472.8108236",
+        "liquidationsLong": "11798.468400000002",
+        "liquidationsShort": "17262.214999999997"
+      },
+      {
+        "tsMs": 1780350900000,
+        "close": "0.3863",
+        "volume": "907750.0",
+        "oi": "11772648.549043298",
+        "liquidationsLong": "4320.431",
+        "liquidationsShort": "11273.584200000001"
+      },
+      {
+        "tsMs": 1780350960000,
+        "close": "0.3667",
+        "volume": "1682119.0",
+        "oi": "10950335.75492988",
+        "liquidationsLong": "9297.478000000001",
+        "liquidationsShort": "118354.6926"
+      },
+      {
+        "tsMs": 1780351020000,
+        "close": "0.3661",
+        "volume": "1847825.0",
+        "oi": "11059005.8748",
+        "liquidationsLong": "9826.897799999999",
+        "liquidationsShort": "7198.3391"
+      },
+      {
+        "tsMs": 1780351080000,
+        "close": "0.3629",
+        "volume": "924318.0",
+        "oi": "11353628.260099228",
+        "liquidationsLong": "6804.691500000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351140000,
+        "close": "0.3596",
+        "volume": "1699900.0",
+        "oi": "10805275.513387721",
+        "liquidationsLong": "5895.672",
+        "liquidationsShort": "9167.938400000001"
+      },
+      {
+        "tsMs": 1780351200000,
+        "close": "0.4067",
+        "volume": "1626413.0",
+        "oi": "12538163.97624366",
+        "liquidationsLong": "77283.0662",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351260000,
+        "close": "0.4229",
+        "volume": "1059515.0",
+        "oi": "12792223.579",
+        "liquidationsLong": "1919.7802000000001",
+        "liquidationsShort": "123.24260000000001"
+      },
+      {
+        "tsMs": 1780351320000,
+        "close": "0.464",
+        "volume": "1185042.0",
+        "oi": "13661767.002724819",
+        "liquidationsLong": "1293.8694",
+        "liquidationsShort": "377.93899999999996"
+      },
+      {
+        "tsMs": 1780351380000,
+        "close": "0.4738",
+        "volume": "1132747.0",
+        "oi": "14113576.803078791",
+        "liquidationsLong": "9609.1368",
+        "liquidationsShort": "1093.521"
+      },
+      {
+        "tsMs": 1780351440000,
+        "close": "0.4793",
+        "volume": "626180.0",
+        "oi": "14649662.33026696",
+        "liquidationsLong": "1009.2922000000001",
+        "liquidationsShort": "525.1722"
+      },
+      {
+        "tsMs": 1780351500000,
+        "close": "0.4844",
+        "volume": "605670.0",
+        "oi": "14585533.806425748",
+        "liquidationsLong": "202.6153",
+        "liquidationsShort": "0.9496"
+      },
+      {
+        "tsMs": 1780351560000,
+        "close": "0.4846",
+        "volume": "999911.0",
+        "oi": "14281135.02517435",
+        "liquidationsLong": "2221.4264000000003",
+        "liquidationsShort": "59.082"
+      },
+      {
+        "tsMs": 1780351620000,
+        "close": "0.529",
+        "volume": "960502.0",
+        "oi": "15596104.487523261",
+        "liquidationsLong": "5879.6745",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351680000,
+        "close": "0.5639",
+        "volume": "894001.0",
+        "oi": "16380109.42600572",
+        "liquidationsLong": "1253.5205",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351740000,
+        "close": "0.6005",
+        "volume": "1059627.0",
+        "oi": "17235544.44396265",
+        "liquidationsLong": "23734.254200000003",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351800000,
+        "close": "0.6499",
+        "volume": "1052721.0",
+        "oi": "18611578.49407891",
+        "liquidationsLong": "5501.489600000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780351860000,
+        "close": "0.6257",
+        "volume": "1086429.0",
+        "oi": "18458920.4843553",
+        "liquidationsLong": "2866.4786",
+        "liquidationsShort": "4113.2909"
+      },
+      {
+        "tsMs": 1780351920000,
+        "close": "0.598",
+        "volume": "1107231.0",
+        "oi": "16723268.4826829",
+        "liquidationsLong": "1515.912",
+        "liquidationsShort": "14500.525399999999"
+      },
+      {
+        "tsMs": 1780351980000,
+        "close": "0.6316",
+        "volume": "706375.0",
+        "oi": "17709678.1024392",
+        "liquidationsLong": "21.875",
+        "liquidationsShort": "906.4011"
+      },
+      {
+        "tsMs": 1780352040000,
+        "close": "0.6398",
+        "volume": "360613.0",
+        "oi": "17976232.773415122",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352100000,
+        "close": "0.6552",
+        "volume": "1098945.0",
+        "oi": "18860684.774616063",
+        "liquidationsLong": "30596.810499999996",
+        "liquidationsShort": "1190.2848000000001"
+      },
+      {
+        "tsMs": 1780352160000,
+        "close": "0.657",
+        "volume": "540954.0",
+        "oi": "18826789.79773335",
+        "liquidationsLong": "229.89680000000004",
+        "liquidationsShort": "3152.9027"
+      },
+      {
+        "tsMs": 1780352220000,
+        "close": "0.6401",
+        "volume": "357133.0",
+        "oi": "18122207.4781926",
+        "liquidationsLong": "6275.1669999999995",
+        "liquidationsShort": "17.188200000000002"
+      },
+      {
+        "tsMs": 1780352280000,
+        "close": "0.6527",
+        "volume": "392664.0",
+        "oi": "18814017.355699703",
+        "liquidationsLong": "1136.674",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352340000,
+        "close": "0.6477",
+        "volume": "368629.0",
+        "oi": "18393094.23373356",
+        "liquidationsLong": "31.605",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352400000,
+        "close": "0.6459",
+        "volume": "560528.0",
+        "oi": "18142575.58388048",
+        "liquidationsLong": "364.05400000000003",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352460000,
+        "close": "0.624",
+        "volume": "763921.0",
+        "oi": "17336451.573552582",
+        "liquidationsLong": "3944.248",
+        "liquidationsShort": "3370.3394"
+      },
+      {
+        "tsMs": 1780352520000,
+        "close": "0.627",
+        "volume": "879944.0",
+        "oi": "17393754.5558175",
+        "liquidationsLong": "6019.4725",
+        "liquidationsShort": "2317.7264"
+      },
+      {
+        "tsMs": 1780352580000,
+        "close": "0.6412",
+        "volume": "255973.0",
+        "oi": "17946832.51233582",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352640000,
+        "close": "0.6825",
+        "volume": "562080.0",
+        "oi": "19095401.264596",
+        "liquidationsLong": "6569.0715",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352700000,
+        "close": "0.676",
+        "volume": "694478.0",
+        "oi": "19160009.091000002",
+        "liquidationsLong": "17735.960300000002",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352760000,
+        "close": "0.6493",
+        "volume": "407193.0",
+        "oi": "18317052.63059937",
+        "liquidationsLong": "172.677",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352820000,
+        "close": "0.6287",
+        "volume": "270833.0",
+        "oi": "17703180.259800002",
+        "liquidationsLong": "24.206",
+        "liquidationsShort": "130.16809999999998"
+      },
+      {
+        "tsMs": 1780352880000,
+        "close": "0.637",
+        "volume": "384681.0",
+        "oi": "17686636.188157443",
+        "liquidationsLong": "349.32800000000003",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780352940000,
+        "close": "0.6439",
+        "volume": "321263.0",
+        "oi": "17643464.07040276",
+        "liquidationsLong": "3664.5054",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353000000,
+        "close": "0.6421",
+        "volume": "472429.0",
+        "oi": "17385099.819690004",
+        "liquidationsLong": "405.139",
+        "liquidationsShort": "125.5713"
+      },
+      {
+        "tsMs": 1780353060000,
+        "close": "0.6268",
+        "volume": "313068.0",
+        "oi": "17440905.493297003",
+        "liquidationsLong": "5035.192",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353120000,
+        "close": "0.6194",
+        "volume": "189114.0",
+        "oi": "17336081.86769314",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353180000,
+        "close": "0.6081",
+        "volume": "314761.0",
+        "oi": "16879539.6598",
+        "liquidationsLong": "3949.44",
+        "liquidationsShort": "844.9988"
+      },
+      {
+        "tsMs": 1780353240000,
+        "close": "0.6388",
+        "volume": "246804.0",
+        "oi": "17288406.6246334",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353300000,
+        "close": "0.6409",
+        "volume": "301365.0",
+        "oi": "17601584.3657985",
+        "liquidationsLong": "1839.3534",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353360000,
+        "close": "0.6576",
+        "volume": "200706.0",
+        "oi": "17922577.74188928",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353420000,
+        "close": "0.629",
+        "volume": "220974.0",
+        "oi": "17185918.20718198",
+        "liquidationsLong": "144.017",
+        "liquidationsShort": "81.4689"
+      },
+      {
+        "tsMs": 1780353480000,
+        "close": "0.6299",
+        "volume": "193618.0",
+        "oi": "17137455.45570496",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353540000,
+        "close": "0.6142",
+        "volume": "162956.0",
+        "oi": "16803787.1350933",
+        "liquidationsLong": "282.582",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353600000,
+        "close": "0.6241",
+        "volume": "92685.0",
+        "oi": "16984755.80518888",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353660000,
+        "close": "0.625",
+        "volume": "101965.0",
+        "oi": "16992125.65405123",
+        "liquidationsLong": "41.6",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353720000,
+        "close": "0.6349",
+        "volume": "262298.0",
+        "oi": "17435602.44758754",
+        "liquidationsLong": "260.96500000000003",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353780000,
+        "close": "0.6488",
+        "volume": "959510.0",
+        "oi": "18062762.44816646",
+        "liquidationsLong": "3447.3559999999998",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353840000,
+        "close": "0.6379",
+        "volume": "151073.0",
+        "oi": "17842585.329862002",
+        "liquidationsLong": "12.604",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353900000,
+        "close": "0.6545",
+        "volume": "133932.0",
+        "oi": "18197184.730766058",
+        "liquidationsLong": "2764.7634",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780353960000,
+        "close": "0.6413",
+        "volume": "157179.0",
+        "oi": "17939721.557755962",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "25.707"
+      },
+      {
+        "tsMs": 1780354020000,
+        "close": "0.6487",
+        "volume": "115601.0",
+        "oi": "18244953.97865269",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354080000,
+        "close": "0.6752",
+        "volume": "331220.0",
+        "oi": "18730349.42679614",
+        "liquidationsLong": "27.6176",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354140000,
+        "close": "0.6459",
+        "volume": "875093.0",
+        "oi": "17679138.00668928",
+        "liquidationsLong": "1004.604",
+        "liquidationsShort": "57.4264"
+      },
+      {
+        "tsMs": 1780354200000,
+        "close": "0.6502",
+        "volume": "128698.0",
+        "oi": "17625608.28905019",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354260000,
+        "close": "0.6544",
+        "volume": "135492.0",
+        "oi": "17890747.6552909",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354320000,
+        "close": "0.6425",
+        "volume": "354942.0",
+        "oi": "17671204.433336053",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "26.9997"
+      },
+      {
+        "tsMs": 1780354380000,
+        "close": "0.6383",
+        "volume": "308372.0",
+        "oi": "17337136.22599054",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354440000,
+        "close": "0.6472",
+        "volume": "59543.0",
+        "oi": "17549833.785965398",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354500000,
+        "close": "0.646",
+        "volume": "90060.0",
+        "oi": "17648671.88015603",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354560000,
+        "close": "0.6393",
+        "volume": "62799.0",
+        "oi": "17466767.313100617",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354620000,
+        "close": "0.6479",
+        "volume": "130571.0",
+        "oi": "17612404.7392",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354680000,
+        "close": "0.6513",
+        "volume": "129449.0",
+        "oi": "17728850.485799998",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354740000,
+        "close": "0.6571",
+        "volume": "170707.0",
+        "oi": "17824457.554399997",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354800000,
+        "close": "0.6675",
+        "volume": "225037.0",
+        "oi": "18084439.736199997",
+        "liquidationsLong": "175.1552",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354860000,
+        "close": "0.6862",
+        "volume": "258529.0",
+        "oi": "18530579.67638095",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354920000,
+        "close": "0.6849",
+        "volume": "184793.0",
+        "oi": "18561846.773843583",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780354980000,
+        "close": "0.7023",
+        "volume": "341202.0",
+        "oi": "18889627.862417884",
+        "liquidationsLong": "426.102",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355040000,
+        "close": "0.6978",
+        "volume": "145976.0",
+        "oi": "18871567.45438623",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355100000,
+        "close": "0.6981",
+        "volume": "282329.0",
+        "oi": "18736044.76047008",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355160000,
+        "close": "0.6931",
+        "volume": "354389.0",
+        "oi": "18329499.91991934",
+        "liquidationsLong": "10623.661",
+        "liquidationsShort": "232.02759999999998"
+      },
+      {
+        "tsMs": 1780355220000,
+        "close": "0.6972",
+        "volume": "176244.0",
+        "oi": "18555354.74643378",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355280000,
+        "close": "0.6994",
+        "volume": "147675.0",
+        "oi": "18777899.89839674",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355340000,
+        "close": "0.6965",
+        "volume": "73419.0",
+        "oi": "18748134.94764234",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355400000,
+        "close": "0.698",
+        "volume": "89686.0",
+        "oi": "18764856.91813656",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355460000,
+        "close": "0.6956",
+        "volume": "73534.0",
+        "oi": "18796821.612251762",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355520000,
+        "close": "0.6964",
+        "volume": "120370.0",
+        "oi": "18626461.69290158",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355580000,
+        "close": "0.6981",
+        "volume": "74288.0",
+        "oi": "18653332.968447562",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355640000,
+        "close": "0.7003",
+        "volume": "137289.0",
+        "oi": "18765828.9253419",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355700000,
+        "close": "0.69",
+        "volume": "179088.0",
+        "oi": "18470421.46188101",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355760000,
+        "close": "0.7001",
+        "volume": "146583.0",
+        "oi": "18581122.02803459",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355820000,
+        "close": "0.6981",
+        "volume": "156714.0",
+        "oi": "18237372.910600003",
+        "liquidationsLong": "671.8",
+        "liquidationsShort": "14.773"
+      },
+      {
+        "tsMs": 1780355880000,
+        "close": "0.6971",
+        "volume": "76999.0",
+        "oi": "18375955.0453",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780355940000,
+        "close": "0.7034",
+        "volume": "91264.0",
+        "oi": "18412469.23657847",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356000000,
+        "close": "0.7084",
+        "volume": "205079.0",
+        "oi": "18551272.5210193",
+        "liquidationsLong": "94.068",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356060000,
+        "close": "0.7071",
+        "volume": "208398.0",
+        "oi": "18529131.91163121",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356120000,
+        "close": "0.7003",
+        "volume": "172035.0",
+        "oi": "18296827.3629",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356180000,
+        "close": "0.6972",
+        "volume": "191905.0",
+        "oi": "17992284.44535126",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356240000,
+        "close": "0.6998",
+        "volume": "62351.0",
+        "oi": "18094095.1668",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356300000,
+        "close": "0.6996",
+        "volume": "86896.0",
+        "oi": "18092591.837341443",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356360000,
+        "close": "0.7025",
+        "volume": "70881.0",
+        "oi": "18037779.6101304",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356420000,
+        "close": "0.6989",
+        "volume": "41060.0",
+        "oi": "18033148.794999998",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356480000,
+        "close": "0.6958",
+        "volume": "75742.0",
+        "oi": "17927394.723",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356540000,
+        "close": "0.6984",
+        "volume": "28671.0",
+        "oi": "18017080.47484667",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356600000,
+        "close": "0.6952",
+        "volume": "180389.0",
+        "oi": "17820074.5778092",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356660000,
+        "close": "0.7009",
+        "volume": "43312.0",
+        "oi": "17921538.4566435",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356720000,
+        "close": "0.7089",
+        "volume": "258089.0",
+        "oi": "18298008.2550845",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356780000,
+        "close": "0.7068",
+        "volume": "72709.0",
+        "oi": "18162510.00974558",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356840000,
+        "close": "0.705",
+        "volume": "64633.0",
+        "oi": "18225944.04520296",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356900000,
+        "close": "0.7122",
+        "volume": "86159.0",
+        "oi": "18347612.4095176",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780356960000,
+        "close": "0.7088",
+        "volume": "42111.0",
+        "oi": "18248505.71927878",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357020000,
+        "close": "0.7076",
+        "volume": "40383.0",
+        "oi": "18336928.22397049",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357080000,
+        "close": "0.7171",
+        "volume": "58849.0",
+        "oi": "18565363.101018403",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357140000,
+        "close": "0.7235",
+        "volume": "143993.0",
+        "oi": "18786438.75131298",
+        "liquidationsLong": "69.46260000000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357200000,
+        "close": "0.7238",
+        "volume": "353808.0",
+        "oi": "19017235.448599998",
+        "liquidationsLong": "52.556000000000004",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357260000,
+        "close": "0.7267",
+        "volume": "139250.0",
+        "oi": "18560044.55470349",
+        "liquidationsLong": "2764.755",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357320000,
+        "close": "0.7493",
+        "volume": "296911.0",
+        "oi": "19101890.782640323",
+        "liquidationsLong": "5797.079200000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357380000,
+        "close": "0.7406",
+        "volume": "203314.0",
+        "oi": "19069895.062413312",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357440000,
+        "close": "0.7407",
+        "volume": "109498.0",
+        "oi": "19045785.639835037",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357500000,
+        "close": "0.7358",
+        "volume": "93484.0",
+        "oi": "18864598.654398922",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357560000,
+        "close": "0.7198",
+        "volume": "132569.0",
+        "oi": "18559349.135226026",
+        "liquidationsLong": "1424.923",
+        "liquidationsShort": "120.4695"
+      },
+      {
+        "tsMs": 1780357620000,
+        "close": "0.7176",
+        "volume": "55557.0",
+        "oi": "18492424.678735837",
+        "liquidationsLong": "49.245000000000005",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357680000,
+        "close": "0.7102",
+        "volume": "64564.0",
+        "oi": "18355740.704873998",
+        "liquidationsLong": "6162.534",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357740000,
+        "close": "0.7145",
+        "volume": "65249.0",
+        "oi": "18518732.38429498",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357800000,
+        "close": "0.7082",
+        "volume": "82226.0",
+        "oi": "18151402.673715398",
+        "liquidationsLong": "305.404",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357860000,
+        "close": "0.7165",
+        "volume": "53571.0",
+        "oi": "18325451.31079512",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357920000,
+        "close": "0.7172",
+        "volume": "69888.0",
+        "oi": "18342603.948",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780357980000,
+        "close": "0.7142",
+        "volume": "47802.0",
+        "oi": "18280104.03606687",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358040000,
+        "close": "0.7123",
+        "volume": "26683.0",
+        "oi": "18300001.237812262",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358100000,
+        "close": "0.7135",
+        "volume": "36238.0",
+        "oi": "18335175.06562674",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358160000,
+        "close": "0.7115",
+        "volume": "19158.0",
+        "oi": "18175445.95759971",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358220000,
+        "close": "0.7114",
+        "volume": "49587.0",
+        "oi": "18222351.09411188",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358280000,
+        "close": "0.7156",
+        "volume": "45663.0",
+        "oi": "18342402.4908",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1780358340000,
+        "close": "0.71",
+        "volume": "18520.0",
+        "oi": "18212089.89423064",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      }
+    ]
+  },
+  "trd-c77693acf036f103ea4d4bd06b405cf5": {
+    "tradeId": "trd-c77693acf036f103ea4d4bd06b405cf5",
+    "runId": "2955ffdc-dfb3-454e-9176-375142007355",
+    "symbol": "COAIUSDT",
+    "side": "long",
+    "enteredAtMs": 1781389620000,
+    "closedAtMs": 1781398260000,
+    "entryPrice": "0.442123384841000000",
+    "exitPrice": "0.381400000000000000",
+    "realizedPnl": "-50.817606940000000000",
+    "pnlPct": "-13.734488000000000000",
+    "holdingDurationMs": 8640000,
+    "closeReason": "hard_stop",
+    "lifecycleEvents": [
+      {
+        "tsMs": 1781389620000,
+        "type": "entry",
+        "price": "0.480300000000000000",
+        "qty": "208.203206329377000000",
+        "note": "watch_entry"
+      },
+      {
+        "tsMs": 1781390220000,
+        "type": "dca",
+        "price": "0.436400000000000000",
+        "qty": "274.977085242896000000",
+        "note": "DCA1"
+      },
+      {
+        "tsMs": 1781390580000,
+        "type": "dca",
+        "price": "0.424100000000000000",
+        "qty": "353.690167413346000000",
+        "note": "DCA2"
+      },
+      {
+        "tsMs": 1781398260000,
+        "type": "sl",
+        "price": "0.381400000000000000",
+        "qty": "836.870458985620000000",
+        "note": "hard_stop"
+      }
+    ],
+    "minuteContext": [
+      {
+        "tsMs": 1781388420000,
+        "close": "0.5985",
+        "volume": "53160.0",
+        "oi": "47832150.636420004",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "196.6304"
+      },
+      {
+        "tsMs": 1781388480000,
+        "close": "0.5937",
+        "volume": "95699.0",
+        "oi": "47490124.05547479",
+        "liquidationsLong": "2.9201900000000003",
+        "liquidationsShort": "97.43799999999999"
+      },
+      {
+        "tsMs": 1781388540000,
+        "close": "0.5939",
+        "volume": "68014.0",
+        "oi": "47557329.5217617",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781388600000,
+        "close": "0.59",
+        "volume": "79451.0",
+        "oi": "47281405.19984716",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781388660000,
+        "close": "0.5837",
+        "volume": "206782.0",
+        "oi": "46881558.67091395",
+        "liquidationsLong": "526.2780600000001",
+        "liquidationsShort": "1421.9722000000002"
+      },
+      {
+        "tsMs": 1781388720000,
+        "close": "0.5835",
+        "volume": "150385.0",
+        "oi": "46527219.78444123",
+        "liquidationsLong": "39.12382",
+        "liquidationsShort": "48.3198"
+      },
+      {
+        "tsMs": 1781388780000,
+        "close": "0.5739",
+        "volume": "116161.0",
+        "oi": "44222606.015785724",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781388840000,
+        "close": "0.5564",
+        "volume": "756886.0",
+        "oi": "43747679.54606586",
+        "liquidationsLong": "377.93969000000004",
+        "liquidationsShort": "7452.832899999999"
+      },
+      {
+        "tsMs": 1781388900000,
+        "close": "0.5555",
+        "volume": "187628.0",
+        "oi": "42936514.64017374",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781388960000,
+        "close": "0.5556",
+        "volume": "101837.0",
+        "oi": "41704666.48079912",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389020000,
+        "close": "0.5714",
+        "volume": "262300.0",
+        "oi": "44692100.432135515",
+        "liquidationsLong": "1879.618",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389080000,
+        "close": "0.5317",
+        "volume": "620070.0",
+        "oi": "44186461.58514952",
+        "liquidationsLong": "384.84919",
+        "liquidationsShort": "5178.9136"
+      },
+      {
+        "tsMs": 1781389140000,
+        "close": "0.5339",
+        "volume": "766574.0",
+        "oi": "41593434.06467128",
+        "liquidationsLong": "1136.5677600000001",
+        "liquidationsShort": "25210.8089"
+      },
+      {
+        "tsMs": 1781389200000,
+        "close": "0.5256",
+        "volume": "240325.0",
+        "oi": "42240594.702851824",
+        "liquidationsLong": "26.31",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389260000,
+        "close": "0.5138",
+        "volume": "629138.0",
+        "oi": "41208184.2366126",
+        "liquidationsLong": "509.71009",
+        "liquidationsShort": "872.6749"
+      },
+      {
+        "tsMs": 1781389320000,
+        "close": "0.4729",
+        "volume": "2193946.0",
+        "oi": "37176414.1648734",
+        "liquidationsLong": "1168.1786200000001",
+        "liquidationsShort": "37426.6795"
+      },
+      {
+        "tsMs": 1781389380000,
+        "close": "0.4627",
+        "volume": "535027.0",
+        "oi": "37238191.778220996",
+        "liquidationsLong": "5729.36128",
+        "liquidationsShort": "80.3822"
+      },
+      {
+        "tsMs": 1781389440000,
+        "close": "0.4561",
+        "volume": "703148.0",
+        "oi": "37597091.67245892",
+        "liquidationsLong": "1172.59168",
+        "liquidationsShort": "583.4514"
+      },
+      {
+        "tsMs": 1781389500000,
+        "close": "0.4556",
+        "volume": "1359788.0",
+        "oi": "35660811.30185915",
+        "liquidationsLong": "13168.581080000002",
+        "liquidationsShort": "4701.5342"
+      },
+      {
+        "tsMs": 1781389560000,
+        "close": "0.4615",
+        "volume": "429114.0",
+        "oi": "36379963.824007444",
+        "liquidationsLong": "596.4715",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389620000,
+        "close": "0.4803",
+        "volume": "558783.0",
+        "oi": "36755081.696120314",
+        "liquidationsLong": "15746.1685",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389680000,
+        "close": "0.4727",
+        "volume": "329539.0",
+        "oi": "36910861.50235338",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389740000,
+        "close": "0.4686",
+        "volume": "199225.0",
+        "oi": "37117206.198471166",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389800000,
+        "close": "0.4487",
+        "volume": "460755.0",
+        "oi": "36407003.75761368",
+        "liquidationsLong": "903.19458",
+        "liquidationsShort": "144.3778"
+      },
+      {
+        "tsMs": 1781389860000,
+        "close": "0.4477",
+        "volume": "432074.0",
+        "oi": "36061259.077518284",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389920000,
+        "close": "0.4437",
+        "volume": "537033.0",
+        "oi": "36165032.576138884",
+        "liquidationsLong": "296.92065",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781389980000,
+        "close": "0.4283",
+        "volume": "639574.0",
+        "oi": "35705574.50962994",
+        "liquidationsLong": "1818.9210400000004",
+        "liquidationsShort": "4176.5667"
+      },
+      {
+        "tsMs": 1781390040000,
+        "close": "0.4245",
+        "volume": "1057006.0",
+        "oi": "34815323.74939838",
+        "liquidationsLong": "2960.73757",
+        "liquidationsShort": "18900.6661"
+      },
+      {
+        "tsMs": 1781390100000,
+        "close": "0.4271",
+        "volume": "340507.0",
+        "oi": "33733666.00210724",
+        "liquidationsLong": "3794.643",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390160000,
+        "close": "0.4351",
+        "volume": "288932.0",
+        "oi": "33762472.77474079",
+        "liquidationsLong": "13671.008",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390220000,
+        "close": "0.4364",
+        "volume": "159768.0",
+        "oi": "34352519.1610086",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390280000,
+        "close": "0.4423",
+        "volume": "228391.0",
+        "oi": "34661273.86722",
+        "liquidationsLong": "25.992",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390340000,
+        "close": "0.4312",
+        "volume": "163631.0",
+        "oi": "33700450.606896505",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390400000,
+        "close": "0.4197",
+        "volume": "420183.0",
+        "oi": "32856816.22776344",
+        "liquidationsLong": "92.09568",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390460000,
+        "close": "0.4121",
+        "volume": "338973.0",
+        "oi": "32425330.70317",
+        "liquidationsLong": "581.5718200000001",
+        "liquidationsShort": "758.8693000000001"
+      },
+      {
+        "tsMs": 1781390520000,
+        "close": "0.4159",
+        "volume": "218024.0",
+        "oi": "32984230.80284306",
+        "liquidationsLong": "507.29429999999996",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390580000,
+        "close": "0.4241",
+        "volume": "150224.0",
+        "oi": "33028920.81018932",
+        "liquidationsLong": "3320.8",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390640000,
+        "close": "0.4376",
+        "volume": "241062.0",
+        "oi": "33476328.8682",
+        "liquidationsLong": "16.1616",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390700000,
+        "close": "0.4234",
+        "volume": "228455.0",
+        "oi": "33669047.7382",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390760000,
+        "close": "0.4164",
+        "volume": "214905.0",
+        "oi": "33021106.32340262",
+        "liquidationsLong": "323.85378000000003",
+        "liquidationsShort": "71.5493"
+      },
+      {
+        "tsMs": 1781390820000,
+        "close": "0.423",
+        "volume": "116691.0",
+        "oi": "33300949.69025204",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390880000,
+        "close": "0.4108",
+        "volume": "445440.0",
+        "oi": "32663432.17716799",
+        "liquidationsLong": "1530.79468",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781390940000,
+        "close": "0.4136",
+        "volume": "130700.0",
+        "oi": "32931411.0110958",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391000000,
+        "close": "0.4044",
+        "volume": "368157.0",
+        "oi": "32667994.5312",
+        "liquidationsLong": "406.73082000000005",
+        "liquidationsShort": "194.40169999999998"
+      },
+      {
+        "tsMs": 1781391060000,
+        "close": "0.4067",
+        "volume": "842110.0",
+        "oi": "32672329.302099362",
+        "liquidationsLong": "2064.9350600000002",
+        "liquidationsShort": "4432.0706"
+      },
+      {
+        "tsMs": 1781391120000,
+        "close": "0.4105",
+        "volume": "266012.0",
+        "oi": "32879204.49598744",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391180000,
+        "close": "0.4053",
+        "volume": "230419.0",
+        "oi": "32812834.198578753",
+        "liquidationsLong": "247.416",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391240000,
+        "close": "0.4148",
+        "volume": "186943.0",
+        "oi": "32739456.563528802",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "31.2129"
+      },
+      {
+        "tsMs": 1781391300000,
+        "close": "0.4405",
+        "volume": "868596.0",
+        "oi": "34425143.094802715",
+        "liquidationsLong": "5485.953600000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391360000,
+        "close": "0.4352",
+        "volume": "232606.0",
+        "oi": "34581354.67911312",
+        "liquidationsLong": "31.722",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391420000,
+        "close": "0.448",
+        "volume": "267614.0",
+        "oi": "34724858.59421128",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391480000,
+        "close": "0.4513",
+        "volume": "201117.0",
+        "oi": "35186109.81824456",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391540000,
+        "close": "0.4462",
+        "volume": "185570.0",
+        "oi": "33438765.628785357",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391600000,
+        "close": "0.4441",
+        "volume": "223937.0",
+        "oi": "33117737.96092362",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391660000,
+        "close": "0.4406",
+        "volume": "220317.0",
+        "oi": "34741229.88552622",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391720000,
+        "close": "0.4252",
+        "volume": "237252.0",
+        "oi": "33914113.38477826",
+        "liquidationsLong": "143.3429",
+        "liquidationsShort": "517.9825999999999"
+      },
+      {
+        "tsMs": 1781391780000,
+        "close": "0.4133",
+        "volume": "404717.0",
+        "oi": "33292854.288905844",
+        "liquidationsLong": "2372.08186",
+        "liquidationsShort": "970.914"
+      },
+      {
+        "tsMs": 1781391840000,
+        "close": "0.41",
+        "volume": "213175.0",
+        "oi": "33692361.47891383",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391900000,
+        "close": "0.4081",
+        "volume": "329176.0",
+        "oi": "33257886.37623455",
+        "liquidationsLong": "52.032970000000006",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781391960000,
+        "close": "0.4114",
+        "volume": "105271.0",
+        "oi": "33395401.298959564",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392020000,
+        "close": "0.4085",
+        "volume": "141682.0",
+        "oi": "33705625.867491715",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392080000,
+        "close": "0.4108",
+        "volume": "178344.0",
+        "oi": "33550588.576977476",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392140000,
+        "close": "0.4128",
+        "volume": "164771.0",
+        "oi": "33107998.6691672",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392200000,
+        "close": "0.4267",
+        "volume": "205587.0",
+        "oi": "33168015.838580355",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392260000,
+        "close": "0.4329",
+        "volume": "272262.0",
+        "oi": "34118476.55808401",
+        "liquidationsLong": "145.1026",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392320000,
+        "close": "0.4284",
+        "volume": "348844.0",
+        "oi": "33905982.3838",
+        "liquidationsLong": "217.8712",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392380000,
+        "close": "0.4233",
+        "volume": "157966.0",
+        "oi": "33580625.60676767",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392440000,
+        "close": "0.4149",
+        "volume": "173324.0",
+        "oi": "33106127.607119396",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392500000,
+        "close": "0.4221",
+        "volume": "55405.0",
+        "oi": "33470799.57479",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392560000,
+        "close": "0.4335",
+        "volume": "128173.0",
+        "oi": "33717270.812797606",
+        "liquidationsLong": "78.7314",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392620000,
+        "close": "0.4289",
+        "volume": "104256.0",
+        "oi": "34147812.91569554",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392680000,
+        "close": "0.4344",
+        "volume": "257140.0",
+        "oi": "34016364.49441641",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392740000,
+        "close": "0.4382",
+        "volume": "175214.0",
+        "oi": "34276841.58233",
+        "liquidationsLong": "1481.4743999999998",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392800000,
+        "close": "0.4378",
+        "volume": "111917.0",
+        "oi": "34722638.46558288",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392860000,
+        "close": "0.4319",
+        "volume": "102022.0",
+        "oi": "34271687.24088585",
+        "liquidationsLong": "21.8208",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392920000,
+        "close": "0.4284",
+        "volume": "163235.0",
+        "oi": "34074019.93316848",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781392980000,
+        "close": "0.4282",
+        "volume": "100155.0",
+        "oi": "34110922.25971526",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393040000,
+        "close": "0.4317",
+        "volume": "110067.0",
+        "oi": "34196667.24066214",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393100000,
+        "close": "0.4207",
+        "volume": "137630.0",
+        "oi": "33955994.00256856",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393160000,
+        "close": "0.4189",
+        "volume": "165000.0",
+        "oi": "33853548.88103355",
+        "liquidationsLong": "4130.11061",
+        "liquidationsShort": "13.262699999999999"
+      },
+      {
+        "tsMs": 1781393220000,
+        "close": "0.4154",
+        "volume": "154974.0",
+        "oi": "33883684.71228248",
+        "liquidationsLong": "5718.816390000001",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393280000,
+        "close": "0.4166",
+        "volume": "95538.0",
+        "oi": "33537750.862644322",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393340000,
+        "close": "0.4168",
+        "volume": "110491.0",
+        "oi": "33763529.9627439",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393400000,
+        "close": "0.4122",
+        "volume": "131175.0",
+        "oi": "33386583.18191",
+        "liquidationsLong": "6051.84633",
+        "liquidationsShort": "57.8503"
+      },
+      {
+        "tsMs": 1781393460000,
+        "close": "0.4072",
+        "volume": "119904.0",
+        "oi": "33254072.53990544",
+        "liquidationsLong": "2339.75009",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393520000,
+        "close": "0.4083",
+        "volume": "69561.0",
+        "oi": "33353846.095459998",
+        "liquidationsLong": "167.80662000000004",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393580000,
+        "close": "0.4148",
+        "volume": "152353.0",
+        "oi": "33451073.42186",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393640000,
+        "close": "0.4184",
+        "volume": "164427.0",
+        "oi": "33661109.031553745",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393700000,
+        "close": "0.423",
+        "volume": "69441.0",
+        "oi": "34113967.65118",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393760000,
+        "close": "0.4243",
+        "volume": "66379.0",
+        "oi": "34257466.00756",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393820000,
+        "close": "0.4275",
+        "volume": "124979.0",
+        "oi": "34131517.580055244",
+        "liquidationsLong": "25.2168",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393880000,
+        "close": "0.4279",
+        "volume": "139197.0",
+        "oi": "34242699.76353908",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781393940000,
+        "close": "0.4276",
+        "volume": "77587.0",
+        "oi": "34149226.6276404",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394000000,
+        "close": "0.4239",
+        "volume": "56692.0",
+        "oi": "34154735.12543618",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394060000,
+        "close": "0.4292",
+        "volume": "95607.0",
+        "oi": "34439013.05877588",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394120000,
+        "close": "0.4343",
+        "volume": "145542.0",
+        "oi": "34631681.35869048",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394180000,
+        "close": "0.4298",
+        "volume": "132092.0",
+        "oi": "34595262.067484796",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394240000,
+        "close": "0.4303",
+        "volume": "64999.0",
+        "oi": "34602023.60075",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394300000,
+        "close": "0.4295",
+        "volume": "60114.0",
+        "oi": "34475966.94978068",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394360000,
+        "close": "0.4253",
+        "volume": "47010.0",
+        "oi": "34370135.24683328",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394420000,
+        "close": "0.4251",
+        "volume": "47021.0",
+        "oi": "34374794.14706001",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394480000,
+        "close": "0.4202",
+        "volume": "58197.0",
+        "oi": "34172348.78090888",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394540000,
+        "close": "0.4174",
+        "volume": "134050.0",
+        "oi": "34115642.64188",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394600000,
+        "close": "0.4171",
+        "volume": "99517.0",
+        "oi": "33812889.51155744",
+        "liquidationsLong": "208.32434",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394660000,
+        "close": "0.4186",
+        "volume": "56331.0",
+        "oi": "33959081.1146926",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394720000,
+        "close": "0.4114",
+        "volume": "113890.0",
+        "oi": "33660101.3271292",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394780000,
+        "close": "0.4169",
+        "volume": "93052.0",
+        "oi": "33759527.115334764",
+        "liquidationsLong": "547.375",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394840000,
+        "close": "0.4225",
+        "volume": "81034.0",
+        "oi": "34112691.011854",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394900000,
+        "close": "0.423",
+        "volume": "47783.0",
+        "oi": "33926165.86556582",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781394960000,
+        "close": "0.4157",
+        "volume": "103184.0",
+        "oi": "33628387.36843844",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395020000,
+        "close": "0.4206",
+        "volume": "55130.0",
+        "oi": "34089763.7244674",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395080000,
+        "close": "0.4217",
+        "volume": "38207.0",
+        "oi": "34240239.09127784",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395140000,
+        "close": "0.4196",
+        "volume": "89507.0",
+        "oi": "34036676.56929708",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395200000,
+        "close": "0.4217",
+        "volume": "81004.0",
+        "oi": "34283517.91790328",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395260000,
+        "close": "0.4239",
+        "volume": "60364.0",
+        "oi": "34488024.62400846",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395320000,
+        "close": "0.4275",
+        "volume": "90125.0",
+        "oi": "34697689.30195",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395380000,
+        "close": "0.4214",
+        "volume": "112213.0",
+        "oi": "34621361.4239075",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395440000,
+        "close": "0.4282",
+        "volume": "61178.0",
+        "oi": "34688829.62743252",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395500000,
+        "close": "0.4304",
+        "volume": "132544.0",
+        "oi": "35122961.45038029",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395560000,
+        "close": "0.4219",
+        "volume": "124171.0",
+        "oi": "34692744.65334",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395620000,
+        "close": "0.4265",
+        "volume": "67550.0",
+        "oi": "34877517.36850556",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395680000,
+        "close": "0.4255",
+        "volume": "21516.0",
+        "oi": "34925298.019262",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395740000,
+        "close": "0.4275",
+        "volume": "20948.0",
+        "oi": "34842374.67171554",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395800000,
+        "close": "0.4224",
+        "volume": "79919.0",
+        "oi": "34989147.19899994",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395860000,
+        "close": "0.425",
+        "volume": "36098.0",
+        "oi": "34885481.77851669",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395920000,
+        "close": "0.4233",
+        "volume": "24454.0",
+        "oi": "34797379.88303613",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781395980000,
+        "close": "0.4245",
+        "volume": "68256.0",
+        "oi": "34859519.29318",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "194.0908"
+      },
+      {
+        "tsMs": 1781396040000,
+        "close": "0.4192",
+        "volume": "130282.0",
+        "oi": "34500477.24573722",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396100000,
+        "close": "0.4193",
+        "volume": "91427.0",
+        "oi": "34615511.02203652",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396160000,
+        "close": "0.4133",
+        "volume": "88522.0",
+        "oi": "34535963.635927044",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396220000,
+        "close": "0.4157",
+        "volume": "60886.0",
+        "oi": "34606440.63812",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396280000,
+        "close": "0.4158",
+        "volume": "24634.0",
+        "oi": "34584329.67282042",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396340000,
+        "close": "0.4133",
+        "volume": "78107.0",
+        "oi": "34420767.4612451",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396400000,
+        "close": "0.4199",
+        "volume": "90251.0",
+        "oi": "34687219.33757",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396460000,
+        "close": "0.4174",
+        "volume": "64259.0",
+        "oi": "34490235.662826896",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396520000,
+        "close": "0.4222",
+        "volume": "45620.0",
+        "oi": "34593329.65286152",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396580000,
+        "close": "0.4212",
+        "volume": "18373.0",
+        "oi": "34836307.7216733",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396640000,
+        "close": "0.421",
+        "volume": "16292.0",
+        "oi": "34586831.6039925",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396700000,
+        "close": "0.4205",
+        "volume": "18379.0",
+        "oi": "34761394.85598244",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396760000,
+        "close": "0.4188",
+        "volume": "35950.0",
+        "oi": "34711490.49974",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396820000,
+        "close": "0.4183",
+        "volume": "25387.0",
+        "oi": "34681218.67471512",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396880000,
+        "close": "0.4149",
+        "volume": "13010.0",
+        "oi": "34586041.432295",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781396940000,
+        "close": "0.4167",
+        "volume": "93134.0",
+        "oi": "34626497.84113",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397000000,
+        "close": "0.4139",
+        "volume": "14422.0",
+        "oi": "34664553.78629558",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397060000,
+        "close": "0.4111",
+        "volume": "45344.0",
+        "oi": "34562626.3093",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397120000,
+        "close": "0.4098",
+        "volume": "89604.0",
+        "oi": "34431989.23036876",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397180000,
+        "close": "0.4118",
+        "volume": "30629.0",
+        "oi": "34773676.21612692",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397240000,
+        "close": "0.4127",
+        "volume": "30388.0",
+        "oi": "34748972.17314237",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397300000,
+        "close": "0.4119",
+        "volume": "17425.0",
+        "oi": "34728038.118159994",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397360000,
+        "close": "0.4082",
+        "volume": "32993.0",
+        "oi": "34548730.15227041",
+        "liquidationsLong": "116.49512",
+        "liquidationsShort": "141.542"
+      },
+      {
+        "tsMs": 1781397420000,
+        "close": "0.4107",
+        "volume": "14152.0",
+        "oi": "34604205.89134",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397480000,
+        "close": "0.4097",
+        "volume": "69583.0",
+        "oi": "34447829.76329544",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397540000,
+        "close": "0.4083",
+        "volume": "79582.0",
+        "oi": "34593494.9950585",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397600000,
+        "close": "0.4107",
+        "volume": "23039.0",
+        "oi": "34705836.8488919",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397660000,
+        "close": "0.4093",
+        "volume": "9616.0",
+        "oi": "34552471.481003195",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397720000,
+        "close": "0.4077",
+        "volume": "14708.0",
+        "oi": "34558493.80111207",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397780000,
+        "close": "0.3997",
+        "volume": "233279.0",
+        "oi": "34471863.519155055",
+        "liquidationsLong": "1635.7511399999996",
+        "liquidationsShort": "6049.205900000001"
+      },
+      {
+        "tsMs": 1781397840000,
+        "close": "0.4015",
+        "volume": "142787.0",
+        "oi": "34253895.1101188",
+        "liquidationsLong": "18.975",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397900000,
+        "close": "0.406",
+        "volume": "62235.0",
+        "oi": "34549492.11220786",
+        "liquidationsLong": "379.43",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781397960000,
+        "close": "0.4068",
+        "volume": "32336.0",
+        "oi": "34553425.46138724",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398020000,
+        "close": "0.4055",
+        "volume": "32205.0",
+        "oi": "34540043.77938536",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398080000,
+        "close": "0.4033",
+        "volume": "37451.0",
+        "oi": "34340258.87325064",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398140000,
+        "close": "0.4015",
+        "volume": "87175.0",
+        "oi": "34396851.956590004",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398200000,
+        "close": "0.3998",
+        "volume": "34803.0",
+        "oi": "34422108.88128917",
+        "liquidationsLong": "161.04",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398260000,
+        "close": "0.3814",
+        "volume": "912526.0",
+        "oi": "33013657.299147762",
+        "liquidationsLong": "1486.3135500000003",
+        "liquidationsShort": "4553.942599999999"
+      },
+      {
+        "tsMs": 1781398320000,
+        "close": "0.3803",
+        "volume": "178237.0",
+        "oi": "32959910.64632088",
+        "liquidationsLong": "3766.3499999999995",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398380000,
+        "close": "0.3815",
+        "volume": "139021.0",
+        "oi": "33055256.4090814",
+        "liquidationsLong": "2705.185",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398440000,
+        "close": "0.3796",
+        "volume": "90521.0",
+        "oi": "32910979.57641",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "67.5648"
+      },
+      {
+        "tsMs": 1781398500000,
+        "close": "0.3811",
+        "volume": "117226.0",
+        "oi": "32906998.90744712",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398560000,
+        "close": "0.3809",
+        "volume": "149000.0",
+        "oi": "32979404.45435126",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398620000,
+        "close": "0.3854",
+        "volume": "122584.0",
+        "oi": "33204085.361462228",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398680000,
+        "close": "0.3866",
+        "volume": "138262.0",
+        "oi": "33191883.5751574",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398740000,
+        "close": "0.3901",
+        "volume": "105890.0",
+        "oi": "33359990.029135212",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398800000,
+        "close": "0.3943",
+        "volume": "118798.0",
+        "oi": "33373788.91488885",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398860000,
+        "close": "0.3924",
+        "volume": "64086.0",
+        "oi": "33367592.559815556",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398920000,
+        "close": "0.3928",
+        "volume": "68523.0",
+        "oi": "33313649.38951584",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781398980000,
+        "close": "0.3929",
+        "volume": "57748.0",
+        "oi": "33500187.23368276",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399040000,
+        "close": "0.3879",
+        "volume": "68236.0",
+        "oi": "33184083.785234116",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399100000,
+        "close": "0.3947",
+        "volume": "56965.0",
+        "oi": "33649325.01753936",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399160000,
+        "close": "0.3994",
+        "volume": "168908.0",
+        "oi": "33809289.73523098",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399220000,
+        "close": "0.3941",
+        "volume": "28409.0",
+        "oi": "33836936.81794608",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399280000,
+        "close": "0.3908",
+        "volume": "60755.0",
+        "oi": "33554531.14149046",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399340000,
+        "close": "0.3898",
+        "volume": "49779.0",
+        "oi": "33461607.15129602",
+        "liquidationsLong": "938.4801",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399400000,
+        "close": "0.3946",
+        "volume": "44867.0",
+        "oi": "33744502.12287",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399460000,
+        "close": "0.393",
+        "volume": "28696.0",
+        "oi": "33904848.22235",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399520000,
+        "close": "0.3949",
+        "volume": "30167.0",
+        "oi": "33933318.97444",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399580000,
+        "close": "0.392",
+        "volume": "24642.0",
+        "oi": "33848183.09691824",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399640000,
+        "close": "0.3898",
+        "volume": "19155.0",
+        "oi": "33839341.08717768",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399700000,
+        "close": "0.3887",
+        "volume": "51514.0",
+        "oi": "33738907.06306945",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399760000,
+        "close": "0.391",
+        "volume": "31963.0",
+        "oi": "33730184.210360005",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399820000,
+        "close": "0.3906",
+        "volume": "24146.0",
+        "oi": "33808281.98908",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399880000,
+        "close": "0.3908",
+        "volume": "17528.0",
+        "oi": "33857709.3547511",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781399940000,
+        "close": "0.3964",
+        "volume": "31726.0",
+        "oi": "34082227.12285137",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400000000,
+        "close": "0.4045",
+        "volume": "157955.0",
+        "oi": "34206946.38241",
+        "liquidationsLong": "50.412",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400060000,
+        "close": "0.4052",
+        "volume": "97666.0",
+        "oi": "34570862.58554788",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400120000,
+        "close": "0.4049",
+        "volume": "60639.0",
+        "oi": "34544020.92989",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400180000,
+        "close": "0.4021",
+        "volume": "36732.0",
+        "oi": "34569348.36152526",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400240000,
+        "close": "0.399",
+        "volume": "38095.0",
+        "oi": "34364493.10897352",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400300000,
+        "close": "0.3973",
+        "volume": "50175.0",
+        "oi": "34142486.8011224",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400360000,
+        "close": "0.3985",
+        "volume": "90853.0",
+        "oi": "34349370.79921715",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      },
+      {
+        "tsMs": 1781400420000,
+        "close": "0.3996",
+        "volume": "70844.0",
+        "oi": "34577134.479329005",
+        "liquidationsLong": "0.0",
+        "liquidationsShort": "0.0"
+      }
+    ]
+  }
+}

@@ -4,6 +4,8 @@ import { z } from 'zod';
 import type { WorkflowHandler } from '../workflow-router.ts';
 import { validateWithSchema } from '../../validation/validator.ts';
 import type { BotRunResultDetail } from '../../ports/bot-results-read.port.ts';
+import type { ClosedTrade } from '../../ports/bot-results-read.port.ts';
+import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
 import { validateHypothesis } from '../../validation/hypothesis-validator.ts';
 import { LAB_FEATURE_CATALOG, normalizeFeature } from '../../domain/hypothesis-rules.ts';
 import {
@@ -13,6 +15,7 @@ import {
 
 export const RESEARCH_DEFAULT_SYMBOL = 'BTCUSDT';
 export const BOT_RESULTS_MAX = 10;
+export const TRADE_EVIDENCE_MAX = 5;
 
 export const ResearchRunCyclePayloadSchema = z.object({
   strategyProfileId: z.string().min(1),
@@ -27,6 +30,19 @@ function errMsg(err: unknown): string {
 
 function event(taskId: string, type: string, payload: Record<string, unknown>) {
   return { id: randomUUID(), taskId, type, payload, createdAt: new Date().toISOString() };
+}
+
+function selectSuspiciousTradeIds(botResults: readonly BotRunResultDetail[], limit = TRADE_EVIDENCE_MAX): string[] {
+  return botResults
+    .flatMap((detail) => detail.trades)
+    .filter((trade) => Number(trade.realizedPnl) < 0)
+    .slice()
+    .sort((a: ClosedTrade, b: ClosedTrade) =>
+      Number(a.realizedPnl) - Number(b.realizedPnl)
+      || ((b.closedAtMs ?? 0) - b.openedAtMs) - ((a.closedAtMs ?? 0) - a.openedAtMs)
+      || a.tradeId.localeCompare(b.tradeId))
+    .slice(0, limit)
+    .map((trade) => trade.tradeId);
 }
 
 export const researchRunCycleHandler: WorkflowHandler = async (task, services) => {
@@ -75,11 +91,26 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
     await services.events.append(event(task.id, 'researcher.bot_results_unavailable', { error: errMsg(err) }));
   }
 
+  let tradeEvidence: readonly TradeEvidenceBundle[] = [];
+  try {
+    const tradeIds = selectSuspiciousTradeIds(botResults);
+    if (tradeIds.length > 0) {
+      tradeEvidence = await services.tradeEvidence.getTradeEvidence({
+        tradeIds,
+        minuteWindowBefore: 20,
+        minuteWindowAfter: 180,
+      });
+    }
+  } catch (err) {
+    await services.events.append(event(task.id, 'researcher.trade_evidence_unavailable', { error: errMsg(err) }));
+    tradeEvidence = [];
+  }
+
   await services.events.append(event(task.id, 'researcher.started', { strategyProfileId: profile.id }));
   let output: ResearcherOutput;
   try {
     output = await services.researcher.propose({
-      profile, marketContext, marketRegime, similarHypotheses, botResults, maxHypotheses: effectiveMax,
+      profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax,
     });
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.failed', { error: errMsg(err) }));
