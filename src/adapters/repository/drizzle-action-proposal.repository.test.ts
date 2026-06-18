@@ -20,6 +20,8 @@ const baseProposal = (over: Partial<ActionProposal> = {}): ActionProposal => ({
     userGoal: 'strategy.onboard',
   },
   status: 'pending',
+  evidenceRefs: [],
+  evidenceWarnings: [],
   expiresAt: '2026-06-18T12:10:00.000Z',
   createdAt: '2026-06-18T12:00:00.000Z',
   updatedAt: '2026-06-18T12:00:00.000Z',
@@ -50,6 +52,27 @@ d('DrizzleActionProposalRepository (integration)', () => {
 
   it('findById returns null for unknown id', async () => {
     expect(await repo.findById('does-not-exist')).toBeNull();
+  });
+
+  it('round-trips evidenceRefs and evidenceWarnings', async () => {
+    await repo.create(baseProposal({
+      evidenceRefs: [
+        { sourceType: 'strategy_profile', sourceId: 'sp-1', retrievalMethod: 'exact', observedAt: '2026-06-18T12:00:00.000Z' },
+        { sourceType: 'retrieval_projection', sourceId: 'sp-2', retrievalMethod: 'rrf', observedAt: '2026-06-18T12:00:01.000Z' },
+      ],
+      evidenceWarnings: ['vector_unavailable', 'lexical_unavailable'],
+    }));
+    const found = await repo.findById('p1');
+    expect(found?.evidenceRefs).toHaveLength(2);
+    expect(found?.evidenceRefs[1]).toMatchObject({ sourceId: 'sp-2', retrievalMethod: 'rrf', sourceType: 'retrieval_projection' });
+    expect(found?.evidenceWarnings).toEqual(['vector_unavailable', 'lexical_unavailable']);
+  });
+
+  it('defaults evidence fields to empty arrays', async () => {
+    await repo.create(baseProposal());
+    const found = await repo.findById('p1');
+    expect(found?.evidenceRefs).toEqual([]);
+    expect(found?.evidenceWarnings).toEqual([]);
   });
 
   // ---- confirm once then already_confirmed ----

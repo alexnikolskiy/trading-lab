@@ -15,6 +15,8 @@ const proposal = (over: Partial<ActionProposal> = {}): ActionProposal => ({
     userGoal: 'strategy.onboard',
   },
   status: 'pending',
+  evidenceRefs: [],
+  evidenceWarnings: [],
   expiresAt: '2026-06-18T12:10:00.000Z',
   createdAt: '2026-06-18T12:00:00.000Z',
   updatedAt: '2026-06-18T12:00:00.000Z',
@@ -29,6 +31,35 @@ describe('InMemoryActionProposalRepository', () => {
     expect(found).toEqual(proposal());
     found!.task.payload.content = 'mutated';
     expect((await repo.findById('p1'))?.task.payload.content).toBe('лонг после пролива');
+  });
+
+  it('round-trips evidenceRefs and evidenceWarnings without aliasing', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal({
+      evidenceRefs: [
+        { sourceType: 'strategy_profile', sourceId: 'sp-1', retrievalMethod: 'exact', observedAt: '2026-06-18T12:00:00.000Z' },
+        { sourceType: 'retrieval_projection', sourceId: 'sp-2', retrievalMethod: 'rrf', observedAt: '2026-06-18T12:00:01.000Z' },
+      ],
+      evidenceWarnings: ['vector_unavailable'],
+    }));
+    const found = await repo.findById('p1');
+    expect(found?.evidenceRefs).toHaveLength(2);
+    expect(found?.evidenceRefs[0]).toMatchObject({ sourceId: 'sp-1', retrievalMethod: 'exact' });
+    expect(found?.evidenceWarnings).toEqual(['vector_unavailable']);
+    // mutating the returned arrays must not affect the stored row (defensive copy)
+    found!.evidenceRefs.push({ sourceType: 'strategy_profile', sourceId: 'x', retrievalMethod: 'lexical', observedAt: 'z' });
+    found!.evidenceWarnings.push('mutated');
+    const again = await repo.findById('p1');
+    expect(again?.evidenceRefs).toHaveLength(2);
+    expect(again?.evidenceWarnings).toEqual(['vector_unavailable']);
+  });
+
+  it('defaults evidence fields to empty arrays', async () => {
+    const repo = new InMemoryActionProposalRepository();
+    await repo.create(proposal());
+    const found = await repo.findById('p1');
+    expect(found?.evidenceRefs).toEqual([]);
+    expect(found?.evidenceWarnings).toEqual([]);
   });
 
   it('confirms a live pending proposal once', async () => {

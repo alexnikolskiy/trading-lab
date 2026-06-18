@@ -1,4 +1,5 @@
 import type { AgentTaskType, TaskSource } from './types.ts';
+import type { EvidenceRef } from './strategy-retrieval.ts';
 
 export type ActionProposalStatus = 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'superseded';
 export type OperatorAction = 'strategy.analyze' | 'research.run_cycle' | 'hypothesis.build' | 'backtest.run';
@@ -24,6 +25,10 @@ export interface ActionProposal {
   source: TaskSource;
   task: ProposedTaskSnapshot;
   status: ActionProposalStatus;
+  /** Typed evidence references that justified this proposal (never raw retrieved bodies). */
+  evidenceRefs: EvidenceRef[];
+  /** Stable degradation/warning codes observed while gathering evidence. */
+  evidenceWarnings: string[];
   confirmedTaskId?: string;
   expiresAt: string;
   createdAt: string;

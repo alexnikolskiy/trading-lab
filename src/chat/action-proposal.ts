@@ -28,6 +28,9 @@ export function buildActionProposal(input: {
       userGoal: decision.userGoal,
     },
     status: 'pending',
+    // Evidence is attached by the Operator retrieval path (plan Task 8); default empty here.
+    evidenceRefs: [],
+    evidenceWarnings: [],
     expiresAt,
     createdAt: now,
     updatedAt: now,
