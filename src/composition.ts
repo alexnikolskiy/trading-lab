@@ -16,6 +16,7 @@ import type { StrategyAnalystPort } from './ports/strategy-analyst.port.ts';
 import { MockPlatformGatewayAdapter } from './adapters/platform/mock-platform-gateway.adapter.ts';
 import { selectResearchPlatform } from './adapters/platform/select-research-platform.ts';
 import { selectBotResults } from './adapters/platform/select-bot-results.ts';
+import { MockTradeEvidenceAdapter } from './adapters/platform/mock-trade-evidence.adapter.ts';
 import { FakeResearcher } from './adapters/researcher/fake-researcher.ts';
 import { MastraResearcher } from './adapters/researcher/mastra-researcher.ts';
 import { FakeCritic } from './adapters/critic/fake-critic.ts';
@@ -104,6 +105,7 @@ export function composeRuntime() {
     platform: new MockPlatformGatewayAdapter(),
     researchPlatform: selectResearchPlatform(env.TRADING_PLATFORM_INTEGRATION),
     botResults: selectBotResults(process.env),
+    tradeEvidence: new MockTradeEvidenceAdapter(),
     researcher: buildResearcher(mastraRuntime),
     critic: buildCritic(env, mastraRuntime),
     hypotheses,

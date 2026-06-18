@@ -19,6 +19,33 @@ describe('FixtureBotResultsAdapter', () => {
     expect(typeof s.pnlUsd).toBe('string');
   });
 
+  it('reads trades and summary by requested run id', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bot-results-fixture-'));
+    writeFileSync(join(dir, 'runs.json'), JSON.stringify([
+      { runId: 'run_a', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] },
+      { runId: 'run_b', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 3, finishedAtMs: 4, lastSeenMs: 4, symbols: ['BTCUSDT'] },
+    ]), 'utf8');
+    writeFileSync(join(dir, 'trades-by-run.json'), JSON.stringify({
+      run_a: [{ tradeId: 'trade_a', runId: 'run_a', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 2, realizedPnl: '-3', pnlPct: '-0.3', isWin: false, closeReason: 'stop_loss' }],
+      run_b: [{ tradeId: 'trade_b', runId: 'run_b', symbol: 'BTCUSDT', side: 'long', openedAtMs: 3, closedAtMs: 4, realizedPnl: '7', pnlPct: '0.7', isWin: true, closeReason: 'take_profit' }],
+    }), 'utf8');
+    writeFileSync(join(dir, 'summary-by-run.json'), JSON.stringify({
+      run_a: { runId: 'run_a', excludesReconcile: true, asOf: 2, closedTrades: 1, wins: 0, losses: 1, breakeven: 0, winratePct: 0, pnlUsd: '-3.00000000', avgPnl: '-3.00000000', exitReasons: { stop_loss: 1 } },
+      run_b: { runId: 'run_b', excludesReconcile: true, asOf: 4, closedTrades: 1, wins: 1, losses: 0, breakeven: 0, winratePct: 100, pnlUsd: '7.00000000', avgPnl: '7.00000000', exitReasons: { take_profit: 1 } },
+    }), 'utf8');
+
+    const adapter = new FixtureBotResultsAdapter(dir);
+
+    await expect(adapter.getClosedTrades('run_a')).resolves.toEqual([
+      expect.objectContaining({ tradeId: 'trade_a', runId: 'run_a' }),
+    ]);
+    await expect(adapter.getClosedTrades('run_b')).resolves.toEqual([
+      expect.objectContaining({ tradeId: 'trade_b', runId: 'run_b' }),
+    ]);
+    await expect(adapter.getRunSummary('run_a')).resolves.toEqual(expect.objectContaining({ runId: 'run_a', pnlUsd: '-3.00000000' }));
+    await expect(adapter.getRunSummary('run_b')).resolves.toEqual(expect.objectContaining({ runId: 'run_b', pnlUsd: '7.00000000' }));
+  });
+
   it('reads operational events pages and propagates cursor selection', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'fixture-bot-results-events-'));
     writeFileSync(join(dir, 'runs.json'), '[]');

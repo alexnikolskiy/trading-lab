@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
   BotResultsReadPort,
@@ -12,10 +12,18 @@ import type {
 
 /** Reads Surface-A-shaped JSON fixtures (port-shaped arrays/object) from a directory. Dev/offline use. */
 export class FixtureBotResultsAdapter implements BotResultsReadPort {
-  constructor(private readonly dir: string) {}
+  private readonly dir: string;
+
+  constructor(dir: string) {
+    this.dir = dir;
+  }
 
   private read<T>(file: string): T {
     return JSON.parse(readFileSync(join(this.dir, file), 'utf8')) as T;
+  }
+
+  private has(file: string): boolean {
+    return existsSync(join(this.dir, file));
   }
 
   private pageFile(prefix: 'events' | 'decisions', runId: string, cursor?: string): string {
@@ -25,10 +33,20 @@ export class FixtureBotResultsAdapter implements BotResultsReadPort {
   async listBotRuns(_filter?: BotRunsFilter): Promise<readonly BotRunRecord[]> {
     return this.read<BotRunRecord[]>('runs.json');
   }
-  async getClosedTrades(_runId: string): Promise<readonly ClosedTrade[]> {
+  async getClosedTrades(runId: string): Promise<readonly ClosedTrade[]> {
+    if (this.has('trades-by-run.json')) {
+      const byRun = this.read<Record<string, ClosedTrade[]>>('trades-by-run.json');
+      return byRun[runId] ?? [];
+    }
     return this.read<ClosedTrade[]>('trades.json');
   }
-  async getRunSummary(_runId: string): Promise<RunSummary> {
+  async getRunSummary(runId: string): Promise<RunSummary> {
+    if (this.has('summary-by-run.json')) {
+      const byRun = this.read<Record<string, RunSummary>>('summary-by-run.json');
+      const summary = byRun[runId];
+      if (!summary) throw new Error(`summary fixture not found for runId ${runId}`);
+      return summary;
+    }
     return this.read<RunSummary>('summary.json');
   }
   async getOperationalEvents(runId: string, cursor?: string): Promise<EventsPage> {

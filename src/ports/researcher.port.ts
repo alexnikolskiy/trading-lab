@@ -2,6 +2,7 @@ import type { StrategyProfile } from '../domain/strategy-profile.ts';
 import type { ResearcherOutput, SimilarHypothesisSummary } from '../domain/hypothesis.ts';
 import type { MarketContext, MarketRegime } from './platform-gateway.port.ts';
 import type { BotRunResultDetail } from './bot-results-read.port.ts';
+import type { TradeEvidenceBundle } from './trade-evidence-read.port.ts';
 
 export interface ResearcherInput {
   profile: StrategyProfile;
@@ -9,6 +10,7 @@ export interface ResearcherInput {
   marketRegime: MarketRegime;
   similarHypotheses: SimilarHypothesisSummary[];
   botResults?: readonly BotRunResultDetail[];
+  tradeEvidence?: readonly TradeEvidenceBundle[];
   maxHypotheses: number;
 }
 

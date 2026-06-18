@@ -7,6 +7,7 @@ import { FakeStrategyAnalyst } from '../../src/adapters/analyst/fake-strategy-an
 import { MockPlatformGatewayAdapter } from '../../src/adapters/platform/mock-platform-gateway.adapter.ts';
 import { MockResearchPlatformAdapter } from '../../src/adapters/platform/mock-research-platform.adapter.ts';
 import { MockBotResultsAdapter } from '../../src/adapters/platform/mock-bot-results.adapter.ts';
+import { MockTradeEvidenceAdapter } from '../../src/adapters/platform/mock-trade-evidence.adapter.ts';
 import { FakeResearcher } from '../../src/adapters/researcher/fake-researcher.ts';
 import { InMemoryHypothesisProposalRepository } from '../../src/adapters/repository/in-memory-hypothesis-proposal.repository.ts';
 import { InMemoryHypothesisReviewRepository } from '../../src/adapters/repository/in-memory-hypothesis-review.repository.ts';
@@ -30,6 +31,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     platform: new MockPlatformGatewayAdapter(),
     researchPlatform: new MockResearchPlatformAdapter(),
     botResults: new MockBotResultsAdapter(),
+    tradeEvidence: new MockTradeEvidenceAdapter(),
     researcher: new FakeResearcher(),
     critic: null, // base happy-path does not invoke Critic; tests opt in via overrides
     hypotheses,
