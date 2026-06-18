@@ -7,6 +7,18 @@ export interface PlannedNextStep {
   after: AgentTaskType;
 }
 
+export interface ProposedActionView {
+  id: 'confirm' | 'cancel';
+  label: string;
+  style: 'primary' | 'secondary';
+}
+
+export interface EvidencePresentation {
+  kind: 'interpretation' | 'warning';
+  text: string;
+  sourceId?: string;
+}
+
 export type ChatResponse =
   | { kind: 'task_created'; sessionId: string; taskId: string; taskType: AgentTaskType; status: TaskStatus; plannedNextStep?: PlannedNextStep }
   | { kind: 'task_status'; sessionId: string; taskId: string; status: TaskStatus }
@@ -15,7 +27,15 @@ export type ChatResponse =
   | { kind: 'capability_not_available'; sessionId: string; capability: string; message: string }
   | { kind: 'help'; sessionId: string; message: string; supportedIntents: string[] }
   | { kind: 'rejected'; sessionId: string; reason: string; issues?: ValidationIssue[] }
-  | { kind: 'error'; sessionId: string; message: string };
+  | { kind: 'error'; sessionId: string; message: string }
+  | {
+      kind: 'assistant_message';
+      sessionId: string;
+      message: string;
+      evidence: EvidencePresentation[];
+      actions: ProposedActionView[];
+      pendingInteractionId?: string;
+    };
 
 export function outOfScope(sessionId: string): Extract<ChatResponse, { kind: 'out_of_scope' }> {
   return {
@@ -56,4 +76,19 @@ export function rejected(sessionId: string, reason: string, issues?: ValidationI
 
 export function errorResponse(sessionId: string, message: string): Extract<ChatResponse, { kind: 'error' }> {
   return { kind: 'error', sessionId, message };
+}
+
+export function assistantMessage(
+  sessionId: string,
+  message: string,
+  opts: { evidence?: EvidencePresentation[]; actions?: ProposedActionView[]; pendingInteractionId?: string } = {},
+): Extract<ChatResponse, { kind: 'assistant_message' }> {
+  return {
+    kind: 'assistant_message',
+    sessionId,
+    message,
+    evidence: opts.evidence ?? [],
+    actions: opts.actions ?? [],
+    pendingInteractionId: opts.pendingInteractionId,
+  };
 }
