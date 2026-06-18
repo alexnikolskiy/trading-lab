@@ -10,6 +10,7 @@ import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { AppServices } from '../app-services.ts';
 import type { BotResultsReadPort } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceReadPort } from '../../ports/trade-evidence-read.port.ts';
+import { InMemoryQueueAdapter } from '../../adapters/queue/in-memory-queue.adapter.ts';
 
 function profile(): StrategyProfile {
   return {
@@ -163,6 +164,42 @@ describe('researchRunCycleHandler', () => {
 
     expect((await second.hypotheses.listByStrategyProfile('p1')).length).toBe(2);
     expect((await second.events.listByTask('t2')).map((e) => e.type)).not.toContain('hypothesis.deduped');
+  });
+
+  it('enqueues one hypothesis.build task per validated hypothesis (fan-out)', async () => {
+    const queue = new InMemoryQueueAdapter();
+    const twoHypotheses = [draft('thesis X', 'skip_entry', 1), draft('thesis Y', 'skip_entry', 2)];
+    const services = makeServices({
+      taskQueue: queue,
+      researcher: stubResearcher({ hypotheses: twoHypotheses, researchSummary: 's' }),
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+
+    const buildEnvelopes = queue.queued.filter((e) => e.taskType === 'hypothesis.build');
+    expect(buildEnvelopes).toHaveLength(2);
+
+    const savedHypotheses = await services.hypotheses.listByStrategyProfile('p1');
+    const savedIds = new Set(savedHypotheses.map((h) => h.id));
+    for (const env of buildEnvelopes) {
+      const buildTask = await services.researchTasks.findById(env.taskId);
+      expect(buildTask).not.toBeNull();
+      expect(buildTask?.taskType).toBe('hypothesis.build');
+      expect(savedIds.has(buildTask?.payload.hypothesisId as string)).toBe(true);
+    }
+  });
+
+  it('does NOT enqueue hypothesis.build for rejected hypotheses', async () => {
+    const queue = new InMemoryQueueAdapter();
+    const bad = draft('Place order on the exchange now');
+    const services = makeServices({
+      taskQueue: queue,
+      researcher: stubResearcher({ hypotheses: [bad], researchSummary: 's' }),
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+
+    expect(queue.queued.filter((e) => e.taskType === 'hypothesis.build')).toHaveLength(0);
   });
 
   it('gathers live bot-results (status=finished, symbol-filtered) and passes them to the researcher', async () => {

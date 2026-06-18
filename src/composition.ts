@@ -97,6 +97,7 @@ export function composeRuntime() {
   const hypotheses = new DrizzleHypothesisProposalRepository(db);
 
   const services: AppServices = {
+    taskQueue: queue,
     researchTasks: new DrizzleResearchTaskRepository(db),
     strategyProfiles: new DrizzleStrategyProfileRepository(db),
     analyst: buildAnalyst(mastraRuntime),
