@@ -158,9 +158,10 @@ export function scoreResearcherOutput(
   const needsEvidenceGrounding = evidenceSpecificPatterns(opts.botResults, opts.tradeEvidence).length > 0;
 
   const noStrategyRewrite = !STRATEGY_REWRITE_PATTERNS.some((p) => p.test(haystack));
-  // When forensic bundles are provided, output MUST mention ≥1 forensic symbol AND ≥2 lifecycle terms.
-  const forensicGrounded = !hasForensic
-    || (forensicSymGrounding.contribution > 0 && lifecycleGrounding.contribution > 0);
+  // When forensic bundles are provided, output MUST reference ≥2 lifecycle terms (dca/sl/hard_stop etc.).
+  // Symbol mentions are rewarded (forensic_symbol_grounding check) but NOT required: a hypothesis
+  // that explains the failure pattern generically (applicable to all symbols) is still valid.
+  const forensicGrounded = !hasForensic || lifecycleGrounding.contribution > 0;
 
   const gates = {
     schemaValid: true,

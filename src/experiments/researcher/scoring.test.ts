@@ -122,8 +122,10 @@ describe('scoreResearcherOutput', () => {
     expect(result.checks.find((c) => c.id === 'forensic_symbol_grounding')?.contribution).toBe(0);
   });
 
-  it('fails output that does not mention forensic symbols when tradeEvidence is present', () => {
-    // Mentions lifecycle terms (dca, sl, hard_stop) but no specific symbol
+  it('passes lifecycle-grounded output even without specific symbol mentions (forensicGrounded gate)', () => {
+    // Mentions lifecycle terms (dca, sl, hard_stop) but no specific symbol like ESPORTSUSDT.
+    // Symbol mentions are rewarded (forensic_symbol_grounding check) but are NOT a gate requirement:
+    // a hypothesis applicable to all symbols is still valid.
     const noSymbol = {
       researchSummary: 'Bot results show hard_stop losses with dca sequences. Entry occurred, then dca was triggered twice, then sl fired. OI dropped during the liquidation cascade.',
       hypotheses: [{
@@ -138,9 +140,10 @@ describe('scoreResearcherOutput', () => {
       }],
     };
     const result = scoreResearcherOutput(noSymbol, evalContext);
-    // Does not mention ESPORTSUSDT → forensic_symbol_grounding = 0 → forensicGrounded gate fails
-    expect(result.verdict).toBe('FAIL');
-    expect(result.gates.forensicGrounded).toBe(false);
+    // Lifecycle terms present (dca, sl, hard_stop) → forensicGrounded = true → PASS
+    expect(result.verdict).toBe('PASS');
+    expect(result.gates.forensicGrounded).toBe(true);
+    // Symbol not mentioned → forensic_symbol_grounding gets 0 contribution (check still exists)
     expect(result.checks.find((c) => c.id === 'forensic_symbol_grounding')?.contribution).toBe(0);
   });
 
