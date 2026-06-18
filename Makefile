@@ -1,6 +1,4 @@
 # Thin wrappers around the documented docker compose commands.
-COMPOSE = docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo
-
 .PHONY: demo local vps down smoke e2e config
 
 demo: .env.demo
