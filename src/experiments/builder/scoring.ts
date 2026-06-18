@@ -93,13 +93,17 @@ export function scoreBuilderOutput(
       : [`appliesTo mismatch: got "${output.manifest.appliesTo}", expected "${hypothesis.ruleAction.appliesTo}"`],
   ));
 
-  // 7. overlay has non-empty rules array  
-  const hasRules = /rules\s*:\s*\[/.test(src) && !/rules\s*:\s*\[\s*\]/.test(src);
+  // 7. overlay has non-trivial body: either data-driven rules[] OR functional overlay
+  const hasDataRules = /rules\s*:\s*\[/.test(src) && !/rules\s*:\s*\[\s*\]/.test(src);
+  const hasFunctionalOverlay = /export\s+const\s+overlay\s*=\s*(function|\()/.test(src);
+  const hasNonTrivialBody = hasDataRules || hasFunctionalOverlay;
   checks.push(check(
     'overlay_has_rules',
     0.10,
-    hasRules,
-    hasRules ? ['overlay.rules is non-empty'] : ['overlay.rules appears empty or missing'],
+    hasNonTrivialBody,
+    hasNonTrivialBody
+      ? [hasDataRules ? 'data-driven rules array present' : 'functional overlay body detected']
+      : ['overlay.rules appears empty or missing and no functional body detected'],
   ));
 
   const totalWeight = checks.reduce((s, c) => s + c.weight, 0);
