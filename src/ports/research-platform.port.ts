@@ -39,6 +39,8 @@ export interface SubmitOverlayRunOptions {
   readonly correlationId?: string;
   readonly resumeToken?: string;
   readonly workflowId?: string;
+  /** When set, backtester/platform POST a CompletionEvent here on terminal transition. */
+  readonly callbackUrl?: string;
 }
 
 export interface ValidateModuleOptions {

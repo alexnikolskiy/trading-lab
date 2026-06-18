@@ -12,6 +12,8 @@ export interface Env {
   TRADING_LAB_CHAT_TOKEN?: string;
   TRADING_LAB_TASK_TOKEN?: string;
   TRADING_LAB_CALLBACK_TOKEN?: string;
+  /** Public base URL of ingress (no trailing slash) — used to build backtest completion webhook URL. */
+  TRADING_LAB_CALLBACK_PUBLIC_URL?: string;
   TRADING_PLATFORM_INTEGRATION: 'mock' | 'mcp' | 'backtester';
   BACKTESTER_API_URL?: string;
   BACKTESTER_API_TOKEN?: string;
@@ -78,6 +80,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     TRADING_LAB_CHAT_TOKEN: source.TRADING_LAB_CHAT_TOKEN,
     TRADING_LAB_TASK_TOKEN: source.TRADING_LAB_TASK_TOKEN,
     TRADING_LAB_CALLBACK_TOKEN: source.TRADING_LAB_CALLBACK_TOKEN,
+    TRADING_LAB_CALLBACK_PUBLIC_URL: source.TRADING_LAB_CALLBACK_PUBLIC_URL,
     TRADING_PLATFORM_INTEGRATION:
       source.TRADING_PLATFORM_INTEGRATION === 'mcp'
         ? 'mcp'

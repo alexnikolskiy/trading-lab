@@ -36,6 +36,13 @@ export class InMemoryBacktestRunRepository implements BacktestRunRepository {
 
   async findById(id: string): Promise<BacktestRun | null> { return this.byId.get(id) ?? null; }
 
+  async findByPlatformRunId(platformRunId: string): Promise<BacktestRun | null> {
+    for (const r of this.byId.values()) {
+      if (r.platformRunId === platformRunId) return { ...r };
+    }
+    return null;
+  }
+
   async findByIdentity(hypothesisId: string, paramsHash: string, bundleHash: string): Promise<BacktestRun | null> {
     for (const r of this.byId.values()) {
       if (r.hypothesisId === hypothesisId && r.paramsHash === paramsHash && r.bundleHash === bundleHash) return { ...r };

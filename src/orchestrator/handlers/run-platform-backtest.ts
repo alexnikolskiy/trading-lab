@@ -46,7 +46,13 @@ export async function runPlatformBacktest(input: RunPlatformBacktestInput): Prom
   await services.events.append(event(task.id, 'build.platform_validated', { buildId, status: report.status }));
 
   // 2. Submit (transport / GatewayRunError propagate → worker retry; resumeToken makes the replay idempotent).
-  const opts: SubmitOverlayRunOptions = { baselineModuleRef: baselineRef, run: platformRun, correlationId: task.correlationId, resumeToken };
+  const opts: SubmitOverlayRunOptions = {
+    baselineModuleRef: baselineRef,
+    run: platformRun,
+    correlationId: task.correlationId,
+    resumeToken,
+    ...(services.backtestCallbackUrl !== undefined ? { callbackUrl: services.backtestCallbackUrl } : {}),
+  };
   const handle = await services.researchPlatform.submitOverlayRun(bundle, opts);
 
   // 3. Persist immediately so an accepted run is never lost before the poll resolves (SP-7.3 resumes from here).
@@ -73,6 +79,18 @@ export async function runPlatformBacktest(input: RunPlatformBacktestInput): Prom
     await services.events.append(event(task.id, 'backtest.pending', { runId, platformRunId: handle.runId, resumeToken }));
     return;
   }
+
+  // Race guard: a concurrent webhook resume may have finalized this run while we polled.
+  const again = await services.backtests.findById(runId);
+  if (!again || again.status !== 'submitted') {
+    await services.events.append(event(task.id, 'backtest.poll.skipped', { runId, reason: 'already_terminalized' }));
+    return;
+  }
+  if ((await services.evaluations.listByBacktestRun(runId)).length > 0) {
+    await services.events.append(event(task.id, 'backtest.poll.skipped', { runId, reason: 'already_evaluated' }));
+    return;
+  }
+
   const result = await applyPlatformTerminalOutcome(services, task, { runId, hypothesisId }, outcome);
   if (result.kind === 'completed') {
     await enqueueBacktestCompleted(services, task, {

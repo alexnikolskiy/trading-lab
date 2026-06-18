@@ -62,6 +62,7 @@ export class McpResearchPlatformAdapter implements ResearchPlatformPort {
       ...(opts.correlationId !== undefined ? { correlationId: opts.correlationId } : {}),
       ...(opts.resumeToken !== undefined ? { resumeToken: opts.resumeToken } : {}),
       ...(opts.workflowId !== undefined ? { workflowId: opts.workflowId } : {}),
+      ...(opts.callbackUrl !== undefined ? { callback: { url: opts.callbackUrl } } : {}),
     };
     const result = await submitRun(this.transport, request);
     if (!result.ok) throw new GatewayRunError(result.error);

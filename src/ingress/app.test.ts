@@ -2,22 +2,51 @@ import { describe, it, expect } from 'vitest';
 import type { Hono } from 'hono';
 import { createIngressApp } from './app.ts';
 import { InMemoryResearchTaskRepository } from '../adapters/repository/in-memory-research-task.repository.ts';
+import { InMemoryBacktestRunRepository } from '../adapters/repository/in-memory-backtest-run.repository.ts';
 import { InMemoryQueueAdapter } from '../adapters/queue/in-memory-queue.adapter.ts';
+import type { BacktestRun } from '../domain/backtest-run.ts';
 
 const TASK_TOKEN = 'task-secret';
 const CALLBACK_TOKEN = 'callback-secret';
+const NOW = '2026-01-01T00:00:00Z';
+
+function platformRun(over: Partial<BacktestRun> = {}): BacktestRun {
+  return {
+    id: 'br1', hypothesisBuildId: 'b1', hypothesisId: 'h1', strategyProfileId: 'p1',
+    platformRunId: 'platform-run-1', correlationId: 'c1', params: {}, paramsHash: 'sha256:p', bundleHash: 'sha256:bh',
+    status: 'submitted', baselineModuleId: 'strategy:p1', variantModuleId: 'overlay-h1',
+    backend: 'research_platform', resumeToken: 'tok', taskId: 't1',
+    platformRun: { datasetId: 'ds', symbols: ['BTCUSDT'], timeframe: '1h', period: { from: '2023-01-01', to: '2023-06-30' }, seed: 7 },
+    metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
+    artifactRefs: [], platformContractVersion: 'pending', sdkContractVersion: 'builder-sdk-v0',
+    submittedAt: NOW, finishedAt: null, createdAt: NOW, updatedAt: NOW, ...over,
+  };
+}
+
+const validCallback = JSON.stringify({
+  eventType: 'job_completed',
+  jobId: 'job-1',
+  runId: 'platform-run-1',
+  status: 'completed',
+  summary: {},
+  emittedAtMs: 1,
+});
 
 // Pass { taskToken: undefined } / { callbackToken: undefined } to exercise the unset (503) path.
-function setup(tokens: { taskToken?: string; callbackToken?: string } = {}) {
+function setup(tokens: { taskToken?: string; callbackToken?: string; withBacktests?: boolean } = {}) {
   const repo = new InMemoryResearchTaskRepository();
   const queue = new InMemoryQueueAdapter();
+  const backtests = new InMemoryBacktestRunRepository();
   const app = createIngressApp({
     repo,
     queue,
     taskToken: 'taskToken' in tokens ? tokens.taskToken : TASK_TOKEN,
     callbackToken: 'callbackToken' in tokens ? tokens.callbackToken : CALLBACK_TOKEN,
+    ...(tokens.withBacktests !== false
+      ? { findRunByPlatformRunId: (id) => backtests.findByPlatformRunId(id) }
+      : {}),
   });
-  return { app, repo, queue };
+  return { app, repo, queue, backtests };
 }
 
 const validTask = JSON.stringify({ taskType: 'strategy.onboard', source: 'web', payload: { url: 'x' } });
@@ -28,10 +57,17 @@ function postTask(app: Hono, body: string, token?: string | null) {
   return app.request('/tasks', { method: 'POST', headers, body });
 }
 
-function postCallback(app: Hono, token?: string | null) {
+function postCallback(
+  app: Hono,
+  body: string = validCallback,
+  opts: { bearer?: string | null; queryToken?: string } = {},
+) {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (token != null) headers.authorization = `Bearer ${token}`;
-  return app.request('/callbacks/backtest-completed', { method: 'POST', headers, body: '{}' });
+  if (opts.bearer != null) headers.authorization = `Bearer ${opts.bearer}`;
+  const url = opts.queryToken
+    ? `/callbacks/backtest-completed?token=${encodeURIComponent(opts.queryToken)}`
+    : '/callbacks/backtest-completed';
+  return app.request(url, { method: 'POST', headers, body });
 }
 
 describe('Ingress POST /tasks (authorized)', () => {
@@ -87,28 +123,45 @@ describe('Ingress POST /tasks auth gate', () => {
 describe('Ingress POST /callbacks/backtest-completed auth gate', () => {
   it('503 when the callback token is unset', async () => {
     const { app } = setup({ callbackToken: undefined });
-    const res = await postCallback(app, 'anything');
+    const res = await postCallback(app, validCallback, { bearer: 'anything' });
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({ error: { code: 'service_unavailable', message: 'callback ingress not configured' } });
   });
 
   it('401 when the callback token is wrong', async () => {
     const { app } = setup();
-    expect((await postCallback(app, 'nope')).status).toBe(401);
+    expect((await postCallback(app, validCallback, { bearer: 'nope' })).status).toBe(401);
   });
 
-  it('202 accepted (stub unchanged) when the callback token matches', async () => {
-    const { app } = setup();
-    const res = await postCallback(app, CALLBACK_TOKEN);
+  it('202 enqueues backtest.resume when Bearer token matches and run exists', async () => {
+    const { app, queue, backtests } = setup();
+    await backtests.createSubmitted(platformRun());
+    const res = await postCallback(app, validCallback, { bearer: CALLBACK_TOKEN });
     expect(res.status).toBe(202);
-    expect(await res.json()).toEqual({ status: 'accepted' });
+    expect(await res.json()).toMatchObject({ status: 'accepted', action: 'enqueued' });
+    expect(queue.queued).toHaveLength(1);
+    expect(queue.queued[0]!.taskType).toBe('backtest.resume');
+  });
+
+  it('202 accepts query ?token= without Bearer (backtester webhook shape)', async () => {
+    const { app, queue, backtests } = setup();
+    await backtests.createSubmitted(platformRun());
+    const res = await postCallback(app, validCallback, { queryToken: CALLBACK_TOKEN });
+    expect(res.status).toBe(202);
+    expect(queue.queued).toHaveLength(1);
+  });
+
+  it('503 when findRunByPlatformRunId is not wired', async () => {
+    const { app } = setup({ withBacktests: false });
+    const res = await postCallback(app, validCallback, { bearer: CALLBACK_TOKEN });
+    expect(res.status).toBe(503);
   });
 });
 
 describe('Ingress cross-token isolation', () => {
   it('the task token does NOT authorize /callbacks', async () => {
     const { app } = setup();
-    expect((await postCallback(app, TASK_TOKEN)).status).toBe(401);
+    expect((await postCallback(app, validCallback, { bearer: TASK_TOKEN })).status).toBe(401);
   });
 
   it('the callback token does NOT authorize /tasks', async () => {

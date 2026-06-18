@@ -148,7 +148,7 @@ describe('planChatAction', () => {
     expect(d.kind).toBe('create_task');
     if (d.kind === 'create_task') {
       expect(d.taskType).toBe('research.run_cycle');
-      expect(d.payload).toEqual({ strategyProfileId: 'p1' });
+      expect(d.payload).toEqual({ strategyProfileId: 'p1', cycleDepth: 0 });
     }
   });
 
@@ -165,7 +165,7 @@ describe('planChatAction', () => {
     expect(d.kind).toBe('create_task');
     if (d.kind === 'create_task') {
       expect(d.taskType).toBe('hypothesis.build');
-      expect(d.payload).toEqual({ hypothesisId: 'h1' });
+      expect(d.payload).toEqual({ hypothesisId: 'h1', cycleDepth: 0 });
     }
   });
 

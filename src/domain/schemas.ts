@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const AGENT_TASK_TYPES = [
   'strategy.onboard', 'strategy.analyze_source', 'research.generate_hypotheses',
-  'research.run_cycle', 'hypothesis.build', 'backtest.submit', 'backtest.completed',
+  'research.run_cycle', 'hypothesis.build', 'backtest.submit', 'backtest.resume', 'backtest.completed',
   'sweep.run', 'paper.start', 'paper.monitor', 'performance.review',
   'research.pause', 'research.wake_check',
 ] as const;
