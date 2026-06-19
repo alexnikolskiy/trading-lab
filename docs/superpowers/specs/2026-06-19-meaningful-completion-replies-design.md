@@ -64,7 +64,7 @@ privacy invariant intact.
 Lab-owned, discriminated by the completed task type:
 
 ```ts
-interface ProfileRef { id: string; name: string; direction: string | null }
+interface ProfileRef { id: string; coreIdea: string; direction: string }
 interface HypothesisRef { id: string; thesis: string; confidence: number | null; status: string | null }
 interface KeyMetrics {
   netPnlUsd: number | null; netPnlPct: number | null; winRate: number | null;
@@ -77,21 +77,30 @@ type EvaluationDecision = 'PASS' | 'FAIL' | 'MODIFY' | 'INCONCLUSIVE' | 'PAPER_C
 
 type CompletionSummary =
   | { kind: 'strategy.onboard'; taskId: string; status: string;
-      profile: ProfileRef | null; nextStep?: { taskType: string }; links: SummaryLinks }
+      profile: ProfileRef | null; nextStep?: { taskType: string }; links: SummaryLinks;
+      warnings: readonly string[] }
   | { kind: 'research.run_cycle'; taskId: string; status: string; profile: ProfileRef | null;
       counts: { proposed: number; validated: number; rejected: number; deduped: number;
                 criticReviews: number; backtestsEnqueued: number };
-      topHypotheses: readonly HypothesisRef[]; nextStep?: { taskType: string }; links: SummaryLinks }
+      topHypotheses: readonly HypothesisRef[]; nextStep?: { taskType: string }; links: SummaryLinks;
+      warnings: readonly string[] }
   | { kind: 'backtest.completed'; taskId: string; status: string; profile: ProfileRef | null;
       hypothesis: HypothesisRef | null; decision: EvaluationDecision;
-      metrics: KeyMetrics; reasons: readonly string[]; willRetry: boolean; links: SummaryLinks };
+      metrics: KeyMetrics; reasons: readonly string[]; willRetry: boolean; links: SummaryLinks;
+      warnings: readonly string[] };
 ```
 
 Notes:
+- `profile.coreIdea` is the strategy's 1–2 sentence core thesis (clipped); `direction` is one of
+  `long`/`short`/`both`/`unknown`.
 - `thesis` is bounded to a short length (e.g. ≤ 240 chars) for operator display; never raw secrets.
 - All metric fields nullable — mapped 1:1 from `BacktestMetricBlock`; absent metrics stay `null`.
 - `topHypotheses` capped at **K = 3**, validated hypotheses ordered by `confidence` desc, tiebreak by
   `id` asc (deterministic).
+- `warnings` carries privacy-safe **codes** (e.g. `backtest_read_failed`, `profile_read_failed`,
+  `events_read_failed`, `hypotheses_list_failed`) for sub-reads that failed during assembly, so the
+  operator/office can surface "часть данных недоступна" instead of a false absence. Empty on a clean
+  build. **Codes only** — no messages, IDs, or strategy text.
 
 ## 5. trading-lab — read-side assembler + endpoint (PR1)
 
@@ -111,8 +120,11 @@ Pure read-side composition from `taskId`, using existing read ports only. Switch
   `metrics` mapped from `BacktestRun(backtestRunId).metrics`; `willRetry` = `decision ∈ {FAIL, MODIFY}
   && cycleDepth < MAX_CYCLE_DEPTH`.
 
-**Graceful degradation is mandatory:** a missing/unfetchable entity yields a partial summary (null
-field / empty list), never a thrown error.
+**Graceful degradation is mandatory AND observable:** a missing/unfetchable entity yields a partial
+summary (null field / empty list), never a thrown error. Each swallowed sub-read also (a) appends a
+privacy-safe code to the summary's `warnings` and (b) emits one structured `console.warn`
+(`code` + `taskId` + error) — the only wired sink today; the same records flow to OTel/Phoenix once
+that backlog item lands. So degradation is never silent.
 
 ### 5.2 Endpoint
 - `GET /v1/tasks/{taskId}/completion-summary` on the existing `/v1` read-API.
@@ -121,7 +133,11 @@ field / empty list), never a thrown error.
   - `200` + `CompletionSummary` for a **completed** task of a supported type.
   - `404` for unknown task, non-completed task (running/failed/rejected), or unsupported task type →
     office falls back. Failed-task replies are unchanged (office keeps its existing failure path).
-- Read-only and additive: no new migration, no new domain events.
+- Read-only and **side-effect-free**: the GET never writes to the event log (no events emitted on a
+  read — avoids spam / non-idempotency on poll/retry). No migration. The completion *trigger* stays
+  push: office reacts to the worker's existing terminal events on `/v1/stream`; this endpoint only
+  assembles the rich payload (pull). Rich text (theses, `coreIdea`) travels here, over the
+  authenticated read — never in the event log (§12 privacy).
 
 ## 6. trading-office — fetch + render (PR2, depends on PR1)
 

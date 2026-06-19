@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { buildCompletionSummary, type CompletionSummaryDeps } from './completion-summary.ts';
 
 // Minimal in-memory deps. Each method returns canned data; override per test.
@@ -97,5 +97,38 @@ describe('buildCompletionSummary — research.run_cycle', () => {
     expect(s.counts).toEqual({ proposed: 0, validated: 0, rejected: 0, deduped: 0, criticReviews: 0, backtestsEnqueued: 0 });
     expect(s.topHypotheses).toEqual([]);
     expect(s.profile).toBeNull();
+  });
+});
+
+describe('buildCompletionSummary — degradation observability', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('records a privacy-safe warning code + warns + does not throw when a sub-read fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const deps = fakeDeps({
+      researchTasks: { findById: async () => completedTask({ payload: { backtestRunId: 'b1', strategyProfileId: 'p1', decision: 'PASS' } }) },
+      backtests: { getById: async () => { throw new Error('db down'); } },
+      strategyProfiles: { findById: async () => ({ id: 'p1', coreIdea: 'fade pumps', direction: 'short' }) },
+    });
+
+    const s = await buildCompletionSummary(deps, 't1');
+    if (s?.kind !== 'backtest.completed') throw new Error('wrong kind');
+    // degraded gracefully: the failed read becomes null, the rest of the summary is intact
+    expect(s.metrics.netPnlUsd).toBeNull();
+    expect(s.profile).toEqual({ id: 'p1', coreIdea: 'fade pumps', direction: 'short' });
+    // observable: a code in warnings + a structured log line
+    expect(s.warnings).toContain('backtest_read_failed');
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(String(warnSpy.mock.calls[0]?.[0] ?? '')).toContain('code=backtest_read_failed');
+  });
+
+  it('clean build leaves warnings empty', async () => {
+    const deps = fakeDeps({
+      researchTasks: { findById: async () => completedTask({ payload: { backtestRunId: 'b1', decision: 'PASS' } }) },
+      backtests: { getById: async () => ({ id: 'b1', metrics: null }) },
+    });
+    const s = await buildCompletionSummary(deps, 't1');
+    if (s?.kind !== 'backtest.completed') throw new Error('wrong kind');
+    expect(s.warnings).toEqual([]);
   });
 });

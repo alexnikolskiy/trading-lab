@@ -28,15 +28,17 @@ export interface BacktestCompletedCompletionSummary {
   kind: 'backtest.completed'; taskId: string; status: string; profile: ProfileRef | null;
   hypothesis: HypothesisRef | null; decision: EvaluationDecisionLabel;
   metrics: KeyMetrics; reasons: string[]; willRetry: boolean; links: SummaryLinks;
+  warnings: string[];
 }
 
 export interface RunCycleCompletionSummary {
   kind: 'research.run_cycle'; taskId: string; status: string; profile: ProfileRef | null;
   counts: { proposed: number; validated: number; rejected: number; deduped: number; criticReviews: number; backtestsEnqueued: number };
   topHypotheses: HypothesisRef[]; nextStep?: { taskType: string }; links: SummaryLinks;
+  warnings: string[];
 }
 
-export type CompletionSummary = BacktestCompletedCompletionSummary | RunCycleCompletionSummary;
+export type CompletionSummary = BacktestCompletedCompletionSummary | RunCycleCompletionSummary; // extended in later tasks
 
 export interface CompletionSummaryDeps {
   researchTasks: Pick<ResearchTaskRepository, 'findById'>;
@@ -48,9 +50,25 @@ export interface CompletionSummaryDeps {
 
 const THESIS_MAX = 240;
 const clip = (s: string, n = THESIS_MAX): string => (s.length <= n ? s : `${s.slice(0, n - 1)}…`);
+const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
 
-async function safe<T>(fn: () => Promise<T | null>): Promise<T | null> {
-  try { return await fn(); } catch { return null; }
+// Graceful-degradation reader, bound to one build. On a read failure it (1) records a privacy-safe
+// `code` in `warnings` — so the operator/office can surface "часть данных недоступна" instead of a
+// false "nothing found" — and (2) emits a structured warn log (the only wired sink today; the same
+// records flow to OTel/Phoenix once that backlog item lands). It then returns null so the summary
+// degrades to a partial result instead of throwing a 500. The GET endpoint stays side-effect-free:
+// nothing is written to the event log. The completion *trigger* is the worker's existing terminal
+// events on /v1/stream (push); this read only assembles the rich payload (pull).
+function makeSafe(taskId: string, warnings: string[]) {
+  return async function safe<T>(code: string, fn: () => Promise<T | null>): Promise<T | null> {
+    try {
+      return await fn();
+    } catch (err) {
+      warnings.push(code);
+      console.warn(`[completion-summary] degraded read code=${code} taskId=${taskId} error=${(err as Error).message}`);
+      return null;
+    }
+  };
 }
 
 function toKeyMetrics(m: BacktestMetricBlock | null): KeyMetrics {
@@ -65,13 +83,37 @@ function toHypothesisRef(h: HypothesisProposal): HypothesisRef {
   return { id: h.id, thesis: clip(h.thesis), confidence: h.confidence ?? null, status: h.status ?? null };
 }
 
-const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+async function buildBacktestCompleted(deps: CompletionSummaryDeps, task: ResearchTask): Promise<BacktestCompletedCompletionSummary> {
+  const warnings: string[] = [];
+  const safe = makeSafe(task.id, warnings);
+  const p = task.payload as {
+    backtestRunId?: string; hypothesisId?: string; strategyProfileId?: string;
+    decision?: string; reasons?: unknown; cycleDepth?: number;
+  };
+  const decision = (p.decision ?? 'INCONCLUSIVE') as EvaluationDecisionLabel;
+  const reasons = Array.isArray(p.reasons) ? p.reasons.map(String) : [];
+  const cycleDepth = typeof p.cycleDepth === 'number' ? p.cycleDepth : 0;
+  const run: BacktestRun | null = p.backtestRunId ? await safe('backtest_read_failed', () => deps.backtests.getById(p.backtestRunId!)) : null;
+  const hyp = p.hypothesisId ? await safe('hypothesis_read_failed', () => deps.hypotheses.getById(p.hypothesisId!)) : null;
+  const profile = p.strategyProfileId ? await safe('profile_read_failed', () => deps.strategyProfiles.findById(p.strategyProfileId!)) : null;
+  return {
+    kind: 'backtest.completed', taskId: task.id, status: task.status,
+    profile: profile ? toProfileRef(profile) : null,
+    hypothesis: hyp ? toHypothesisRef(hyp) : null,
+    decision, metrics: toKeyMetrics(run?.metrics ?? null), reasons,
+    willRetry: (decision === 'FAIL' || decision === 'MODIFY') && cycleDepth < MAX_CYCLE_DEPTH,
+    links: { taskId: task.id, profileId: p.strategyProfileId, hypothesisId: p.hypothesisId, backtestRunId: p.backtestRunId },
+    warnings,
+  };
+}
 
 async function buildRunCycle(deps: CompletionSummaryDeps, task: ResearchTask): Promise<RunCycleCompletionSummary> {
+  const warnings: string[] = [];
+  const safe = makeSafe(task.id, warnings);
   const profileId = (task.payload as { strategyProfileId?: string }).strategyProfileId;
-  const profile = profileId ? await safe(() => deps.strategyProfiles.findById(profileId)) : null;
+  const profile = profileId ? await safe('profile_read_failed', () => deps.strategyProfiles.findById(profileId)) : null;
 
-  const events = (await safe(() => deps.agentEvents.list({ taskId: task.id, type: 'research.run_cycle.completed', limit: 1 }))) ?? [];
+  const events = (await safe('events_read_failed', () => deps.agentEvents.list({ taskId: task.id, type: 'research.run_cycle.completed', limit: 1 }))) ?? [];
   const ev = events[0]?.payload as { proposed?: unknown; validated?: unknown; rejected?: unknown; deduped?: unknown; criticReviews?: unknown } | undefined;
   const validated = num(ev?.validated);
   const counts = {
@@ -81,7 +123,7 @@ async function buildRunCycle(deps: CompletionSummaryDeps, task: ResearchTask): P
 
   let topHypotheses: HypothesisRef[] = [];
   if (profileId) {
-    const hs = (await safe(() => deps.hypotheses.list({ profileId, status: 'validated', limit: 50 }))) ?? [];
+    const hs = (await safe('hypotheses_list_failed', () => deps.hypotheses.list({ profileId, status: 'validated', limit: 50 }))) ?? [];
     topHypotheses = [...hs]
       .sort((a, b) => (b.confidence - a.confidence) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .slice(0, 3)
@@ -92,32 +134,18 @@ async function buildRunCycle(deps: CompletionSummaryDeps, task: ResearchTask): P
     kind: 'research.run_cycle', taskId: task.id, status: task.status,
     profile: profile ? toProfileRef(profile) : null, counts, topHypotheses,
     links: { taskId: task.id, profileId },
-  };
-}
-
-async function buildBacktestCompleted(deps: CompletionSummaryDeps, task: ResearchTask): Promise<BacktestCompletedCompletionSummary> {
-  const p = task.payload as {
-    backtestRunId?: string; hypothesisId?: string; strategyProfileId?: string;
-    decision?: string; reasons?: unknown; cycleDepth?: number;
-  };
-  const decision = (p.decision ?? 'INCONCLUSIVE') as EvaluationDecisionLabel;
-  const reasons = Array.isArray(p.reasons) ? p.reasons.map(String) : [];
-  const cycleDepth = typeof p.cycleDepth === 'number' ? p.cycleDepth : 0;
-  const run: BacktestRun | null = p.backtestRunId ? await safe(() => deps.backtests.getById(p.backtestRunId!)) : null;
-  const hyp = p.hypothesisId ? await safe(() => deps.hypotheses.getById(p.hypothesisId!)) : null;
-  const profile = p.strategyProfileId ? await safe(() => deps.strategyProfiles.findById(p.strategyProfileId!)) : null;
-  return {
-    kind: 'backtest.completed', taskId: task.id, status: task.status,
-    profile: profile ? toProfileRef(profile) : null,
-    hypothesis: hyp ? toHypothesisRef(hyp) : null,
-    decision, metrics: toKeyMetrics(run?.metrics ?? null), reasons,
-    willRetry: (decision === 'FAIL' || decision === 'MODIFY') && cycleDepth < MAX_CYCLE_DEPTH,
-    links: { taskId: task.id, profileId: p.strategyProfileId, hypothesisId: p.hypothesisId, backtestRunId: p.backtestRunId },
+    warnings,
   };
 }
 
 export async function buildCompletionSummary(deps: CompletionSummaryDeps, taskId: string): Promise<CompletionSummary | null> {
-  const task = await safe(() => deps.researchTasks.findById(taskId));
+  let task: ResearchTask | null;
+  try {
+    task = await deps.researchTasks.findById(taskId);
+  } catch (err) {
+    console.warn(`[completion-summary] task lookup failed taskId=${taskId} error=${(err as Error).message}`);
+    return null;
+  }
   if (!task || task.status !== 'completed') return null;
   switch (task.taskType) {
     case 'backtest.completed': return buildBacktestCompleted(deps, task);

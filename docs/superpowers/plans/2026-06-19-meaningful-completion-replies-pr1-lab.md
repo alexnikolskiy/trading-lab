@@ -385,27 +385,36 @@ Expected: FAIL — onboard returns `null` (default branch).
 
 - [ ] **Step 3: Write minimal implementation** (add to `completion-summary.ts`)
 
+> **Observability pattern (added in the 2026-06-19 refinement, already live in `completion-summary.ts`):**
+> every kind builds via `const warnings: string[] = []; const safe = makeSafe(task.id, warnings);`,
+> each guarded read uses `safe('<code>_failed', () => ...)`, and the returned summary includes
+> `warnings`. Follow the same pattern here (onboard summary also carries `warnings`).
+
 ```ts
 export interface OnboardCompletionSummary {
   kind: 'strategy.onboard'; taskId: string; status: string;
   profile: ProfileRef | null; nextStep?: { taskType: string }; links: SummaryLinks;
+  warnings: string[];
 }
 // update: export type CompletionSummary = BacktestCompletedCompletionSummary | RunCycleCompletionSummary | OnboardCompletionSummary;
 
 async function buildOnboard(deps: CompletionSummaryDeps, task: ResearchTask): Promise<OnboardCompletionSummary> {
-  const events = (await safe(() => deps.agentEvents.list({ taskId: task.id, limit: 50 }))) ?? [];
+  const warnings: string[] = [];
+  const safe = makeSafe(task.id, warnings);
+  const events = (await safe('events_read_failed', () => deps.agentEvents.list({ taskId: task.id, limit: 50 }))) ?? [];
   let profileId: string | undefined;
   for (const e of events) {
     const pl = e.payload as { profileId?: unknown; strategyId?: unknown };
     if (typeof pl.profileId === 'string' && pl.profileId) { profileId = pl.profileId; break; }
     if (typeof pl.strategyId === 'string' && pl.strategyId) { profileId = pl.strategyId; break; }
   }
-  const profile = profileId ? await safe(() => deps.strategyProfiles.findById(profileId!)) : null;
+  const profile = profileId ? await safe('profile_read_failed', () => deps.strategyProfiles.findById(profileId!)) : null;
   return {
     kind: 'strategy.onboard', taskId: task.id, status: task.status,
     profile: profile ? toProfileRef(profile) : null,
     nextStep: { taskType: 'research.run_cycle' },
     links: { taskId: task.id, profileId },
+    warnings,
   };
 }
 ```
