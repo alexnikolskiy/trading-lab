@@ -15,7 +15,7 @@ stay behind the deterministic guard. Research-only — no live trading / executi
 | 1 | Confirmation core | ✅ Shipped (branch `feat/conversational-operator`) |
 | 2 | Operator RAG baseline | ✅ Shipped |
 | 3 | Meaningful completion replies | ✅ Shipped (lab #50 + office #11; PR2b backlog) |
-| — | Reranker follow-up | ⏳ Next (baseline eval now exists) |
+| — | Reranker follow-up | ✅ Scaffold shipped (#52; default OFF, enable deferred to independent corpus) |
 | 4 | Bot catalog + entity disambiguation | ⛔ Deferred — needs platform SDK + bot-identity DTO (see SDK initiative) |
 | 5 | Researcher / Artifact RAG | ⛔ Deferred — needs backtester SDK artifact API (see SDK initiative) |
 | — | Phoenix observability | 🔜 Backlog |
@@ -89,11 +89,19 @@ turn-based: `operatorTranscript` maps each reply to a user turn, so an unsolicit
 no home today), and (c) web rendering for assistant-only / proactive messages. The lab endpoint already
 serves `backtest.completed`. Deserves its own brainstorm → design → plan.
 
-### Reranker follow-up  — now unblocked
-A baseline eval exists, so the conditional `MastraRerankerAdapter` (the
-`RerankerPort` seam is already in place) can be added behind `OPERATOR_RERANKER`
-and enabled only if it shows ≥ +0.02 nDCG@5 over the RRF baseline within the
-latency budget. Needs its own design/plan. Reference: operator-rag design §7.
+### Reranker follow-up  — ✅ SCAFFOLD SHIPPED (default OFF)
+Shipped via **#52** (→ main `ffb68af`): the conditional `MastraRerankerAdapter` (`RerankerPort` impl
+over `@mastra/core/relevance`), the §7 gate/triggers (`shouldRerank`), deadline-bounded reranking in
+`OperatorRetrieval.#runHybrid` with RRF as the baseline + fallback, config behind `OPERATOR_RERANKER`
+(default `none`), and a deterministic RRF-vs-reranker nDCG@5 eval comparison + no-regression CI gate.
+**Not enabled** — the curated corpus has no headroom for the `+0.02 nDCG@5` gate. Spec:
+`docs/superpowers/specs/2026-06-19-operator-reranker-scaffold-design.md`; plan:
+`docs/superpowers/plans/2026-06-19-operator-reranker-scaffold.md`.
+
+**Enable-slice (later)** — gated on the independent eval corpus (tech debt below): finalize a dedicated
+reranker model + richer candidate text (candidates carry IDs/scores/metadata, not full strategy text
+today), run the live `--run` Mastra comparison, and flip `OPERATOR_RERANKER=mastra` only if it clears
+`+0.02 nDCG@5` within the latency budget.
 
 ### 4. Bot catalog + entity disambiguation  — ⛔ DEFERRED (SDK dependency)
 A lab-side `BotCatalogReadPort` (stable botId, aliases, strategy ref, market/symbol/
