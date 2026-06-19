@@ -3,6 +3,8 @@ import type { BacktestReadPort } from '../ports/backtest-read.port.ts';
 import type { AgentEventReadPort } from '../ports/agent-event-read.port.ts';
 import type { AgentEventStreamPort } from '../ports/agent-event-stream.port.ts';
 import type { AgentActivityProjection } from './projection.ts';
+import type { ResearchTaskRepository } from '../ports/research-task.repository.ts';
+import type { StrategyProfileRepository } from '../ports/strategy-profile.repository.ts';
 
 export interface ReadApiDeps {
   hypotheses: HypothesisReadPort;
@@ -13,4 +15,8 @@ export interface ReadApiDeps {
   streamHeartbeatMs: number;
   checkReadiness: () => Promise<boolean>;
   token: string;
+  // Read-only slice (findById) — keeps the read-API within its import boundary; composition passes the
+  // full repositories, which satisfy these structurally.
+  researchTasks: Pick<ResearchTaskRepository, 'findById'>;
+  strategyProfiles: Pick<StrategyProfileRepository, 'findById'>;
 }

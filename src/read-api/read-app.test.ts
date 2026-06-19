@@ -23,6 +23,8 @@ function deps(over: Partial<ReadApiDeps> = {}): ReadApiDeps {
     streamHeartbeatMs: 60_000,
     checkReadiness: async () => true,
     token: TOKEN,
+    researchTasks: { findById: async () => null },
+    strategyProfiles: { findById: async () => null },
     ...over,
   };
 }
