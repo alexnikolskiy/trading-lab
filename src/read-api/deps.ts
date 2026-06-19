@@ -15,6 +15,8 @@ export interface ReadApiDeps {
   streamHeartbeatMs: number;
   checkReadiness: () => Promise<boolean>;
   token: string;
-  researchTasks: ResearchTaskRepository;
-  strategyProfiles: StrategyProfileRepository;
+  // Read-only slice (findById) — keeps the read-API within its import boundary; composition passes the
+  // full repositories, which satisfy these structurally.
+  researchTasks: Pick<ResearchTaskRepository, 'findById'>;
+  strategyProfiles: Pick<StrategyProfileRepository, 'findById'>;
 }

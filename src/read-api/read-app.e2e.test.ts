@@ -5,8 +5,6 @@ import { InMemoryBacktestReadAdapter } from '../adapters/read/in-memory-backtest
 import { InMemoryAgentEventReadAdapter } from '../adapters/read/in-memory-agent-event-read.adapter.ts';
 import { AgentActivityProjection } from './projection.ts';
 import { InMemoryAgentEventStream } from '../adapters/read/in-memory-agent-event-stream.ts';
-import { InMemoryResearchTaskRepository } from '../adapters/repository/in-memory-research-task.repository.ts';
-import { InMemoryStrategyProfileRepository } from '../adapters/repository/in-memory-strategy-profile.repository.ts';
 
 describe('read-app e2e (in-memory wiring)', () => {
   it('serves the full route table behind auth', async () => {
@@ -19,8 +17,8 @@ describe('read-app e2e (in-memory wiring)', () => {
       streamHeartbeatMs: 60_000,
       checkReadiness: async () => true,
       token: 'e2e',
-      researchTasks: new InMemoryResearchTaskRepository(),
-      strategyProfiles: new InMemoryStrategyProfileRepository(),
+      researchTasks: { findById: async () => null },
+      strategyProfiles: { findById: async () => null },
     });
     const auth = { authorization: 'Bearer e2e' };
     for (const path of ['/v1/hypotheses', '/v1/backtests', '/v1/agent-events']) {
