@@ -372,7 +372,9 @@ export class OperatorRetrieval implements OperatorRetrievalPort {
             Math.min(rcfg.timeoutMs, remainingMs),
             budget,
           );
-          candidates = [...reranked];
+          // RRF is the floor: only adopt the reranked order if it is non-empty (a misbehaving
+        // reranker returning [] must not silently drop all candidates below the RRF baseline).
+        if (reranked.length > 0) candidates = [...reranked];
         } catch (err) {
           warnings.add(RETRIEVAL_WARNINGS.rerankFailed);
           if (isAbortError(err) || budget.hardExpired(this.#deps.clock())) {
