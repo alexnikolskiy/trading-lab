@@ -253,6 +253,8 @@ export function composeRuntime() {
       try { await db.execute(sql`select 1`); return true; } catch { return false; }
     },
     token: env.TRADING_LAB_READ_TOKEN ?? '',
+    researchTasks: services.researchTasks,
+    strategyProfiles,
   };
 
   return { env, db, pool, queue, router, services, chat, read, mastraRuntime };

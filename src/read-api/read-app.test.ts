@@ -9,6 +9,8 @@ import { AgentActivityProjection } from './projection.ts';
 import { InMemoryAgentEventStream } from '../adapters/read/in-memory-agent-event-stream.ts';
 import type { HypothesisProposal } from '../domain/hypothesis.ts';
 import type { AgentEventRow } from '../ports/agent-event-read.port.ts';
+import { InMemoryResearchTaskRepository } from '../adapters/repository/in-memory-research-task.repository.ts';
+import { InMemoryStrategyProfileRepository } from '../adapters/repository/in-memory-strategy-profile.repository.ts';
 
 const TOKEN = 'test-token';
 const AUTH = { authorization: `Bearer ${TOKEN}` };
@@ -23,6 +25,8 @@ function deps(over: Partial<ReadApiDeps> = {}): ReadApiDeps {
     streamHeartbeatMs: 60_000,
     checkReadiness: async () => true,
     token: TOKEN,
+    researchTasks: new InMemoryResearchTaskRepository(),
+    strategyProfiles: new InMemoryStrategyProfileRepository(),
     ...over,
   };
 }
