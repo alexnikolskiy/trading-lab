@@ -12,7 +12,6 @@ describe('buildActionProposal', () => {
       decision: {
         kind: 'propose_task',
         action: 'strategy.analyze',
-        intent: 'strategy.onboard',
         taskType: 'strategy.onboard',
         payload: { kind: 'manual_description', content: 'Лонг после пролива' },
         userGoal: 'strategy.onboard',
@@ -45,7 +44,6 @@ describe('buildActionProposal', () => {
       decision: {
         kind: 'propose_task',
         action: 'research.run_cycle',
-        intent: 'strategy.onboard',
         taskType: 'strategy.onboard',
         payload: { kind: 'manual_description', content: 'go long on oi spike' },
         chain: { nextTaskType: 'research.run_cycle', resolveProfileByFingerprint: 'sha256:abc' },
@@ -71,7 +69,6 @@ describe('buildActionProposal', () => {
       decision: {
         kind: 'propose_task',
         action: 'hypothesis.build',
-        intent: 'hypothesis.build',
         taskType: 'hypothesis.build',
         payload: { hypothesisId: 'h1', cycleDepth: 0 },
         userGoal: 'hypothesis.build',
@@ -95,7 +92,6 @@ describe('buildActionProposal', () => {
       decision: {
         kind: 'propose_task',
         action: 'strategy.analyze',
-        intent: 'strategy.onboard',
         taskType: 'strategy.onboard',
         payload: { kind: 'manual_description', content: 'some message' },
         dedupeKey: 'old-key-that-should-be-replaced',

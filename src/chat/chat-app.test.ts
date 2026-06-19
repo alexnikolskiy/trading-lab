@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createChatApp, type ChatAppDeps } from './chat-app.ts';
-import { FakeIntentClassifier } from '../adapters/intent/fake-intent-classifier.ts';
+import { FakeTurnInterpreter } from '../adapters/intent/fake-turn-interpreter.ts';
+import { FakeOperatorRetrieval } from '../../test/support/fake-operator-retrieval.ts';
 import { InMemoryResearchTaskRepository } from '../adapters/repository/in-memory-research-task.repository.ts';
 import { InMemoryStrategyProfileRepository } from '../adapters/repository/in-memory-strategy-profile.repository.ts';
 import { InMemoryHypothesisProposalRepository } from '../adapters/repository/in-memory-hypothesis-proposal.repository.ts';
@@ -14,7 +15,8 @@ const CHAT_TOKEN = 'chat-test-token';
 
 function appDeps(over: Partial<ChatAppDeps> = {}): ChatAppDeps {
   return {
-    classifier: new FakeIntentClassifier(),
+    interpreter: new FakeTurnInterpreter(),
+    retrieval: new FakeOperatorRetrieval(),
     sessions: new InMemoryChatSessionRepository(),
     plans: new InMemoryChatPlanRepository(),
     researchTasks: new InMemoryResearchTaskRepository(),
@@ -53,17 +55,17 @@ describe('POST /chat/messages', () => {
     expect(res.status).toBe(400);
   });
 
-  it('rejects a whitespace-only message with 400 and never calls the classifier', async () => {
+  it('rejects a whitespace-only message with 400 and never calls the interpreter', async () => {
     let calls = 0;
     const spy = {
       adapter: 'fake' as const,
       model: 'fake',
-      classify: async () => { calls += 1; return { intent: 'help', confidence: 1 }; },
+      interpret: async () => { calls += 1; return { subject: 'unknown', constraints: {}, references: [], confidence: 1 }; },
     };
-    const app = createChatApp(appDeps({ classifier: spy }));
+    const app = createChatApp(appDeps({ interpreter: spy }));
     const res = await post(app, { message: '   ' });
     expect(res.status).toBe(400);
-    expect(calls).toBe(0); // schema gate rejects before handler/classifier runs
+    expect(calls).toBe(0); // schema gate rejects before handler/interpreter runs
   });
 
   it('rejects an oversize message with 400', async () => {

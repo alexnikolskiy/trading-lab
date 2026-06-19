@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { TaskSource } from '../domain/types.ts';
-import type { IntentClassifierPort } from '../ports/intent-classifier.port.ts';
+import type { TurnInterpreterPort } from '../ports/turn-interpreter.port.ts';
+import type { OperatorRetrievalPort } from '../ports/operator-retrieval.port.ts';
+import type { OperatorEvidence } from '../domain/strategy-retrieval.ts';
 import type { ChatSessionContext, ChatSessionRepository } from '../ports/chat-session.repository.ts';
 import type { ChatPlanRepository } from '../ports/chat-plan.repository.ts';
 import type { ResearchTaskRepository } from '../ports/research-task.repository.ts';
@@ -11,16 +13,17 @@ import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 import type { ActionProposalRepository } from '../ports/action-proposal.repository.ts';
 import type { ActionProposal } from '../domain/action-proposal.ts';
 import { createAndEnqueueTask } from '../orchestrator/task-intake.ts';
-import { parseIntent, planChatAction, type PlanDecision } from './guard.ts';
+import { parseTurn, planChatAction, type PlanDecision } from './guard.ts';
 import { buildActionProposal } from './action-proposal.ts';
 import { resolveConfirmationReply } from './confirmation-resolver.ts';
 import {
-  assistantMessage, taskCreated, taskStatus, rejected, errorResponse,
-  type ChatResponse, type EvidencePresentation, type PlannedNextStep, type ProposedActionView,
+  assistantMessage, taskCreated, taskStatus, rejected, errorResponse, buildEvidenceCards,
+  type ChatResponse, type PlannedNextStep, type ProposedActionView,
 } from './response.ts';
 
 export interface ChatHandlerDeps {
-  classifier: IntentClassifierPort;
+  interpreter: TurnInterpreterPort;
+  retrieval: OperatorRetrievalPort;
   sessions: ChatSessionRepository;
   plans: ChatPlanRepository;
   researchTasks: ResearchTaskRepository;
@@ -48,8 +51,8 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     deps.events.append({ id: randomUUID(), taskId: chatRequestId, type, payload, createdAt: now() });
 
   // Confirmation consumption (second turn): when the session already holds a pending
-  // proposal, the reply is resolved against the STORED snapshot — never reclassified.
-  // The classifier is deliberately NOT consulted here, and a task is created exactly
+  // proposal, the reply is resolved against the STORED snapshot — never reinterpreted.
+  // The interpreter is deliberately NOT consulted here, and a task is created exactly
   // once, only on confirmed_now, through the same createAndEnqueueTask chokepoint.
   const pending = input.session.pendingInteraction;
   if (pending?.kind === 'action_confirmation') {
@@ -101,27 +104,33 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     }
   }
 
-  await ev('chat.intent_classifier.started', {
-    chatRequestId, sessionId: sid, adapter: deps.classifier.adapter, model: deps.classifier.model,
+  // ---- Turn interpretation (advisory; the guard's schema gate is the trust boundary) ----
+  await ev('chat.turn_interpreter.started', {
+    chatRequestId, sessionId: sid, adapter: deps.interpreter.adapter, model: deps.interpreter.model,
     messageChars: input.message.length, // length only — never the raw content
   });
 
   let raw: unknown;
   try {
-    raw = await deps.classifier.classify(input.message);
+    raw = await deps.interpreter.interpret(input.message);
   } catch (err) {
-    await ev('chat.intent_classifier.failed', { chatRequestId, error: err instanceof Error ? err.message : String(err) });
+    await ev('chat.turn_interpreter.failed', { chatRequestId, error: err instanceof Error ? err.message : String(err) });
     return errorResponse(sid, 'Не удалось обработать сообщение.');
   }
 
-  const parsed = parseIntent(raw);
+  const parsed = parseTurn(raw);
   if (!parsed.ok) {
-    await ev('chat.intent_guard.rejected', { chatRequestId, reason: 'schema_invalid' });
+    await ev('chat.turn_guard.rejected', { chatRequestId, reason: 'schema_invalid' });
     return rejected(sid, 'schema_invalid', parsed.issues);
   }
-  await ev('chat.intent_classifier.completed', { chatRequestId, intent: parsed.intent.intent, confidence: parsed.intent.confidence });
+  const turn = parsed.turn;
+  // Privacy: subject/goal/confidence + reference COUNT only — never the raw text or strategy body.
+  await ev('chat.turn.interpreted', {
+    chatRequestId, sessionId: sid, subject: turn.subject, goal: turn.goal ?? null,
+    confidence: turn.confidence, referenceCount: turn.references.length,
+  });
 
-  const decision = await planChatAction(parsed.intent, {
+  const decision = await planChatAction(turn, {
     message: input.message,
     session: input.session,
     minConfidence: deps.minConfidence,
@@ -130,12 +139,26 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
 
   if (decision.kind === 'respond') {
     if (decision.auditReason) {
-      await ev('chat.intent_guard.rejected', {
-        chatRequestId, reason: decision.auditReason, intent: parsed.intent.intent, confidence: parsed.intent.confidence,
+      await ev('chat.turn_guard.rejected', {
+        chatRequestId, reason: decision.auditReason, subject: turn.subject, confidence: turn.confidence,
       });
     }
     return decision.response;
   }
+
+  // ---- Operator retrieval: gather evidence BEFORE the proposal is built ----
+  const retrievalId = randomUUID();
+  const evidence: OperatorEvidence = await deps.retrieval.collect({
+    turn, message: input.message, sessionId: sid, retrievalId,
+  });
+  // Privacy: hashes/counts/codes/timings only — never the raw text, candidate bodies, or embeddings.
+  await ev('chat.retrieval.completed', {
+    chatRequestId, retrievalId, sessionId: sid,
+    subjectHash: evidence.subjectHash, status: evidence.status, exactLookup: evidence.exactLookup,
+    exactMatch: Boolean(evidence.exactMatch), similarCount: evidence.similarStrategies.length,
+    evidenceRefCount: evidence.evidenceRefs.length, degradedReasonCodes: [...evidence.warningCodes],
+    timingsMs: evidence.timingsMs,
+  });
 
   // Propose-and-confirm: the first turn writes an ActionProposal and asks the operator
   // to confirm. No task is created or enqueued here — that happens on confirmation (a
@@ -143,7 +166,7 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
   const proposalId = randomUUID();
   const expiresAt = new Date(Date.now() + deps.proposalTtlMs).toISOString();
   const proposal = buildActionProposal({
-    id: proposalId, sessionId: sid, source: input.source, message: input.message, decision, now: now(), expiresAt,
+    id: proposalId, sessionId: sid, source: input.source, message: input.message, decision, evidence, now: now(), expiresAt,
   });
   await deps.proposals.create(proposal);
 
@@ -154,14 +177,15 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     updatedAt: now(),
   });
 
-  // Privacy: IDs / types / expiry only — never the raw message or strategy text.
+  // Privacy: IDs / types / expiry / evidence COUNTS only — never the raw message or strategy text.
   await ev('chat.proposal.created', {
     chatRequestId, proposalId, sessionId: sid, action: decision.action, taskType: decision.taskType, expiresAt,
+    evidenceRefCount: proposal.evidenceRefs.length, evidenceWarningCount: proposal.evidenceWarnings.length,
   });
 
   const interpretation = interpretProposal(decision);
-  const evidence: EvidencePresentation[] = [{ kind: 'interpretation', text: interpretation }];
-  return assistantMessage(sid, interpretation, { evidence, actions: PENDING_ACTIONS, pendingInteractionId: proposalId });
+  const evidenceCards = buildEvidenceCards(interpretation, evidence);
+  return assistantMessage(sid, interpretation, { evidence: evidenceCards, actions: PENDING_ACTIONS, pendingInteractionId: proposalId });
 }
 
 /** The confirm/cancel view pair offered while a proposal awaits the operator. */

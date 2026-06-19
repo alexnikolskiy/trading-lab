@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handleChatMessage, type ChatHandlerDeps } from './chat-handler.ts';
-import { FakeIntentClassifier } from '../adapters/intent/fake-intent-classifier.ts';
+import { FakeTurnInterpreter } from '../adapters/intent/fake-turn-interpreter.ts';
+import { FakeOperatorRetrieval } from '../../test/support/fake-operator-retrieval.ts';
 import { InMemoryResearchTaskRepository } from '../adapters/repository/in-memory-research-task.repository.ts';
 import { InMemoryStrategyProfileRepository } from '../adapters/repository/in-memory-strategy-profile.repository.ts';
 import { InMemoryHypothesisProposalRepository } from '../adapters/repository/in-memory-hypothesis-proposal.repository.ts';
@@ -9,8 +10,13 @@ import { InMemoryChatSessionRepository } from '../adapters/repository/in-memory-
 import { InMemoryChatPlanRepository } from '../adapters/repository/in-memory-chat-plan.repository.ts';
 import { InMemoryActionProposalRepository } from '../adapters/repository/in-memory-action-proposal.repository.ts';
 import { InMemoryQueueAdapter } from '../adapters/queue/in-memory-queue.adapter.ts';
+import type { TurnInterpreterPort } from '../ports/turn-interpreter.port.ts';
 import type { ChatSessionContext } from '../ports/chat-session.repository.ts';
-import type { ChatIntent } from './intent.ts';
+
+/** A turn interpreter that always returns a fixed (canned) raw turn — for confidence-gate tests. */
+function cannedInterpreter(raw: unknown): TurnInterpreterPort {
+  return { adapter: 'fake', model: 'fake', interpret: async () => raw };
+}
 
 function deps(over: Partial<ChatHandlerDeps> = {}) {
   const researchTasks = new InMemoryResearchTaskRepository();
@@ -20,7 +26,8 @@ function deps(over: Partial<ChatHandlerDeps> = {}) {
   const sessions = new InMemoryChatSessionRepository();
   const proposals = new InMemoryActionProposalRepository();
   const base: ChatHandlerDeps = {
-    classifier: new FakeIntentClassifier(),
+    interpreter: new FakeTurnInterpreter(),
+    retrieval: new FakeOperatorRetrieval(),
     sessions, plans, researchTasks,
     strategyProfiles: new InMemoryStrategyProfileRepository(),
     hypotheses: new InMemoryHypothesisProposalRepository(),
@@ -60,8 +67,8 @@ describe('handleChatMessage', () => {
   });
 
   it('low confidence (canned) -> needs_clarification, no task', async () => {
-    const canned: ChatIntent = { intent: 'strategy.onboard', confidence: 0.2, strategyText: 'x' };
-    const { d, queue } = deps({ classifier: new FakeIntentClassifier(canned) });
+    const canned = { subject: 'strategy', strategyText: 'x', constraints: {}, references: [], confidence: 0.2 };
+    const { d, queue } = deps({ interpreter: cannedInterpreter(canned) });
     const r = await handleChatMessage({ message: 'whatever', session: session(), source: 'web' }, d);
     expect(r.kind).toBe('needs_clarification');
     expect(queue.queued).toHaveLength(0);
@@ -135,10 +142,59 @@ describe('handleChatMessage', () => {
     const d = { ...base.d, events: spyEvents as unknown as ChatHandlerDeps['events'] };
     const msg = 'покажи статус и больше ничего секретного';
     await handleChatMessage({ message: msg, session: session(), source: 'web' }, d);
-    const started = captured.find((c) => c.type === 'chat.intent_classifier.started');
+    const started = captured.find((c) => c.type === 'chat.turn_interpreter.started');
     expect(started?.payload.messageChars).toBe(msg.length);
     for (const c of captured) {
       expect(JSON.stringify(c.payload)).not.toContain('секретного');
+    }
+  });
+
+  it('runs retrieval before building the proposal and attaches evidence to proposal + message', async () => {
+    const retrieval = new FakeOperatorRetrieval({
+      exactLookup: 'miss',
+      similarStrategies: [{ strategyProfileId: 'sp-7', rrfScore: 0.5, metadata: {} }],
+      evidenceRefs: [{ sourceType: 'retrieval_projection', sourceId: 'sp-7', retrievalMethod: 'rrf', observedAt: '2026-06-18T00:00:00Z' }],
+      warningCodes: ['vector_unavailable'],
+    });
+    const { d, sessions, proposals } = deps({ retrieval });
+    const msg = 'Стратегия только в лонг на 1m свечах. Вход после пролива, open interest растёт, long-ликвидации. Тейк +3.5%, стоп -12%, DCA до двух доборов.';
+    const r = await handleChatMessage({ message: msg, session: session(), source: 'web' }, d);
+    expect(r.kind).toBe('assistant_message');
+    // Retrieval was consulted exactly once, before the proposal write.
+    expect(retrieval.calls).toHaveLength(1);
+    // Evidence rode onto the persisted proposal.
+    const saved = await proposals.findById((await sessions.get('s1'))!.pendingInteraction!.proposalId);
+    expect(saved?.evidenceRefs.map((e) => e.sourceId)).toEqual(['sp-7']);
+    expect(saved?.evidenceWarnings).toEqual(['vector_unavailable']);
+    // Evidence cards rode onto the assistant message (interpretation + similar + warning).
+    if (r.kind === 'assistant_message') {
+      expect(r.evidence.some((c) => c.kind === 'interpretation')).toBe(true);
+      expect(r.evidence.some((c) => c.kind === 'similar' && c.sourceId === 'sp-7')).toBe(true);
+      expect(r.evidence.some((c) => c.kind === 'warning' && c.text === 'vector_unavailable')).toBe(true);
+    }
+  });
+
+  it('emits chat.turn.interpreted -> chat.retrieval.completed -> chat.proposal.created (no raw text)', async () => {
+    const captured: { type: string; payload: Record<string, unknown> }[] = [];
+    const base = deps();
+    const spyEvents = {
+      append: async (e: { type: string; payload: Record<string, unknown> }) => { captured.push({ type: e.type, payload: e.payload }); },
+      listByTask: async () => [],
+    };
+    const d = { ...base.d, events: spyEvents as unknown as ChatHandlerDeps['events'] };
+    const msg = 'Стратегия только в лонг на 1m. Вход после пролива, open interest растёт, тейк +3.5%, стоп -12%, DCA доборы.';
+    await handleChatMessage({ message: msg, session: session(), source: 'web' }, d);
+    const order = captured
+      .filter((e) => ['chat.turn.interpreted', 'chat.retrieval.completed', 'chat.proposal.created'].includes(e.type))
+      .map((e) => e.type);
+    expect(order).toEqual(['chat.turn.interpreted', 'chat.retrieval.completed', 'chat.proposal.created']);
+    // Privacy: no raw strategy text in any payload; the interpreted event carries no strategyText.
+    const interpreted = captured.find((e) => e.type === 'chat.turn.interpreted');
+    expect(interpreted?.payload.subject).toBe('strategy');
+    expect(interpreted?.payload).not.toHaveProperty('strategyText');
+    for (const c of captured) {
+      expect(JSON.stringify(c.payload)).not.toContain('пролива');
+      expect(JSON.stringify(c.payload)).not.toContain('1m');
     }
   });
 });
@@ -159,7 +215,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
 
   it('confirms a pending strategy proposal: enqueues exactly once and clears pending state', async () => {
     const { d, queue, sessions } = deps();
-    const classifySpy = vi.spyOn(d.classifier, 'classify');
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
     const savedSession = await firstTurn(d, strategyMsg, sessions);
     const callsAfterFirstTurn = classifySpy.mock.calls.length;
 
@@ -167,7 +223,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     expect(confirmed.kind).toBe('task_created');
     expect(queue.queued).toHaveLength(1);
     expect((await sessions.get('s1'))?.pendingInteraction).toBeUndefined();
-    // The classifier is NEVER consulted for a pending-confirmation reply.
+    // The interpreter is NEVER consulted for a pending-confirmation reply.
     expect(classifySpy.mock.calls.length).toBe(callsAfterFirstTurn);
   });
 
@@ -222,7 +278,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     const { queue, sessions, proposals } = base;
     const savedSession = await firstTurn(d, strategyMsg, sessions);
     const proposalId = savedSession.pendingInteraction!.proposalId;
-    const classifySpy = vi.spyOn(d.classifier, 'classify');
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
 
     const cancelled = await handleChatMessage({ message: 'отмена', session: savedSession, source: 'web' }, d);
     expect(cancelled.kind).toBe('assistant_message');
@@ -242,7 +298,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     expect(r.kind).toBe('assistant_message');
     const savedSession = await sessions.get('s1');
     const proposalId = savedSession!.pendingInteraction!.proposalId;
-    const classifySpy = vi.spyOn(d.classifier, 'classify');
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
 
     const expired = await handleChatMessage({ message: 'да', session: savedSession!, source: 'web' }, d);
     expect(expired.kind).toBe('assistant_message');
@@ -264,7 +320,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     const { queue, sessions } = base;
     const savedSession = await firstTurn(d, strategyMsg, sessions);
     const proposalId = savedSession.pendingInteraction!.proposalId;
-    const classifySpy = vi.spyOn(d.classifier, 'classify');
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
 
     const unresolvedMsg = 'покажи похожие';
     const r = await handleChatMessage({ message: unresolvedMsg, session: savedSession, source: 'web' }, d);
@@ -348,7 +404,7 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
     const ghost = session({
       pendingInteraction: { kind: 'action_confirmation', proposalId: 'does-not-exist', expiresAt: '2999-01-01T00:00:00Z' },
     });
-    const classifySpy = vi.spyOn(d.classifier, 'classify');
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
     const r = await handleChatMessage({ message: 'да', session: ghost, source: 'web' }, d);
     expect(r.kind).toBe('assistant_message');
     expect(queue.queued).toHaveLength(0);

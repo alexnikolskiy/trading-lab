@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { createChatApp } from '../../src/chat/chat-app.ts';
 import { advanceChatPlan } from '../../src/orchestrator/chain-runner.ts';
 import { makeServices } from '../support/make-services.ts';
-import { FakeIntentClassifier } from '../../src/adapters/intent/fake-intent-classifier.ts';
+import { FakeTurnInterpreter } from '../../src/adapters/intent/fake-turn-interpreter.ts';
+import { FakeOperatorRetrieval } from '../support/fake-operator-retrieval.ts';
 import { InMemoryQueueAdapter } from '../../src/adapters/queue/in-memory-queue.adapter.ts';
 import { WorkflowRouter } from '../../src/orchestrator/workflow-router.ts';
 import { strategyOnboardHandler } from '../../src/orchestrator/handlers/strategy-onboard.handler.ts';
@@ -54,7 +55,8 @@ describe('e2e: two-turn chat — propose then confirm, then worker drains', () =
     });
 
     const app = createChatApp({
-      classifier: new FakeIntentClassifier(),
+      interpreter: new FakeTurnInterpreter(),
+      retrieval: new FakeOperatorRetrieval(),
       sessions: services.chatSessions, plans: services.chatPlans,
       researchTasks: services.researchTasks, strategyProfiles: services.strategyProfiles,
       hypotheses: services.hypotheses, events, queue,

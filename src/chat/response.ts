@@ -1,5 +1,6 @@
 import type { AgentTaskType, TaskStatus } from '../domain/types.ts';
 import type { ValidationIssue } from '../domain/schemas.ts';
+import type { OperatorEvidence } from '../domain/strategy-retrieval.ts';
 import { ALLOWED_INTENTS } from './intent.ts';
 
 export interface PlannedNextStep {
@@ -14,9 +15,41 @@ export interface ProposedActionView {
 }
 
 export interface EvidencePresentation {
-  kind: 'interpretation' | 'warning';
+  kind: 'interpretation' | 'warning' | 'exact_duplicate' | 'similar';
   text: string;
   sourceId?: string;
+}
+
+/**
+ * Typed evidence cards for an assistant proposal message, built from the deterministic
+ * interpretation text plus the Operator retrieval result. Card order is stable:
+ *   1. interpretation (always)
+ *   2. exact_duplicate (only when an exact fingerprint hit was found)
+ *   3. similar          (one card per similar candidate)
+ *   4. warning          (one card per degradation/warning code)
+ * Cards carry only ids/labels/codes — never raw strategy text or embeddings.
+ */
+export function buildEvidenceCards(interpretation: string, evidence?: OperatorEvidence): EvidencePresentation[] {
+  const cards: EvidencePresentation[] = [{ kind: 'interpretation', text: interpretation }];
+  if (!evidence) return cards;
+
+  if (evidence.exactLookup === 'hit' && evidence.exactMatch) {
+    cards.push({
+      kind: 'exact_duplicate',
+      text: 'Похоже, такая стратегия уже есть (точное совпадение).',
+      sourceId: evidence.exactMatch.strategyProfileId,
+    });
+  }
+
+  for (const candidate of evidence.similarStrategies) {
+    cards.push({ kind: 'similar', text: 'similar', sourceId: candidate.strategyProfileId });
+  }
+
+  for (const code of evidence.warningCodes) {
+    cards.push({ kind: 'warning', text: code });
+  }
+
+  return cards;
 }
 
 export type ChatResponse =

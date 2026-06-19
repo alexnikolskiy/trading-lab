@@ -5,7 +5,6 @@ import type { ResearchTaskRepository } from '../ports/research-task.repository.t
 import type { StrategyProfileRepository } from '../ports/strategy-profile.repository.ts';
 import type { HypothesisProposalRepository } from '../ports/hypothesis-proposal.repository.ts';
 import type { ChatSessionContext } from '../ports/chat-session.repository.ts';
-import type { ChatIntent } from './intent.ts';
 
 export interface RefResolverDeps {
   researchTasks: Pick<ResearchTaskRepository, 'findById'>;
@@ -14,16 +13,17 @@ export interface RefResolverDeps {
 }
 
 /** Resolve a task for task.status: session pointer first, then the UNTRUSTED taskIdHint
- *  (verified via findById). Returns the verified task or null. */
+ *  (verified via findById). Returns the verified task or null. The hint is whatever the
+ *  turn interpreter surfaced (a reference string) — never trusted without a findById. */
 export async function resolveStatusTask(
-  intent: ChatIntent, session: ChatSessionContext, deps: RefResolverDeps,
+  taskIdHint: string | undefined, session: ChatSessionContext, deps: RefResolverDeps,
 ): Promise<ResearchTask | null> {
   if (session.lastResearchTaskId) {
     const t = await deps.researchTasks.findById(session.lastResearchTaskId);
     if (t) return t;
   }
-  if (intent.taskIdHint) {
-    const t = await deps.researchTasks.findById(intent.taskIdHint);
+  if (taskIdHint) {
+    const t = await deps.researchTasks.findById(taskIdHint);
     if (t) return t;
   }
   return null;
