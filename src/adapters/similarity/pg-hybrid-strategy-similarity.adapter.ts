@@ -1,6 +1,6 @@
 // src/adapters/similarity/pg-hybrid-strategy-similarity.adapter.ts
 
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import type { StrategySimilarityPort } from '../../ports/strategy-similarity.port.ts';
 import type {
@@ -27,26 +27,21 @@ interface VectorRow {
 
 function buildMetadataConditions(
   filters: StrategySimilarityQuery['filters'],
-): string[] {
-  const conds: string[] = [];
+): SQL[] {
+  const conds: SQL[] = [];
   if (filters.market) {
-    conds.push(`metadata->>'market' = '${escapeJsonValue(filters.market)}'`);
+    conds.push(sql`metadata->>'market' = ${filters.market}`);
   }
   if (filters.symbol) {
-    conds.push(`metadata->>'symbol' = '${escapeJsonValue(filters.symbol)}'`);
+    conds.push(sql`metadata->>'symbol' = ${filters.symbol}`);
   }
   if (filters.timeframe) {
-    conds.push(`metadata->>'timeframe' = '${escapeJsonValue(filters.timeframe)}'`);
+    conds.push(sql`metadata->>'timeframe' = ${filters.timeframe}`);
   }
   if (filters.direction) {
-    conds.push(`metadata->>'direction' = '${escapeJsonValue(filters.direction)}'`);
+    conds.push(sql`metadata->>'direction' = ${filters.direction}`);
   }
   return conds;
-}
-
-/** Minimal escaping — values come from validated query filters, not user-supplied SQL. */
-function escapeJsonValue(v: string): string {
-  return v.replace(/'/g, "''");
 }
 
 function formatVectorLiteral(embedding: readonly number[]): string {
@@ -92,38 +87,43 @@ export class PgHybridStrategySimilarityAdapter implements StrategySimilarityPort
     const vectorLimit = query.vectorLimit ?? 50;
     const fusedLimit = query.fusedLimit ?? 20;
 
-    const metaConds = buildMetadataConditions(query.filters);
-    const excludeCond = query.excludeProfileId
-      ? `strategy_profile_id <> '${escapeJsonValue(query.excludeProfileId)}'`
-      : null;
-
-    const extraWhere = [...metaConds, ...(excludeCond ? [excludeCond] : [])];
-    const extraClause = extraWhere.length > 0 ? `AND ${extraWhere.join(' AND ')}` : '';
+    // Build shared extra conditions (metadata filters + exclusion).
+    const extraConds: SQL[] = [...buildMetadataConditions(query.filters)];
+    if (query.excludeProfileId) {
+      extraConds.push(sql`strategy_profile_id <> ${query.excludeProfileId}`);
+    }
 
     // --- Lexical branch ---
-    const lexicalSql = sql.raw(`
+    const tsQuery = sql`plainto_tsquery('simple', ${query.text})`;
+    const tsRank = sql`ts_rank_cd(search_vector, plainto_tsquery('simple', ${query.text}))`;
+    const lexicalConds: SQL[] = [sql`search_vector @@ ${tsQuery}`, ...extraConds];
+    const lexicalWhere = sql.join(lexicalConds, sql` AND `);
+
+    const lexicalSql = sql`
       SELECT strategy_profile_id, metadata,
-             ts_rank_cd(search_vector, plainto_tsquery('simple', ${sqlStringLiteral(query.text)})) AS score
+             ${tsRank} AS score
       FROM strategy_retrieval_document
-      WHERE search_vector @@ plainto_tsquery('simple', ${sqlStringLiteral(query.text)})
-        ${extraClause}
-      ORDER BY ts_rank_cd(search_vector, plainto_tsquery('simple', ${sqlStringLiteral(query.text)})) DESC,
+      WHERE ${lexicalWhere}
+      ORDER BY ${tsRank} DESC,
                strategy_profile_id ASC
       LIMIT ${lexicalLimit}
-    `);
+    `;
 
     // --- Vector branch ---
-    const vecLiteral = `'${formatVectorLiteral(query.embedding)}'::vector`;
-    const vectorSql = sql.raw(`
+    const vecLiteral = formatVectorLiteral(query.embedding);
+    const vecDistance = sql`embedding <=> ${vecLiteral}::vector`;
+    const vectorConds: SQL[] = [sql`embedding IS NOT NULL`, ...extraConds];
+    const vectorWhere = sql.join(vectorConds, sql` AND `);
+
+    const vectorSql = sql`
       SELECT strategy_profile_id, metadata,
-             (embedding <=> ${vecLiteral}) AS distance
+             (${vecDistance}) AS distance
       FROM strategy_retrieval_document
-      WHERE embedding IS NOT NULL
-        ${extraClause}
-      ORDER BY embedding <=> ${vecLiteral},
+      WHERE ${vectorWhere}
+      ORDER BY ${vecDistance},
                strategy_profile_id ASC
       LIMIT ${vectorLimit}
-    `);
+    `;
 
     const abortCheck = (): boolean => query.signal?.aborted ?? false;
 
@@ -206,9 +206,4 @@ export class PgHybridStrategySimilarityAdapter implements StrategySimilarityPort
 
     return { candidates, degradedReasonCodes };
   }
-}
-
-/** Safely wrap a string as a SQL single-quoted literal (escaping single quotes). */
-function sqlStringLiteral(s: string): string {
-  return `'${s.replace(/'/g, "''")}'`;
 }
