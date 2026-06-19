@@ -45,6 +45,10 @@ export interface CaseRetrievalResult {
 
 export interface CaseMetrics {
   id: string;
+  /** true when expectedRelevantIds is non-empty; false for no-match cases.
+   *  Recall@k, MRR, and nDCG are UNDEFINED (and therefore EXCLUDED from
+   *  their aggregate means) when hasRelevantDocs is false. */
+  hasRelevantDocs: boolean;
   recallAt20: number;
   reciprocalRank: number;
   ndcgAt5: number;
@@ -60,9 +64,9 @@ export interface CaseMetrics {
 export interface GateResult {
   exactIdentityAccuracy: number; // fraction of cases with expectedExactId where exact hit = 1.0
   falseSemanticExactCount: number; // # cases where top-1 is incorrectly asserted as exact
-  recallAt20: number; // mean Recall@20 over all cases
-  mrr: number; // Mean Reciprocal Rank
-  ndcgAt5: number; // mean nDCG@5 over all cases
+  recallAt20: number; // mean Recall@20 over cases WITH relevant docs (hasRelevantDocs=true)
+  mrr: number; // Mean Reciprocal Rank over cases WITH relevant docs
+  ndcgAt5: number; // mean nDCG@5 over cases WITH relevant docs
   // Pass/fail per gate
   gateExactIdentity: boolean; // exactIdentityAccuracy === 1.0
   gateFalseSemanticExact: boolean; // falseSemanticExactCount === 0

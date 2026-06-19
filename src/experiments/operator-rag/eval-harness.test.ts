@@ -54,6 +54,7 @@ describe('computeCaseMetrics', () => {
     };
     const metrics = computeCaseMetrics(retrieved, exactCase);
 
+    expect(metrics.hasRelevantDocs).toBe(true); // exactCase has expectedRelevantIds
     expect(metrics.exactIdentityHit).toBe(true);
     expect(metrics.recallAt20).toBe(1.0); // strat-001 in top-20
     expect(metrics.reciprocalRank).toBe(1.0); // rank 1
@@ -87,10 +88,11 @@ describe('computeCaseMetrics', () => {
       error: null,
     };
     const metrics = computeCaseMetrics(retrieved, semanticCase);
+    expect(metrics.hasRelevantDocs).toBe(true); // semanticCase has expectedRelevantIds
     expect(metrics.exactIdentityHit).toBeNull();
   });
 
-  it('no-match case: all metrics are 0, no exactIdentityHit, no falseSemanticExact', () => {
+  it('no-match case: hasRelevantDocs=false, all IR metrics 0, no exactIdentityHit, no falseSemanticExact', () => {
     const retrieved: CaseRetrievalResult = {
       id: 'no-match-1',
       query: 'obscure zigzag oscillator',
@@ -99,6 +101,7 @@ describe('computeCaseMetrics', () => {
     };
     const metrics = computeCaseMetrics(retrieved, noMatchCase);
 
+    expect(metrics.hasRelevantDocs).toBe(false); // no relevant docs → excluded from IR means
     expect(metrics.recallAt20).toBe(0); // no relevant docs
     expect(metrics.reciprocalRank).toBe(0);
     expect(metrics.ndcgAt5).toBe(0); // gradedRelevance empty → IDCG=0
@@ -157,9 +160,9 @@ describe('computeCaseMetrics', () => {
 describe('evaluateGates', () => {
   it('all gates pass with perfect results', () => {
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: true, falseSemanticExact: false },
-      { id: 'c2', recallAt20: 1.0, reciprocalRank: 0.5, ndcgAt5: 0.9, exactIdentityHit: true, falseSemanticExact: false },
-      { id: 'c3', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: true, falseSemanticExact: false },
+      { id: 'c2', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 0.5, ndcgAt5: 0.9, exactIdentityHit: true, falseSemanticExact: false },
+      { id: 'c3', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.gateExactIdentity).toBe(true);
@@ -172,8 +175,8 @@ describe('evaluateGates', () => {
 
   it('gateExactIdentity fails when any exact-identity case misses', () => {
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: true, falseSemanticExact: false },
-      { id: 'c2', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: false, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: true, falseSemanticExact: false },
+      { id: 'c2', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: false, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.gateExactIdentity).toBe(false);
@@ -183,7 +186,7 @@ describe('evaluateGates', () => {
 
   it('gateFalseSemanticExact fails when any case has a false semantic exact', () => {
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: true },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: true },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.gateFalseSemanticExact).toBe(false);
@@ -193,8 +196,8 @@ describe('evaluateGates', () => {
 
   it(`gateRecallAt20 fails when mean recall is below ${RECALL_GATE_THRESHOLD}`, () => {
     const metrics = [
-      { id: 'c1', recallAt20: 0.8, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
-      { id: 'c2', recallAt20: 0.6, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 0.8, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c2', hasRelevantDocs: true, recallAt20: 0.6, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     // mean = (0.8 + 0.6) / 2 = 0.7 < 0.9
@@ -205,9 +208,9 @@ describe('evaluateGates', () => {
   it('gateRecallAt20 passes exactly at threshold boundary', () => {
     // 3 cases: 1.0 + 0.8 + 0.9 = 2.7 / 3 = 0.9
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
-      { id: 'c2', recallAt20: 0.8, reciprocalRank: 0.5, ndcgAt5: 0.7, exactIdentityHit: null, falseSemanticExact: false },
-      { id: 'c3', recallAt20: 0.9, reciprocalRank: 1.0, ndcgAt5: 0.9, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c2', hasRelevantDocs: true, recallAt20: 0.8, reciprocalRank: 0.5, ndcgAt5: 0.7, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c3', hasRelevantDocs: true, recallAt20: 0.9, reciprocalRank: 1.0, ndcgAt5: 0.9, exactIdentityHit: null, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.recallAt20).toBe(0.9);
@@ -216,7 +219,7 @@ describe('evaluateGates', () => {
 
   it('no exact-identity cases → exactIdentityAccuracy = 1.0 (vacuously true)', () => {
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.exactIdentityAccuracy).toBe(1.0);
@@ -227,9 +230,9 @@ describe('evaluateGates', () => {
     // RR values: [1.0, 0.5, 0.333333]
     // MRR = (1.0 + 0.5 + 0.333333) / 3 ≈ 0.611111
     const metrics = [
-      { id: 'c1', recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
-      { id: 'c2', recallAt20: 1.0, reciprocalRank: 0.5, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
-      { id: 'c3', recallAt20: 1.0, reciprocalRank: 1 / 3, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c1', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c2', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 0.5, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'c3', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1 / 3, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
     ];
     const gates = evaluateGates(metrics);
     expect(gates.mrr).toBeCloseTo(0.6111, 3);
@@ -255,6 +258,21 @@ describe('assembleResult', () => {
     expect(result.caseMetrics).toHaveLength(3);
   });
 
+  it('no-match case (hasRelevantDocs=false) is excluded from recall/MRR/nDCG means', () => {
+    // One scored case with perfect recall, one no-match case with recall=0.
+    // Without exclusion: mean = (1.0 + 0) / 2 = 0.5 → gate FAILS.
+    // With exclusion:    mean = 1.0 / 1      = 1.0 → gate PASSES.
+    const metrics = [
+      { id: 'scored', hasRelevantDocs: true, recallAt20: 1.0, reciprocalRank: 1.0, ndcgAt5: 1.0, exactIdentityHit: null, falseSemanticExact: false },
+      { id: 'no-match', hasRelevantDocs: false, recallAt20: 0, reciprocalRank: 0, ndcgAt5: 0, exactIdentityHit: null, falseSemanticExact: false },
+    ];
+    const gates = evaluateGates(metrics);
+    expect(gates.recallAt20).toBe(1.0); // no-match excluded → only scored case counts
+    expect(gates.mrr).toBe(1.0);
+    expect(gates.ndcgAt5).toBe(1.0);
+    expect(gates.gateRecallAt20).toBe(true);
+  });
+
   it('handles missing retrieval result for a case with error fallback', () => {
     // No result for semantic-1
     const retrievalResults: CaseRetrievalResult[] = [
@@ -275,14 +293,18 @@ describe('assembleResult', () => {
       { id: 'exact-1', query: exactCase.query, retrievedIds: ['strat-001', 'strat-002'], error: null },
       // semantic-1: relevant ids in top-20
       { id: 'semantic-1', query: semanticCase.query, retrievedIds: ['strat-002', 'strat-003', 'strat-004'], error: null },
-      // no-match-1: nothing returned (correct)
+      // no-match-1: nothing returned (correct, and EXCLUDED from recall mean)
       { id: 'no-match-1', query: noMatchCase.query, retrievedIds: [], error: null },
     ];
     const result = assembleResult('strategy-retrieval-v1', 'sha256:abc123', cases, retrievalResults);
-    // exact-1: recall=1, exact=true; semantic-1: recall=1; no-match: recall=0 (empty relevantIds)
-    // mean recall = (1 + 1 + 0) / 3 ≈ 0.667 < 0.9 → gateRecallAt20 = false
+    // exact-1: recall=1, exact=true (hasRelevantDocs=true)
+    // semantic-1: recall=1 (hasRelevantDocs=true)
+    // no-match-1: hasRelevantDocs=false → EXCLUDED from recall mean
+    // mean recall over scored cases = (1 + 1) / 2 = 1.0 >= 0.9 → gateRecallAt20 = true
     expect(result.gates.gateExactIdentity).toBe(true);
-    expect(result.overallPass).toBe(result.gates.overallPass);
+    expect(result.gates.gateFalseSemanticExact).toBe(true);
+    expect(result.gates.gateRecallAt20).toBe(true);
+    expect(result.overallPass).toBe(true);
   });
 });
 

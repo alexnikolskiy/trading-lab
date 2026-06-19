@@ -49,6 +49,7 @@ export function computeCaseMetrics(retrieved: CaseRetrievalResult, evalCase: Str
 
   return {
     id: evalCase.id,
+    hasRelevantDocs: evalCase.expectedRelevantIds.length > 0,
     recallAt20: recall20,
     reciprocalRank: rr,
     ndcgAt5: ndcg5,
@@ -68,9 +69,12 @@ export function evaluateGates(caseMetrics: CaseMetrics[]): GateResult {
 
   const falseSemanticExactCount = caseMetrics.filter((m) => m.falseSemanticExact).length;
 
-  const recallAt20 = mean(caseMetrics.map((m) => m.recallAt20));
-  const mrr = mean(caseMetrics.map((m) => m.reciprocalRank));
-  const ndcgAt5 = mean(caseMetrics.map((m) => m.ndcgAt5));
+  // Recall@k, MRR, and nDCG are undefined for no-match cases (no relevant docs).
+  // Standard IR practice: exclude them from the aggregate means.
+  const scored = caseMetrics.filter((m) => m.hasRelevantDocs);
+  const recallAt20 = mean(scored.map((m) => m.recallAt20));
+  const mrr = mean(scored.map((m) => m.reciprocalRank));
+  const ndcgAt5 = mean(scored.map((m) => m.ndcgAt5));
 
   const gateExactIdentity = exactIdentityAccuracy === 1.0;
   const gateFalseSemanticExact = falseSemanticExactCount === 0;
