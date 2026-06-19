@@ -19,6 +19,16 @@ function parseRedisUrl(url: string): { host: string; port: number; password?: st
   return opts;
 }
 
+/** BullMQ forbids ":" in a custom job id (it is BullMQ's internal Redis key
+ *  separator). dedupeKeys use ":" as a convention separator (e.g. a chat proposal
+ *  builds `chat-proposal:<id>`), so any dedupeKey used as a job id must be
+ *  sanitized first — otherwise `Queue.add` throws "Custom Id cannot contain :".
+ *  DB-level dedup (`findByDedupeKey`) keeps using the raw dedupeKey and is
+ *  unaffected; this only rewrites the secondary BullMQ-level job id. */
+export function toBullmqJobId(key: string): string {
+  return key.replaceAll(':', '_');
+}
+
 export class BullMqQueueAdapter implements TaskQueuePort {
   private readonly queue: Queue<QueueEnvelope>;
   private readonly queueName: string;
@@ -35,7 +45,7 @@ export class BullMqQueueAdapter implements TaskQueuePort {
 
   async enqueue(envelope: QueueEnvelope, opts?: { delayMs?: number }): Promise<void> {
     const jobOpts: JobsOptions = {
-      jobId: envelope.dedupeKey ?? envelope.taskId,
+      jobId: toBullmqJobId(envelope.dedupeKey ?? envelope.taskId),
       delay: opts?.delayMs,
       attempts: 3,
       backoff: { type: 'exponential', delay: 1000 },
