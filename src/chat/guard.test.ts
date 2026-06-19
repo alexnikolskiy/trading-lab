@@ -97,16 +97,28 @@ describe('planChatAction', () => {
     }
   });
 
-  it('results subject -> capability_not_available', async () => {
+  it('results subject -> capability_not_available with capability results.trading', async () => {
     const { plan } = args();
     const d = await planChatAction(turn({ subject: 'results', confidence: 0.9 }), plan);
-    expect(d.kind === 'respond' && d.response.kind).toBe('capability_not_available');
+    expect(d.kind).toBe('respond');
+    if (d.kind === 'respond') {
+      expect(d.response.kind).toBe('capability_not_available');
+      if (d.response.kind === 'capability_not_available') {
+        expect(d.response.capability).toBe('results.trading');
+      }
+    }
   });
 
-  it('bot subject -> capability_not_available', async () => {
+  it('bot subject -> capability_not_available with capability bot.status', async () => {
     const { plan } = args();
     const d = await planChatAction(turn({ subject: 'bot', confidence: 0.9 }), plan);
-    expect(d.kind === 'respond' && d.response.kind).toBe('capability_not_available');
+    expect(d.kind).toBe('respond');
+    if (d.kind === 'respond') {
+      expect(d.response.kind).toBe('capability_not_available');
+      if (d.response.kind === 'capability_not_available') {
+        expect(d.response.capability).toBe('bot.status');
+      }
+    }
   });
 
   it('task subject with a resolvable session pointer -> task_status', async () => {

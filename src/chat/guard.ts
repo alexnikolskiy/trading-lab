@@ -76,7 +76,8 @@ function buildOnboardDecision(sid: string, userGoal: string, text: string, withR
  *   strategy + (undefined|analyze)  -> strategy.onboard propose_task (action strategy.analyze)
  *   strategy + research             -> strategy.onboard propose_task WITH research chain
  *   task                            -> task.status read (ref-resolved via references/session)
- *   results | bot                   -> capability_not_available
+ *   results                         -> capability_not_available (results.trading)
+ *   bot                             -> capability_not_available (bot.status)
  *   hypothesis                      -> hypothesis.build propose_task (resolve buildable hypothesis)
  *   unknown                         -> out_of_scope / needs_clarification
  */
@@ -110,10 +111,13 @@ export async function planChatAction(turn: InterpretedTurn, args: PlanArgs): Pro
       return { kind: 'respond', response: taskStatus(sid, t.id, t.status) };
     }
 
-    // results (trading/backtest summaries) and bot (deployed-bot status) are not yet exposed.
+    // results (trading/backtest summaries) are not yet exposed.
     case 'results':
-    case 'bot':
       return { kind: 'respond', response: capabilityNotAvailable(sid, 'results.trading', 'Результаты торговли пока недоступны.') };
+
+    // bot (deployed-bot status) is not yet exposed.
+    case 'bot':
+      return { kind: 'respond', response: capabilityNotAvailable(sid, 'bot.status', 'Статус бота пока недоступен.') };
 
     case 'hypothesis': {
       const hyp = await resolveBuildableHypothesis(session, deps);

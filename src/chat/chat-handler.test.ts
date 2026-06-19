@@ -251,7 +251,9 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
 
   it('replaying "да" with the stale pre-confirmation session does NOT create a second task or queue entry', async () => {
     const { d, queue, sessions } = deps();
+    const classifySpy = vi.spyOn(d.interpreter, 'interpret');
     const savedSession = await firstTurn(d, strategyMsg, sessions);
+    const callsAfterFirstTurn = classifySpy.mock.calls.length;
 
     const first = await handleChatMessage({ message: 'да', session: savedSession, source: 'web' }, d);
     expect(first.kind).toBe('task_created');
@@ -265,6 +267,8 @@ describe('handleChatMessage — confirmation consumption (second turn)', () => {
       replay.kind === 'task_created' ? replay.taskId : replay.kind === 'task_status' ? replay.taskId : '';
     expect(replayTaskId).toBe(firstTaskId);
     expect(queue.queued).toHaveLength(1); // no second enqueue
+    // The interpreter is NEVER consulted for a pending-confirmation reply (including replay).
+    expect(classifySpy.mock.calls.length).toBe(callsAfterFirstTurn);
   });
 
   it('cancel ("отмена") clears pending state, enqueues nothing, and emits chat.proposal.cancelled', async () => {

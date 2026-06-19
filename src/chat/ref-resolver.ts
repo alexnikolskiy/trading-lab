@@ -29,7 +29,14 @@ export async function resolveStatusTask(
   return null;
 }
 
-/** Resolve the strategy profile for research.run_cycle from last_strategy. Verified. */
+/**
+ * Resolve the strategy profile for research.run_cycle from last_strategy. Verified.
+ *
+ * @intentionally-retained — future seam for a "research existing strategy by session pointer"
+ * slice where the operator can trigger research on a previously onboarded profile without
+ * re-pasting the strategy text. This path was intentionally dropped in the current slice and
+ * is NOT called from the chat runtime or guard. Do not delete.
+ */
 export async function resolveResearchProfile(
   session: ChatSessionContext, deps: RefResolverDeps,
 ): Promise<StrategyProfile | null> {
