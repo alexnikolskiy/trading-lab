@@ -76,9 +76,10 @@ function renderExactStatus(evidence: OperatorEvidence): string {
     case 'failed':
       return `${header}\n- проверку точного совпадения не удалось выполнить (ошибка поиска); наличие дубликата неизвестно.`;
     case 'not_run':
-    default:
       return `${header}\n- проверка точного совпадения не выполнялась.`;
   }
+  const _exhaustive: never = evidence.exactLookup;
+  return _exhaustive;
 }
 
 function renderSimilar(evidence: OperatorEvidence): string {

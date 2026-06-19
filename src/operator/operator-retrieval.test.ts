@@ -357,6 +357,37 @@ describe('OperatorRetrieval (strategy turn)', () => {
     expect(evidence.status).toBe('degraded');
   });
 
+  it('HARD deadline backstop: raceSignal aborts similarity even when the adapter NEVER resolves and IGNORES query.signal', async () => {
+    const profiles = new InMemoryStrategyProfileRepository(); // miss
+    const embedding = new FakeEmbedding();
+    const { clock, scheduler, advance } = fakeClock(0);
+
+    // This adapter returns a promise that never settles AND does not listen to query.signal.
+    const signalIgnoringSimilarity: StrategySimilarityPort = {
+      search(_query: StrategySimilarityQuery): Promise<StrategyCandidateSet> {
+        return new Promise(() => { /* intentionally never resolves or rejects */ });
+      },
+    };
+
+    const retrieval = makeRetrieval({
+      profiles, similarity: signalIgnoringSimilarity, embedding,
+      clock, scheduler, softDeadlineMs: 5000, hardDeadlineMs: 10000,
+    });
+    const promise = retrieval.collect({ turn: strategyTurn, message, sessionId: 's1', retrievalId: 'r1' });
+    // Let microtasks settle so the orchestrator reaches the awaited similarity call.
+    await Promise.resolve();
+    await Promise.resolve();
+    // Fire the hard deadline timer via the fake clock.
+    advance(10000);
+    const evidence = await promise;
+
+    expect(evidence.exactLookup).toBe('miss');
+    expect(evidence.similarStrategies).toEqual([]);
+    expect(evidence.warningCodes).toContain('hard_deadline_exceeded');
+    expect(evidence.warningCodes).toContain('similarity_aborted');
+    expect(evidence.status).toBe('degraded');
+  });
+
   it('timeout never renders the exact lookup as a clean miss when it did not complete', async () => {
     const embedding = new FakeEmbedding();
     const { clock, scheduler, advance } = fakeClock(0);

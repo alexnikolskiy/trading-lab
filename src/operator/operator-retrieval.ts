@@ -201,16 +201,17 @@ export class OperatorRetrieval implements OperatorRetrievalPort {
         );
         if (exactProfile) {
           exactLookup = 'hit';
+          const observedAt = this.#deps.isoNow();
           exactMatch = {
             strategyProfileId: exactProfile.id,
             label: labelForProfile(exactProfile),
-            observedAt: this.#deps.isoNow(),
+            observedAt,
           };
           evidenceRefs.push({
             sourceType: 'strategy_profile',
             sourceId: exactProfile.id,
             retrievalMethod: 'exact',
-            observedAt: this.#deps.isoNow(),
+            observedAt,
           });
         } else {
           exactLookup = 'miss';
@@ -317,21 +318,24 @@ export class OperatorRetrieval implements OperatorRetrievalPort {
     const simStart = this.#deps.clock();
     let result: StrategyCandidateSet;
     try {
-      result = await this.#deps.similarity.search({
-        text: message,
-        embedding,
-        filters: {
-          ...(turn.constraints.market ? { market: turn.constraints.market } : {}),
-          ...(turn.constraints.symbol ? { symbol: turn.constraints.symbol } : {}),
-          ...(turn.constraints.timeframe ? { timeframe: turn.constraints.timeframe } : {}),
-          ...(turn.constraints.direction ? { direction: turn.constraints.direction } : {}),
-        },
-        lexicalLimit: this.#deps.lexicalLimit ?? 20,
-        vectorLimit: this.#deps.vectorLimit ?? 20,
-        fusedLimit: this.#deps.fusedLimit ?? 20,
-        ...(excludeProfileId ? { excludeProfileId } : {}),
-        signal: budget.signal,
-      });
+      result = await raceSignal(
+        this.#deps.similarity.search({
+          text: message,
+          embedding,
+          filters: {
+            ...(turn.constraints.market ? { market: turn.constraints.market } : {}),
+            ...(turn.constraints.symbol ? { symbol: turn.constraints.symbol } : {}),
+            ...(turn.constraints.timeframe ? { timeframe: turn.constraints.timeframe } : {}),
+            ...(turn.constraints.direction ? { direction: turn.constraints.direction } : {}),
+          },
+          lexicalLimit: this.#deps.lexicalLimit ?? 20,
+          vectorLimit: this.#deps.vectorLimit ?? 20,
+          fusedLimit: this.#deps.fusedLimit ?? 20,
+          ...(excludeProfileId ? { excludeProfileId } : {}),
+          signal: budget.signal,
+        }),
+        budget.signal,
+      );
     } catch (err) {
       timingsMs.similarityMs = this.#deps.clock() - simStart;
       if (isAbortError(err) || budget.hardExpired(this.#deps.clock())) {
