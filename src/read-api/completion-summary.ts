@@ -30,7 +30,13 @@ export interface BacktestCompletedCompletionSummary {
   metrics: KeyMetrics; reasons: string[]; willRetry: boolean; links: SummaryLinks;
 }
 
-export type CompletionSummary = BacktestCompletedCompletionSummary; // extended in later tasks
+export interface RunCycleCompletionSummary {
+  kind: 'research.run_cycle'; taskId: string; status: string; profile: ProfileRef | null;
+  counts: { proposed: number; validated: number; rejected: number; deduped: number; criticReviews: number; backtestsEnqueued: number };
+  topHypotheses: HypothesisRef[]; nextStep?: { taskType: string }; links: SummaryLinks;
+}
+
+export type CompletionSummary = BacktestCompletedCompletionSummary | RunCycleCompletionSummary;
 
 export interface CompletionSummaryDeps {
   researchTasks: Pick<ResearchTaskRepository, 'findById'>;
@@ -59,6 +65,36 @@ function toHypothesisRef(h: HypothesisProposal): HypothesisRef {
   return { id: h.id, thesis: clip(h.thesis), confidence: h.confidence ?? null, status: h.status ?? null };
 }
 
+const num = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+
+async function buildRunCycle(deps: CompletionSummaryDeps, task: ResearchTask): Promise<RunCycleCompletionSummary> {
+  const profileId = (task.payload as { strategyProfileId?: string }).strategyProfileId;
+  const profile = profileId ? await safe(() => deps.strategyProfiles.findById(profileId)) : null;
+
+  const events = (await safe(() => deps.agentEvents.list({ taskId: task.id, type: 'research.run_cycle.completed', limit: 1 }))) ?? [];
+  const ev = events[0]?.payload as { proposed?: unknown; validated?: unknown; rejected?: unknown; deduped?: unknown; criticReviews?: unknown } | undefined;
+  const validated = num(ev?.validated);
+  const counts = {
+    proposed: num(ev?.proposed), validated, rejected: num(ev?.rejected),
+    deduped: num(ev?.deduped), criticReviews: num(ev?.criticReviews), backtestsEnqueued: validated,
+  };
+
+  let topHypotheses: HypothesisRef[] = [];
+  if (profileId) {
+    const hs = (await safe(() => deps.hypotheses.list({ profileId, status: 'validated', limit: 50 }))) ?? [];
+    topHypotheses = [...hs]
+      .sort((a, b) => (b.confidence - a.confidence) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .slice(0, 3)
+      .map(toHypothesisRef);
+  }
+
+  return {
+    kind: 'research.run_cycle', taskId: task.id, status: task.status,
+    profile: profile ? toProfileRef(profile) : null, counts, topHypotheses,
+    links: { taskId: task.id, profileId },
+  };
+}
+
 async function buildBacktestCompleted(deps: CompletionSummaryDeps, task: ResearchTask): Promise<BacktestCompletedCompletionSummary> {
   const p = task.payload as {
     backtestRunId?: string; hypothesisId?: string; strategyProfileId?: string;
@@ -85,6 +121,7 @@ export async function buildCompletionSummary(deps: CompletionSummaryDeps, taskId
   if (!task || task.status !== 'completed') return null;
   switch (task.taskType) {
     case 'backtest.completed': return buildBacktestCompleted(deps, task);
+    case 'research.run_cycle': return buildRunCycle(deps, task);
     default: return null;
   }
 }

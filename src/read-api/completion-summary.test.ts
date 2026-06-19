@@ -58,3 +58,44 @@ describe('buildCompletionSummary — backtest.completed', () => {
     expect(s.willRetry).toBe(false);
   });
 });
+
+describe('buildCompletionSummary — research.run_cycle', () => {
+  const runCycleTask = (over: Record<string, unknown> = {}) => ({
+    id: 'rc1', taskType: 'research.run_cycle', source: 'operator', correlationId: 'c1',
+    status: 'completed', payload: { strategyProfileId: 'p1' },
+    createdAt: '2026-06-19T00:00:00.000Z', updatedAt: '2026-06-19T00:00:00.000Z', ...over,
+  });
+
+  it('pulls counts from the run_cycle.completed event and top-3 validated hypotheses by confidence', async () => {
+    const hyps = [
+      { id: 'hA', thesis: 'A', confidence: 0.5, status: 'validated' },
+      { id: 'hB', thesis: 'B', confidence: 0.9, status: 'validated' },
+      { id: 'hC', thesis: 'C', confidence: 0.7, status: 'validated' },
+      { id: 'hD', thesis: 'D', confidence: 0.1, status: 'validated' },
+    ];
+    const deps = fakeDeps({
+      researchTasks: { findById: async () => runCycleTask() },
+      strategyProfiles: { findById: async () => ({ id: 'p1', coreIdea: 'fade pumps', direction: 'short' }) },
+      agentEvents: { list: async (q: { type?: string }) => q.type === 'research.run_cycle.completed'
+        ? [{ id: 'e1', taskId: 'rc1', type: 'research.run_cycle.completed', payload: { proposed: 5, validated: 4, rejected: 1, deduped: 0, criticReviews: 4 }, createdAt: '2026-06-19T00:00:00.000Z' }]
+        : [] },
+      hypotheses: { list: async (q: { profileId?: string; status?: string }) => q.profileId === 'p1' && q.status === 'validated' ? hyps : [], getById: async () => null },
+    });
+
+    const s = await buildCompletionSummary(deps, 'rc1');
+    if (s?.kind !== 'research.run_cycle') throw new Error('wrong kind');
+    expect(s.counts).toEqual({ proposed: 5, validated: 4, rejected: 1, deduped: 0, criticReviews: 4, backtestsEnqueued: 4 });
+    expect(s.topHypotheses.map((h) => h.id)).toEqual(['hB', 'hC', 'hA']); // by confidence desc, top 3
+    expect(s.profile?.coreIdea).toBe('fade pumps');
+    expect(s.links).toEqual({ taskId: 'rc1', profileId: 'p1' });
+  });
+
+  it('zero counts + empty top when no completion event and no hypotheses', async () => {
+    const deps = fakeDeps({ researchTasks: { findById: async () => runCycleTask({ payload: {} }) } });
+    const s = await buildCompletionSummary(deps, 'rc1');
+    if (s?.kind !== 'research.run_cycle') throw new Error('wrong kind');
+    expect(s.counts).toEqual({ proposed: 0, validated: 0, rejected: 0, deduped: 0, criticReviews: 0, backtestsEnqueued: 0 });
+    expect(s.topHypotheses).toEqual([]);
+    expect(s.profile).toBeNull();
+  });
+});
