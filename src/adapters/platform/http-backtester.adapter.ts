@@ -220,7 +220,13 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort {
       });
     }
     const preset = await this.resolvePreset(opts.target.presetId);
-    const btBundle = toBacktesterBundle(bundle);
+    const descriptor = await this.registry(); // memoized — no extra round-trip
+    // The submitted overlay targets the preset's baseline, so the bundle manifest's targetStrategyRef
+    // must be the preset baseline id (the backtester validates it against the run's baseline).
+    const btBundle = toBacktesterBundle(bundle, {
+      targetStrategyRef: preset.baselineRef.id,
+      contractVersion: descriptor.contractVersion,
+    });
     const req: BtRunSubmitRequest = {
       mode: 'research',
       engine: 'overlay',
@@ -234,7 +240,11 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort {
       timeframe: opts.run.timeframe,
       period: opts.run.period,
       seed: opts.run.seed,
-      metrics: [...preset.metrics],
+      // Request the full advertised overlay catalog (not just preset.metrics): the lab's research
+      // comparison/evaluation requires the complete metric set (total_trades / profit_factor /
+      // top_trade_contribution_pct), mirroring the MCP adapter's RESEARCH_RUN_METRICS. The preset
+      // supplies the COMPLETE request (baseline/risk/exec); the consumer asks for the metrics it needs.
+      metrics: [...descriptor.metricCatalogs.overlay],
       ...(opts.correlationId !== undefined ? { correlationId: opts.correlationId } : {}),
       ...(opts.resumeToken !== undefined ? { resumeToken: opts.resumeToken } : {}),
       ...(opts.workflowId !== undefined ? { workflowId: opts.workflowId } : {}),

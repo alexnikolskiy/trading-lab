@@ -13,8 +13,8 @@ const TERMINAL = new Set(['completed', 'failed', 'canceled', 'expired', 'timed_o
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 const strategyBundle: ModuleBundle = {
-  manifest: { moduleId: 'momentum', moduleKind: 'hypothesis_overlay', appliesTo: 'long', entry: 'module.mjs', exports: ['signals'], capabilities: [], sdkContractVersion: 'builder-sdk-v0' },
-  files: { 'module.mjs': 'export function signals(candles){ return candles.map((_,i)=> i>=2 && candles[i-1].close>candles[i-2].close); }' },
+  manifest: { moduleId: 'lab_overlay_probe', moduleKind: 'hypothesis_overlay', appliesTo: 'long', entry: 'module.mjs', exports: ['apply'], capabilities: [], sdkContractVersion: 'builder-sdk-v0' },
+  files: { 'module.mjs': 'export default { apply(_ctx){ return { kind: "pass" }; } };' },
   bundleHash: 'sha256:integration',
   bundleContractVersion: 'module-bundle-v1',
 };

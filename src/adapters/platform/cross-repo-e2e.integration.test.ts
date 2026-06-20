@@ -36,20 +36,20 @@ const enabled =
 const TERMINAL = new Set(['completed', 'failed', 'canceled', 'expired', 'timed_out']);
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** Strategy-signals bundle the backtester executes today (same as http-backtester.integration.test.ts). */
+/** A minimal but VALID submitted overlay bundle: default export with the single `apply` hook the
+ *  sandbox harness invokes. Pass-through (no patch) — enough to drive a real baseline-vs-variant run. */
 const strategyBundle: ModuleBundle = {
   manifest: {
-    moduleId: 'momentum',
+    moduleId: 'lab_overlay_probe',
     moduleKind: 'hypothesis_overlay',
     appliesTo: 'long',
     entry: 'module.mjs',
-    exports: ['signals'],
+    exports: ['apply'],
     capabilities: [],
     sdkContractVersion: SDK_CONTRACT_VERSION,
   },
   files: {
-    'module.mjs':
-      'export function signals(candles){ return candles.map((_,i)=> i>=2 && candles[i-1].close>candles[i-2].close); }',
+    'module.mjs': 'export default { apply(_ctx){ return { kind: "pass" }; } };',
   },
   bundleHash: 'sha256:integration',
   bundleContractVersion: 'module-bundle-v1',
