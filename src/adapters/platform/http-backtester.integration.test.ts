@@ -13,8 +13,8 @@ const TERMINAL = new Set(['completed', 'failed', 'canceled', 'expired', 'timed_o
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 const strategyBundle: ModuleBundle = {
-  manifest: { moduleId: 'momentum', moduleKind: 'hypothesis_overlay', appliesTo: 'long', entry: 'module.mjs', exports: ['signals'], capabilities: [], sdkContractVersion: 'builder-sdk-v0' },
-  files: { 'module.mjs': 'export function signals(candles){ return candles.map((_,i)=> i>=2 && candles[i-1].close>candles[i-2].close); }' },
+  manifest: { moduleId: 'lab_overlay_probe', moduleKind: 'hypothesis_overlay', appliesTo: 'long', entry: 'module.mjs', exports: ['apply'], capabilities: [], sdkContractVersion: 'builder-sdk-v0' },
+  files: { 'module.mjs': 'export default { apply(_ctx){ return { kind: "pass" }; } };' },
   bundleHash: 'sha256:integration',
   bundleContractVersion: 'module-bundle-v1',
 };
@@ -26,7 +26,7 @@ describe.skipIf(!enabled)('HttpBacktesterAdapter integration (real backtester)',
     );
 
     const handle = await adapter.submitOverlayRun(strategyBundle, {
-      baselineModuleRef: { id: 'baseline', version: 'v1' },
+      target: { kind: 'registry_preset' },
       run: {
         datasetId: 'smoke-btc-1m',
         symbols: ['BTCUSDT'],
@@ -46,8 +46,10 @@ describe.skipIf(!enabled)('HttpBacktesterAdapter integration (real backtester)',
     const result = await adapter.getRunResult(handle.runId);
     expect(result.kind).toBe('summary');
     if (result.kind === 'summary') {
-      expect(result.summary.runKind).toBe('baseline-only');
-      expect(result.summary.metrics.total_bars).toBeGreaterThan(0);
+      // Preset-driven overlay run → a real baseline-vs-variant comparison.
+      expect(result.summary.runKind).toBe('baseline-vs-variant');
+      expect(result.summary.comparison).toBeDefined();
+      expect(Object.keys(result.summary.metrics).length).toBeGreaterThan(0);
     }
   }, 120_000);
 });

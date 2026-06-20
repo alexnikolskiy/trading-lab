@@ -55,6 +55,12 @@ function resolveProfitFactors(
     // baseline had losses (finite PF in its full metrics); comparison dropped it → variant omitted (no losses).
     return { baselinePf: topMetrics['profit_factor'] ?? 0, variantPf: NO_LOSS_PROFIT_FACTOR };
   }
+  // A completed run with NO trades on either side has no profit_factor (the engine omits it when there
+  // are no trades at all). That is not ambiguous — PF is simply undefined; map to 0 so a degenerate
+  // (zero-trade) run still evaluates instead of failing the metric mapping.
+  if ((baseline['total_trades'] ?? 0) === 0 && (variant['total_trades'] ?? 0) === 0) {
+    return { baselinePf: 0, variantPf: 0 };
+  }
   throw new MetricMappingError(
     'ambiguous_profit_factor',
     'ambiguous_profit_factor: profit_factor absent from comparison and from baseline summary.metrics; cannot disambiguate variant PF',
