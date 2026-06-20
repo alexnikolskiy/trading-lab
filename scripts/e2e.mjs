@@ -86,7 +86,7 @@ let onboardTask;
 try {
   onboardTask = await postTask({
     taskType: 'strategy.onboard',
-    source: 'e2e',
+    source: 'operator',
     correlationId: `e2e-${Date.now()}`,
     payload: { kind: 'bot_code', content: E2E_CONTENT },
   });
@@ -125,7 +125,7 @@ if (profileId === 'FRESH') {
   try {
     dedupeTask = await postTask({
       taskType: 'strategy.onboard',
-      source: 'e2e',
+      source: 'operator',
       correlationId: `e2e-dedup-${Date.now()}`,
       payload: { kind: 'bot_code', content: E2E_CONTENT },
     });
@@ -152,7 +152,7 @@ let cycleTask;
 try {
   cycleTask = await postTask({
     taskType: 'research.run_cycle',
-    source: 'e2e',
+    source: 'operator',
     correlationId: `e2e-cycle-${Date.now()}`,
     payload: { strategyProfileId: profileId },
   });
