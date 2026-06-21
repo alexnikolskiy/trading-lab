@@ -38,8 +38,12 @@ describe('strategyOnboardHandler', () => {
     expect(calls).toBe(1);
     await strategyOnboardHandler(task(validPayload), services);
     expect(calls).toBe(1);
-    const types = (await services.events.listByTask('task-1')).map((e) => e.type);
+    const evts = await services.events.listByTask('task-1');
+    const types = evts.map((e) => e.type);
     expect(types).toContain('strategy.onboard.deduped');
+    const deduped = evts.find((e) => e.type === 'strategy.onboard.deduped');
+    expect((deduped?.payload as Record<string, unknown>)?.profileId).toBeDefined();
+    expect((deduped?.payload as Record<string, unknown>)?.strategyId).toBeUndefined();
   });
 
   it('throws on an invalid payload', async () => {

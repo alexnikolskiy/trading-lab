@@ -7,7 +7,7 @@
  * Алгоритм:
  *   1. POST /tasks → strategy.onboard (фиксированный контент)
  *   2. POLL /v1/agent-events?taskId=<id> до strategy.onboard.deduped ИЛИ strategy_analyst.completed
- *      a) deduped → profileId из payload.strategyId, переход к шагу 4
+ *      a) deduped → profileId из payloadSummary.profileId, переход к шагу 4
  *      b) completed → sleep 2s → повторный POST → deduped → profileId
  *   3. POST /tasks → research.run_cycle { strategyProfileId }
  *   4. POLL /v1/agent-events?taskId=<id2> до research.run_cycle.completed (таймаут 8 мин)
@@ -102,8 +102,8 @@ let profileId;
 try {
   profileId = await pollEvents(taskId1, ev => {
     if (ev.type === 'strategy.onboard.deduped') {
-      log(`deduped: strategyId=${ev.payload?.strategyId}`);
-      return ev.payload?.strategyId ?? null;
+      log(`deduped: profileId=${ev.payloadSummary?.profileId}`);
+      return ev.payloadSummary?.profileId ?? null;
     }
     if (ev.type === 'strategy_analyst.completed') {
       log('analyst.completed (fresh profile), will re-submit to get profileId…');
@@ -136,8 +136,8 @@ if (profileId === 'FRESH') {
   log(`dedup taskId=${taskId1b}, waiting for strategy.onboard.deduped…`);
   profileId = await pollEvents(taskId1b, ev => {
     if (ev.type === 'strategy.onboard.deduped') {
-      log(`deduped: strategyId=${ev.payload?.strategyId}`);
-      return ev.payload?.strategyId ?? null;
+      log(`deduped: profileId=${ev.payloadSummary?.profileId}`);
+      return ev.payloadSummary?.profileId ?? null;
     }
     return false;
   }, ONBOARD_TIMEOUT_MS);

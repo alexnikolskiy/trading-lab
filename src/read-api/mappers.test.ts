@@ -85,6 +85,13 @@ describe('agent-event mapper (deny-by-default)', () => {
     expect(dto.correlationId).toBe('c1');
   });
 
+  it('strategy.onboard.deduped: payloadSummary exposes profileId; fingerprint never leaks', () => {
+    const row: AgentEventRow = { id: 'e3', taskId: 't1', type: 'strategy.onboard.deduped', payload: { profileId: 'p-dedup', fingerprint: 'SECRET-FP' }, createdAt: '2026-01-01T00:00:00.000Z' };
+    const dto = toAgentEventDto(row);
+    expect(dto.payloadSummary).toEqual({ profileId: 'p-dedup' });
+    expect(JSON.stringify(dto)).not.toContain('SECRET-FP');
+  });
+
   it('unknown type: empty payloadSummary + summary derived from type; raw payload never leaks', () => {
     const row: AgentEventRow = { id: 'e2', taskId: 't1', type: 'some.unknown.event', payload: { token: 'SECRET' }, createdAt: '2026-01-01T00:00:00.000Z' };
     const dto = toAgentEventDto(row);
