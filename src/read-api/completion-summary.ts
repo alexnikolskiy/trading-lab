@@ -151,8 +151,12 @@ async function buildOnboard(deps: CompletionSummaryDeps, task: ResearchTask): Pr
   let profileId: string | undefined;
   for (const e of events) {
     const pl = e.payload as { profileId?: unknown; strategyId?: unknown };
-    if (typeof pl.profileId === 'string' && pl.profileId) { profileId = pl.profileId; break; }
-    if (typeof pl.strategyId === 'string' && pl.strategyId) { profileId = pl.strategyId; break; }
+    const pid = typeof pl.profileId === 'string' && pl.profileId
+      ? pl.profileId
+      : typeof pl.strategyId === 'string' && pl.strategyId
+        ? pl.strategyId
+        : '';
+    if (pid) { profileId = pid; break; }
   }
   const profile = profileId ? await safe('profile_read_failed', () => deps.strategyProfiles.findById(profileId!)) : null;
   return {

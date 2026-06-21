@@ -193,6 +193,36 @@ describe('buildCompletionSummary — strategy.onboard', () => {
     expect(s.links).toEqual({ taskId: 'ob1', profileId: 'p9' });
   });
 
+  it('back-compat: resolves profileId from legacy strategyId field in persisted deduped events', async () => {
+    // Pre-fix events stored the id as `strategyId`; completion-summary must still resolve them.
+    const deps = fakeDeps({
+      researchTasks: { findById: async () => onboardTask() },
+      agentEvents: { list: async () => [
+        { id: 'e1', taskId: 'ob1', type: 'strategy.onboard.deduped', payload: { strategyId: 'p-old', fingerprint: 'fp1' }, createdAt: '2026-06-19T00:00:00.000Z' },
+      ] },
+      strategyProfiles: { findById: async (id: string) => id === 'p-old' ? { id: 'p-old', coreIdea: 'legacy', direction: 'long' } : null },
+    });
+    const s = await buildCompletionSummary(deps, 'ob1');
+    if (s?.kind !== 'strategy.onboard') throw new Error('wrong kind');
+    expect(s.profile).toEqual({ id: 'p-old', coreIdea: 'legacy', direction: 'long' });
+    expect(s.links.profileId).toBe('p-old');
+  });
+
+  it('new shape: resolves profileId from profileId field in new deduped events', async () => {
+    // Post-fix events emit `profileId`; this asserts the primary (new) path works.
+    const deps = fakeDeps({
+      researchTasks: { findById: async () => onboardTask() },
+      agentEvents: { list: async () => [
+        { id: 'e1', taskId: 'ob1', type: 'strategy.onboard.deduped', payload: { profileId: 'p-new', fingerprint: 'fp2' }, createdAt: '2026-06-19T00:00:00.000Z' },
+      ] },
+      strategyProfiles: { findById: async (id: string) => id === 'p-new' ? { id: 'p-new', coreIdea: 'breakout v2', direction: 'short' } : null },
+    });
+    const s = await buildCompletionSummary(deps, 'ob1');
+    if (s?.kind !== 'strategy.onboard') throw new Error('wrong kind');
+    expect(s.profile).toEqual({ id: 'p-new', coreIdea: 'breakout v2', direction: 'short' });
+    expect(s.links.profileId).toBe('p-new');
+  });
+
   it('degrades to profile:null when no event carries a profile id', async () => {
     const deps = fakeDeps({ researchTasks: { findById: async () => onboardTask() } });
     const s = await buildCompletionSummary(deps, 'ob1');

@@ -21,7 +21,7 @@ export const strategyOnboardHandler: WorkflowHandler = async (task, services) =>
   if (existing) {
     await services.events.append({
       id: randomUUID(), taskId: task.id, type: 'strategy.onboard.deduped',
-      payload: { fingerprint, strategyId: existing.id }, createdAt: new Date().toISOString(),
+      payload: { fingerprint, profileId: existing.id }, createdAt: new Date().toISOString(),
     });
     return; // idempotent; worker marks completed; LLM not called
   }
