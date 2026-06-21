@@ -15,7 +15,7 @@ stay behind the deterministic guard. Research-only — no live trading / executi
 | 1 | Confirmation core | ✅ Shipped (branch `feat/conversational-operator`) |
 | 2 | Operator RAG baseline | ✅ Shipped |
 | 3 | Meaningful completion replies | ✅ Shipped (lab #50 + office #11; PR2b backlog) |
-| — | Operator confirmation UI (office) | ✅ Shipped (lab #59 PR-L + office #12 PR-O1 + #13 PR-O2; live-verified 2026-06-21; follow-ups below) |
+| — | Operator confirmation UI (office) | ✅ Shipped (lab #59 PR-L + office #12 PR-O1 + #13 PR-O2; live-verified 2026-06-21; all follow-ups shipped — office #14 + lab #65 + office #15) |
 | — | Reranker follow-up | ✅ Scaffold shipped (#52; default OFF, enable deferred to independent corpus) |
 | 4 | Bot catalog + entity disambiguation | ⛔ Deferred — needs platform SDK + bot-identity DTO (see SDK initiative) |
 | 5 | Researcher / Artifact RAG | ⛔ Deferred — needs backtester SDK artifact API (see SDK initiative) |
@@ -90,7 +90,7 @@ turn-based: `operatorTranscript` maps each reply to a user turn, so an unsolicit
 no home today), and (c) web rendering for assistant-only / proactive messages. The lab endpoint already
 serves `backtest.completed`. Deserves its own brainstorm → design → plan.
 
-### Operator confirmation UI (office)  — ✅ SHIPPED + follow-ups
+### Operator confirmation UI (office)  — ✅ SHIPPED (incl. all follow-ups)
 The two-turn proposal/confirm flow is now usable in the trading-office web UI. **lab PR #59 (PR-L)**
 (→ main `2ee5aa4`): `POST /chat/confirm {pendingInteractionId, sessionId, decision}` reusing the
 `confirmPending` + `createAndEnqueueTask` chokepoint. **office PR #12 (PR-O1)** (→ main `da1ceb1`):
@@ -103,29 +103,38 @@ the submit→accepted→events wire model; badge click → left-dock `OperatorEv
 (web → office-server `trading-lab` mode → ingress → BullMQ `chat-proposal_*` `strategy.onboard` job,
 `source:"web"`, completed).
 
-**Follow-ups (found during the 2026-06-21 live verify — office/lab zone, NOT PR-O2 web bugs):**
-- **Reducer ordering-contract hardening (office-web).** The confirm-outcome render depends on an
-  *implicit* contract: `gateway.confirmAction()` must resolve (setting the new turn's
-  `operatorMessageId`) **before** the WS `operator_message_completed` arrives, else `mapById` drops the
-  completed → stuck "thinking". Real office (sync POST → async WS) honors it; a fake/mock that emits
-  completed first reproduces the dropped-outcome (the bug class the slice fixes). Cheap fix: in
-  `transcriptReducer`, buffer a `completed` whose `operatorMessageId` has no turn yet, or set the id
-  optimistically in `confirm()` before awaiting. Same latent assumption in `sendOperatorMessage`
-  (early deltas dropped; final completed lands late so invisible).
-- **Interpretation rendered twice (lab mapper / office).** The lab returns the interpretation both as
-  `assistant_message.message` *and* as an evidence card `kind: 'interpretation'` (whose label is the same
-  text), so the chat shows it as a sentence *and* as a wide clickable pill. Decide on the lab/`toBadges`
-  side: for `kind: 'interpretation'` don't emit a clickable badge when the text already equals the
-  message (or drop the interpretation card entirely from the badge row).
-- **Confirm completion overwrites the proposal turn (office-server).** After confirm, the follower's
-  completion event maps onto the *original proposal's* `operatorMessageId` too, so the proposal turn's
-  text/badges get replaced by the outcome ("Done.") — both turns end up showing the outcome and the
-  proposal text/cards vanish from the chat (the left evidence panel retains them). Investigate the
-  follower's target `operatorMessageId` so confirm outcomes land only on the confirm turn.
-- **`strategy.onboard` confirm completion fell back to "Done." (vs Slice 3).** The live confirm produced
-  the `Done.` fallback rather than a domain `CompletionSummary`. Reconcile with Slice 3 — confirm whether
-  the confirm-path follower fetches `getCompletionSummary` for the enqueued onboard task, or why it
-  degraded.
+**Follow-ups (found during the 2026-06-21 live verify — office/lab zone, NOT PR-O2 web bugs) — ✅ ALL SHIPPED.**
+Q1/Q3/Q4 landed together in **office PR #14** (→ main `0e63f22`); Q2 split across **lab PR #65**
+(→ main `8cd98e6`, Defect A) + **office PR #15** (→ main `a6a9ce3`, Defect B). Spec/plan:
+`docs/superpowers/specs/2026-06-21-operator-confirmation-ui-followups-design.md` +
+`docs/superpowers/plans/2026-06-21-operator-confirmation-ui-followups.md` (in trading-office).
+
+- **Confirm completion overwrote the proposal turn (office-server)** — ✅ **fixed (office #14).** Root
+  cause: `defaultNewIds()` minted a per-instance counter starting at `m1`; the message responder and the
+  confirm responder were built independently with no shared `newIds`, so both first turns got
+  `operatorMessageId = "m1"` and the confirm completion overwrote the proposal turn (the web reducer keys
+  by `operatorMessageId`). Fixed by switching `defaultNewIds()` to `crypto.randomUUID()` so the two
+  responders cannot collide. Unit tests passed a shared deterministic `newIds`, which hid the collision —
+  only the real wiring triggered it.
+- **Interpretation rendered twice (office mapper)** — ✅ **fixed (office #14).** `toBadges` now filters
+  `kind: 'interpretation'` cards before mapping, so the interpretation appears only as the proposal
+  message — not also as a wide clickable badge. Real evidence (`exact_duplicate` / `similar` / `warning`)
+  is unaffected.
+- **Reducer ordering-contract hardening (office-web)** — ✅ **fixed (office #14).** `OperatorTranscriptState`
+  gained a `pendingCompleted` buffer: an `operator_message_completed` whose `operatorMessageId` has no turn
+  yet is held and flushed when the matching `accepted` action binds the turn, instead of being dropped by
+  `mapById`. Defense-in-depth against any gateway/fake that emits `completed` before `accepted` resolves;
+  the in-order path is unchanged.
+- **`strategy.onboard` confirm fell back to "Done." (vs Slice 3)** — ✅ **fixed (Q2: lab #65 + office #15).**
+  Root cause (found via systematic-debugging + a live `GET /v1/tasks/:id/completion-summary` trace that
+  returned a real onboard summary — the endpoint was never the problem) was two defects: **Defect A (live,
+  lab #65)** — the confirm path minted *two different* `correlationId`s (one for the onboard task, one for
+  the auto-chained `research.run_cycle` ChatPlan), so the office `ConversationFollower` (filtering by the
+  onboard correlationId) never matched the chained completion; fixed by hoisting one `correlationId` shared
+  by both the task and the plan (invariant: one conversation turn = one correlationId). **Defect B (latent,
+  office #15)** — the lab emits `strategy.onboard.deduped` on a duplicate, which was missing from the
+  office `successTypes`; added it to the terminal taxonomy. Now the confirm-path follower surfaces the
+  domain `CompletionSummary` instead of `Done.`.
 
 ### Reranker follow-up  — ✅ SCAFFOLD SHIPPED (default OFF)
 Shipped via **#52** (→ main `ffb68af`): the conditional `MastraRerankerAdapter` (`RerankerPort` impl
