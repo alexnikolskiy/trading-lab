@@ -1,5 +1,5 @@
 # Thin wrappers around the documented docker compose commands.
-.PHONY: demo local vps down smoke e2e cross-repo-e2e config
+.PHONY: demo local vps dev down smoke e2e cross-repo-e2e config
 
 demo: .env.demo
 	docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.demo up --build
@@ -9,6 +9,11 @@ local: .env.local
 
 vps: .env.vps
 	docker compose -f docker-compose.yml -f docker-compose.vps.yml --env-file .env.vps up --build -d
+
+# Dev (minimal-docker): infra in docker, app services on the host via mprocs (watch).
+# Requires sibling repos with deps installed: ../trading-backtester, ../trading-office.
+dev: .env.dev
+	pnpm exec mprocs
 
 # Create the real env file from the example on first run.
 .env.%:
@@ -38,5 +43,4 @@ cross-repo-e2e:
 # Validate all three merges against the committed examples.
 config:
 	docker compose -f docker-compose.yml -f docker-compose.demo.yml  --env-file .env.demo.example  config >/dev/null && echo "demo OK"
-	docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local.example config >/dev/null && echo "local OK"
-	docker compose -f docker-compose.yml -f docker-compose.vps.yml   --env-file .env.vps.example   config >/dev/null && echo "vps OK"
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.dev.yml --env-file .env.dev.example config >/dev/null && echo "dev OK"
