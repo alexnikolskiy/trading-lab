@@ -1,0 +1,15 @@
+# Dev overlay (minimal-docker): publish stateful-infra ports to 127.0.0.1 so the host app
+# processes (run via mprocs / `make dev`) can reach them. App services are NOT started here —
+# the dev loop runs ingress/worker/backtester/office on the host. mock-platform is defined in
+# docker-compose.demo.yml, so always merge as: -f docker-compose.yml -f docker-compose.demo.yml
+# -f docker-compose.dev.yml.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+  mock-platform:
+    ports:
+      - "127.0.0.1:8839:8839"

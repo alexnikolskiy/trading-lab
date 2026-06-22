@@ -19,3 +19,9 @@ dist
 
 # Eval run outputs (generated artifacts)
 docs/eval-outputs/
+
+# subagent-driven scratch
+.superpowers/
+
+# dev orchestration env (generated from .env.dev.example)
+.env.dev
