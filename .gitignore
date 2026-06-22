@@ -19,3 +19,6 @@ dist
 
 # Eval run outputs (generated artifacts)
 docs/eval-outputs/
+
+# subagent-driven scratch
+.superpowers/
