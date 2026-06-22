@@ -148,4 +148,42 @@ describe('backtestCompletedHandler', () => {
       backtestCompletedHandler(task({ decision: 'UNKNOWN_DECISION' }), s),
     ).rejects.toThrow('invalid backtest.completed payload');
   });
+
+  describe('backtest.result_ready terminal event', () => {
+    it('emits backtest.result_ready as the final event for a PASS decision', async () => {
+      const queue = new InMemoryQueueAdapter();
+      const s = makeServices({ taskQueue: queue });
+      await backtestCompletedHandler(task({ ...BASE_PAYLOAD, decision: 'PASS' }), s);
+
+      const recordedEvents = await s.events.listByTask('task-bt-completed');
+
+      // Additive guarantee: hypothesis.passed still emitted
+      const types = recordedEvents.map((e) => e.type);
+      expect(types).toContain('hypothesis.passed');
+
+      // backtest.result_ready is the LAST event, with the remapped payload
+      const last = recordedEvents[recordedEvents.length - 1]!;
+      expect(last.type).toBe('backtest.result_ready');
+      expect(last.payload).toEqual({
+        decision: 'PASS',
+        profileId: 'profile-1',
+        hypothesisId: 'hyp-1',
+        backtestRunId: 'bt-run-1',
+      });
+    });
+
+    it('emits backtest.result_ready for a FAIL decision too', async () => {
+      const queue = new InMemoryQueueAdapter();
+      const s = makeServices({ taskQueue: queue });
+      await backtestCompletedHandler(
+        task({ ...BASE_PAYLOAD, decision: 'FAIL', reasons: ['no_improvement_over_baseline'], cycleDepth: 0 }),
+        s,
+      );
+
+      const recordedEvents = await s.events.listByTask('task-bt-completed');
+      const last = recordedEvents[recordedEvents.length - 1]!;
+      expect(last.type).toBe('backtest.result_ready');
+      expect(last.payload).toMatchObject({ decision: 'FAIL', profileId: 'profile-1' });
+    });
+  });
 });
