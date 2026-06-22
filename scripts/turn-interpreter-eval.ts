@@ -5,11 +5,10 @@
 // Paid-call volume = models x repeat x caseCount (interpret is called per message) — printed up front.
 import { execSync } from 'node:child_process';
 import { loadCases, fingerprintCases } from '../src/experiments/turn-interpreter/fixtures.ts';
-import { parseArgs, planDryRun, writeRunArtifacts, writeReport, compactTimestamp, type EnvRecommendation } from '../src/experiments/turn-interpreter/report.ts';
+import { parseArgs, planDryRun, writeRunArtifacts, writeReport, compactTimestamp, DEFAULT_THRESHOLD, type EnvRecommendation } from '../src/experiments/turn-interpreter/report.ts';
 import { runEval } from '../src/experiments/turn-interpreter/eval-harness.ts';
 import { rankAggregates, recommendEnv } from '../src/experiments/turn-interpreter/aggregate.ts';
 import { parseRoleModel, type ModelProvider, type ModelProviderEnv } from '../src/adapters/llm/model-provider.ts';
-import { DEFAULT_THRESHOLD } from '../src/experiments/turn-interpreter/report.ts';
 
 const HARNESS_VERSION = 'turn-interpreter-eval-v1';
 

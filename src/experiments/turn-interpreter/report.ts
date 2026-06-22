@@ -8,9 +8,10 @@ import { join } from 'node:path';
 import { parseRoleModel, MODEL_PROVIDERS, type ModelProvider, type ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
 import { rankAggregates } from './aggregate.ts';
 import type { EvalRunResult, ManifestMeta, ModelAggregate } from './types.ts';
+import { DEFAULT_THRESHOLD } from './scoring.ts';
 
 export const DEFAULT_DATASET = 'turn-interpretations-v1';
-export const DEFAULT_THRESHOLD = 0.75;
+export { DEFAULT_THRESHOLD } from './scoring.ts';
 
 // ---- Env key mapping (mirrors intent-classifier/plan.ts) ----
 
