@@ -118,4 +118,11 @@ export const backtestCompletedHandler: WorkflowHandler = async (task, services) 
       break;
     }
   }
+
+  await services.events.append(event(task.id, 'backtest.result_ready', {
+    decision,
+    profileId: strategyProfileId,
+    hypothesisId,
+    backtestRunId,
+  }));
 };
