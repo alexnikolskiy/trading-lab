@@ -16,7 +16,7 @@ const INSTRUCTIONS = [
   'A request for trading/backtest results -> subject: results. A question about a deployed bot -> subject: bot.',
   'A request to build/backtest a previously researched hypothesis -> subject: hypothesis.',
   'Off-domain, meaningless, or unclear input -> subject: unknown with a low confidence.',
-  'Extract market/symbol/timeframe/direction into constraints only when clearly stated. Do not invent ids.',
+  'Extract market/symbol/timeframe/direction into constraints ONLY when the operator states them explicitly. If a field is not explicitly stated, OMIT it entirely — never infer, default, or invent a value: do not infer a market from a symbol, do not guess a timeframe or direction, do not normalise or expand identifiers. When unsure, leave the field out.',
 ].join(' ');
 
 export function createTurnInterpreterAgent(model: ProviderModel): Agent {
