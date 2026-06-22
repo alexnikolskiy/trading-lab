@@ -1,0 +1,24 @@
+# Dev orchestration: stateful infra in docker, app services on the host (watch). The host
+# backtester runs in BIND mode (no BACKTESTER_SANDBOX_OVERLAY_VOLUME* in .env.dev) so its
+# sandbox `docker run` hits the host daemon natively — no DooD in dev.
+#
+# Run via `make dev` (creates .env.dev from the example first). Requires sibling repos present
+# with deps installed: ../trading-backtester (pnpm) and ../trading-office (npm).
+procs:
+  infra:
+    shell: "docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.dev.yml --env-file .env.dev up postgres redis mock-platform"
+
+  ingress:
+    shell: "set -a && . ./.env.dev && exec node --watch --experimental-transform-types src/ingress/server.ts"
+
+  worker:
+    shell: "set -a && . ./.env.dev && exec node --watch --experimental-transform-types src/worker/worker.ts"
+
+  backtester:
+    shell: "set -a && . ./.env.dev && cd \"$TRADING_BACKTESTER_PATH\" && exec pnpm start"
+
+  office-server:
+    shell: "set -a && . ./.env.dev && cd \"$TRADING_OFFICE_PATH\" && exec npm run dev:server"
+
+  office-web:
+    shell: "set -a && . ./.env.dev && cd \"$TRADING_OFFICE_PATH\" && exec npm run dev:web:connected"
