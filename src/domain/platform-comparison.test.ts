@@ -53,4 +53,40 @@ describe('mapPlatformComparison', () => {
     const b = full(1.8); const v = full(2.2); delete (v as Record<string, number>).sharpe;
     expect(() => mapPlatformComparison(summary(b, v))).toThrowError(/missing_metric/);
   });
+
+  // Ground-truth no-loss: win_rate===1 && total_trades>0, profit_factor absent everywhere → NO_LOSS_PROFIT_FACTOR on both sides.
+  // Captured live from the demo real-top5 fixture (FR-002: backtester omits profit_factor when absGrossLoss===0).
+  const noLossMetrics = { pnl: 7667.62, sharpe: 0.0947, win_rate: 1, max_drawdown: 0.40, total_trades: 1, top_trade_contribution_pct: 100 };
+
+  it('no-loss run (win_rate===1, total_trades>0, profit_factor absent everywhere) → both PFs map to NO_LOSS_PROFIT_FACTOR, no throw', () => {
+    const b = { ...noLossMetrics };
+    const v = { ...noLossMetrics };
+    const top = { ...noLossMetrics };
+    const c = mapPlatformComparison(summary(b, v, top));
+    expect(c.baseline.profitFactor).toBe(NO_LOSS_PROFIT_FACTOR);
+    expect(c.variant.profitFactor).toBe(NO_LOSS_PROFIT_FACTOR);
+  });
+
+  it('regression — genuinely ambiguous (win_rate<1, no profit_factor) still throws ambiguous_profit_factor', () => {
+    const b = { ...noLossMetrics };
+    const v = { ...noLossMetrics, win_rate: 0.6 }; // has losses → PF is truly unknown
+    const top = { ...noLossMetrics };
+    expect(() => mapPlatformComparison(summary(b, v, top))).toThrowError(/ambiguous_profit_factor/);
+  });
+
+  it('case 1 unchanged: profit_factor present in both baseline and variant → those exact values used', () => {
+    const c = mapPlatformComparison(summary(full(1.8), full(2.2)));
+    expect(c.baseline.profitFactor).toBe(1.8);
+    expect(c.variant.profitFactor).toBe(2.2);
+  });
+
+  it('case 3 unchanged: both total_trades===0 → both PFs 0, no throw', () => {
+    const zeroTrades = { pnl: 0, sharpe: 0, win_rate: 0, max_drawdown: 0, total_trades: 0, top_trade_contribution_pct: 0 };
+    const b = { ...zeroTrades };
+    const v = { ...zeroTrades };
+    const top = { ...zeroTrades };
+    const c = mapPlatformComparison(summary(b, v, top));
+    expect(c.baseline.profitFactor).toBe(0);
+    expect(c.variant.profitFactor).toBe(0);
+  });
 });

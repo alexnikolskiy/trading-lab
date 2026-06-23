@@ -439,6 +439,59 @@ mock-platform:
 Инфраструктуру держим в Docker, а сам агент гоняем на хосте через `pnpm` — удобно для разработки и
 для прямого доступа к HTTP API (curl). Требования: **Node ≥ 22**, **pnpm**, Docker.
 
+#### Dev-onboarding (рекомендуемый способ — `make dev`)
+
+`make dev` теперь делает всё за один шаг: устанавливает зависимости, поднимает инфраструктуру
+detached, прогоняет миграции и запускает все сервисы через `mprocs` (с hot-reload).
+
+**Предварительные условия:**
+
+- Склонированные соседние репозитории рядом:
+  - `../trading-backtester` — управляется через `pnpm`
+  - `../trading-office` — управляется через `npm` (установи зависимости вручную один раз: `npm --prefix ../trading-office install`)
+- Docker + Compose v2 (≥ 2.17)
+- Node ≥ 22, pnpm
+
+```bash
+# 1. Скопировать пример env-файла и при необходимости отредактировать
+cp .env.dev.example .env.dev
+
+# 2. Установить зависимости trading-office (npm-воркспейс, делается один раз)
+npm --prefix ../trading-office install
+
+# 3. Запустить весь стек одной командой
+make dev
+# Что происходит внутри:
+#   pnpm install --frozen-lockfile                             (lab + SDK-tarballs)
+#   pnpm -C ../trading-backtester install --frozen-lockfile   (backtester)
+#   docker compose ... up -d --wait postgres redis mock-platform
+#   pnpm db:migrate
+#   pnpm exec mprocs   (ingress + worker + backtester + office-server + office-web, все с watch)
+```
+
+**Порты после запуска:**
+
+| Сервис | Порт |
+|--------|------|
+| ingress (POST /tasks, /chat/messages) | http://localhost:3000 |
+| read-api (GET /v1/*, /healthz) | http://localhost:3100 |
+| mock-platform | http://localhost:8839 |
+| backtester | http://localhost:8080 |
+| office-server (gateway дашборда) | http://localhost:8787 |
+| office-web (UI дашборда) | http://localhost:5174 |
+
+> **Живой turn-interpreter (LLM в чате):** по умолчанию все агенты работают в режиме `fake` —
+> стек поднимается без ключей. Чтобы включить реальный LLM для классификатора намерений, задай
+> в `.env.dev`:
+> ```
+> TURN_INTERPRETER_ADAPTER=mastra
+> # или включить все агенты сразу:
+> # LAB_AGENTS_ADAPTER=mastra
+> OPENROUTER_API_KEY=sk-or-...
+> ```
+
+#### Ручной запуск (без make dev)
+
 ```bash
 pnpm install
 docker compose up -d postgres redis      # только инфраструктура
@@ -460,7 +513,7 @@ pnpm worker     # потребитель очереди → WorkflowRouter → h
 Чат — классификация намерения и планирование задачи:
 ```bash
 curl -s http://localhost:3000/chat/messages \
-  -H "authorization: Bearer dev-chat-token" \
+  -H "authorization: Bearer demo-chat-token" \
   -H "content-type: application/json" \
   -d '{"message":"проанализируй мою стратегию и предложи улучшения","channel":"web"}'
 ```
@@ -468,7 +521,7 @@ curl -s http://localhost:3000/chat/messages \
 Постановка задачи напрямую (оператор/cron):
 ```bash
 curl -s http://localhost:3000/tasks \
-  -H "authorization: Bearer dev-task-token" \
+  -H "authorization: Bearer demo-task-token" \
   -H "content-type: application/json" \
   -d '{"taskType":"strategy.onboard","source":"operator","correlationId":"demo-1","payload":{ /* исходник стратегии */ }}'
 ```
