@@ -34,7 +34,7 @@ describe('runDiscoveryProbe', () => {
       async getRunResult() { throw new Error('not implemented'); },
     };
     await expect(runDiscoveryProbe({
-      platform: bad, events: sink, probeId: 'probe:bad', integration: 'mcp', command: 'node',
+      platform: bad, events: sink, probeId: 'probe:bad', integration: 'backtester', command: 'node',
     })).rejects.toBeInstanceOf(ContractIncompatibleError);
     expect(await typesOf(sink, 'probe:bad')).toEqual([
       'platform.discover.started', 'platform.contract.incompatible', 'platform.discover.failed',

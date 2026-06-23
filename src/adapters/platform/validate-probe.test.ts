@@ -42,7 +42,7 @@ describe('runValidateProbe', () => {
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };
-    await runValidateProbe({ platform, events: sink, probeId: 'p:rej', integration: 'mcp', bundle });
+    await runValidateProbe({ platform, events: sink, probeId: 'p:rej', integration: 'backtester', bundle });
     expect(await typesOf(sink, 'p:rej')).toEqual(['platform.validate.started', 'platform.validate.completed', 'platform.validate.rejected']);
   });
 
@@ -56,7 +56,7 @@ describe('runValidateProbe', () => {
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };
-    await expect(runValidateProbe({ platform, events: sink, probeId: 'p:err', integration: 'mcp', bundle }))
+    await expect(runValidateProbe({ platform, events: sink, probeId: 'p:err', integration: 'backtester', bundle }))
       .rejects.toBeInstanceOf(GatewayValidationError);
     expect(await typesOf(sink, 'p:err')).toEqual(['platform.validate.started', 'platform.validate.failed']);
   });
@@ -71,7 +71,7 @@ describe('runValidateProbe', () => {
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };
-    await expect(runValidateProbe({ platform, events: sink, probeId: 'p:bad', integration: 'mcp', bundle }))
+    await expect(runValidateProbe({ platform, events: sink, probeId: 'p:bad', integration: 'backtester', bundle }))
       .rejects.toBeInstanceOf(ContractIncompatibleError);
     expect(await typesOf(sink, 'p:bad')).toEqual(['platform.validate.started', 'platform.contract.incompatible', 'platform.validate.failed']);
   });
