@@ -41,25 +41,52 @@ function block(side: 'baseline' | 'variant', m: Record<string, number>, profitFa
   };
 }
 
-/** Resolve baseline/variant profitFactor per the 3-case rule (comparison carries baseline∩variant;
- *  summary.metrics is the baseline's FULL metric set). */
+/** Returns true when a metric block is provably no-loss: it has at least one trade and all trades
+ *  were winners (win_rate===1). A losing trade always reduces win_rate below 1, so this never
+ *  false-positives a side that actually had losses (FR-002: backtester omits profit_factor when
+ *  absGrossLoss===0). */
+const noLoss = (m: Record<string, number>): boolean =>
+  (m['total_trades'] ?? 0) > 0 && m['win_rate'] === 1;
+
+/** Resolve baseline/variant profitFactor per the 4-case rule (comparison carries baseline∩variant;
+ *  summary.metrics is the baseline's FULL metric set):
+ *  1. PF present in both comparison sides → use those values directly.
+ *  2. PF absent from comparison but present in summary.metrics → baseline had losses (finite PF);
+ *     comparison dropped it because variant had no losses → variant gets NO_LOSS_PROFIT_FACTOR.
+ *  3. Both sides have zero trades → PF is undefined; map to 0 (degenerate run still evaluates).
+ *  4. A side is provably no-loss (total_trades>0 && win_rate===1) but has no profit_factor →
+ *     PF is undefined/+inf (not ambiguous); map to NO_LOSS_PROFIT_FACTOR (mirrors case 2 variant path).
+ *  Any remaining case (trades present, win_rate<1, profit_factor absent) is genuinely ambiguous → throw. */
 function resolveProfitFactors(
   baseline: Record<string, number>,
   variant: Record<string, number>,
   topMetrics: Record<string, number>,
 ): { baselinePf: number; variantPf: number } {
+  // Case 1: PF present in both comparison sides.
   if ('profit_factor' in baseline && 'profit_factor' in variant) {
     return { baselinePf: baseline['profit_factor'] ?? 0, variantPf: variant['profit_factor'] ?? 0 };
   }
+  // Case 2: baseline had losses (finite PF in its full metrics); comparison dropped it → variant omitted (no losses).
   if ('profit_factor' in topMetrics) {
-    // baseline had losses (finite PF in its full metrics); comparison dropped it → variant omitted (no losses).
     return { baselinePf: topMetrics['profit_factor'] ?? 0, variantPf: NO_LOSS_PROFIT_FACTOR };
   }
-  // A completed run with NO trades on either side has no profit_factor (the engine omits it when there
-  // are no trades at all). That is not ambiguous — PF is simply undefined; map to 0 so a degenerate
-  // (zero-trade) run still evaluates instead of failing the metric mapping.
+  // Case 3: A completed run with NO trades on either side has no profit_factor (the engine omits it
+  // when there are no trades at all). That is not ambiguous — PF is simply undefined; map to 0 so a
+  // degenerate (zero-trade) run still evaluates instead of failing the metric mapping.
   if ((baseline['total_trades'] ?? 0) === 0 && (variant['total_trades'] ?? 0) === 0) {
     return { baselinePf: 0, variantPf: 0 };
+  }
+  // Case 4: A side with trades but no losing trades (win_rate===1) has no profit_factor because the
+  // engine omits it when absGrossLoss===0 (FR-002). PF is undefined/+inf, not ambiguous — map to the
+  // NO_LOSS sentinel (mirrors the case-2 variant path). Resolve per side independently.
+  const baselinePf =
+    noLoss(baseline) || noLoss(topMetrics) ? NO_LOSS_PROFIT_FACTOR : undefined;
+  const variantPf =
+    noLoss(variant) ? NO_LOSS_PROFIT_FACTOR
+    : (variant['total_trades'] ?? 0) === 0 ? 0
+    : undefined;
+  if (baselinePf !== undefined && variantPf !== undefined) {
+    return { baselinePf, variantPf };
   }
   throw new MetricMappingError(
     'ambiguous_profit_factor',
