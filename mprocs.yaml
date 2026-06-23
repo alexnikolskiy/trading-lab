@@ -1,13 +1,11 @@
-# Dev orchestration: stateful infra in docker, app services on the host (watch). The host
-# backtester runs in BIND mode (no BACKTESTER_SANDBOX_OVERLAY_VOLUME* in .env.dev) so its
-# sandbox `docker run` hits the host daemon natively — no DooD in dev.
+# Dev orchestration: app services on the host (watch). Infra (postgres + redis + mock-platform)
+# and DB migrations are handled by `make dev` before mprocs launches — no infra proc here.
+# The host backtester runs in BIND mode (no BACKTESTER_SANDBOX_OVERLAY_VOLUME* in .env.dev) so
+# its sandbox `docker run` hits the host daemon natively — no DooD in dev.
 #
-# Run via `make dev` (creates .env.dev from the example first). Requires sibling repos present
-# with deps installed: ../trading-backtester (pnpm) and ../trading-office (npm).
+# Run via `make dev` (installs deps, starts infra detached, migrates, then launches mprocs).
+# Requires sibling repos present: ../trading-backtester (pnpm) and ../trading-office (npm).
 procs:
-  infra:
-    shell: "docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.dev.yml --env-file .env.dev up postgres redis mock-platform"
-
   ingress:
     shell: "set -a && . ./.env.dev && exec node --watch --experimental-transform-types src/ingress/server.ts"
 

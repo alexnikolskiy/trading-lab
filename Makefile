@@ -15,8 +15,13 @@ vps: .env.vps
 	docker compose -f docker-compose.yml -f docker-compose.vps.yml --env-file .env.vps up --build -d
 
 # Dev (minimal-docker): infra in docker, app services on the host via mprocs (watch).
-# Requires sibling repos with deps installed: ../trading-backtester, ../trading-office.
+# Installs lab + backtester deps, brings up infra detached, runs migrations, then launches mprocs.
+# Requires sibling repos present: ../trading-backtester (pnpm) + ../trading-office (npm).
 dev: .env.dev
+	pnpm install --frozen-lockfile
+	set -a && . ./.env.dev && pnpm -C "$${TRADING_BACKTESTER_PATH:-../trading-backtester}" install --frozen-lockfile
+	docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.dev.yml --env-file .env.dev up -d --wait postgres redis mock-platform
+	set -a && . ./.env.dev && pnpm db:migrate
 	pnpm exec mprocs
 
 # Create the real env file from the example on first run.
