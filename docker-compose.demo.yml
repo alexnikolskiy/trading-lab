@@ -4,14 +4,17 @@
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml \
-#     --env-file .env.demo up --build
+#     --env-file .env.demo pull --ignore-buildable && \
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+#     --env-file .env.demo up
+#
+# The mock-platform / backtester / lab images are pulled from GHCR (built by each
+# repo's "Publish image" workflow); only office-{web,server} build from source.
 services:
 
   # ── mock-platform (Ops Read + snapshot replay) ─────────────────────────────
   mock-platform:
-    build:
-      context: ${TRADING_MOCK_PLATFORM_PATH:-../trading-mock-platform}
-    image: trading-mock-platform:demo
+    image: ghcr.io/alexnikolskiy/trading-mock-platform:${MOCK_PLATFORM_IMAGE_TAG:-latest}
     environment:
       MOCK_OPS_BIND: "0.0.0.0"
       MOCK_OPS_PORT: "8839"
@@ -35,9 +38,7 @@ services:
 
   # ── backtester (research-read backed by mock-platform historical data) ──────
   backtester:
-    build:
-      context: ${TRADING_BACKTESTER_PATH:-../trading-backtester}
-    image: trading-backtester:demo
+    image: ghcr.io/alexnikolskiy/trading-backtester:${BACKTESTER_IMAGE_TAG:-latest}
     environment:
       BACKTESTER_HOST: "0.0.0.0"
       BACKTESTER_PORT: "8080"
@@ -70,8 +71,11 @@ services:
     restart: "no"
     networks: [trading]
 
-  # ── lab services: override env to wire mock-platform + backtester ───────────
+  # ── lab services: pull the lab image from GHCR (!reset drops the base anchor's
+  #    `build:` so the demo never compiles lab from source) + wire mock+backtester ──
   ingress:
+    build: !reset null
+    image: ghcr.io/alexnikolskiy/trading-lab:${LAB_IMAGE_TAG:-latest}
     restart: "no"
     environment:
       LAB_BOT_RESULTS_INTEGRATION: "http"
@@ -84,7 +88,13 @@ services:
       backtester:
         condition: service_healthy
 
+  migrate:
+    build: !reset null
+    image: ghcr.io/alexnikolskiy/trading-lab:${LAB_IMAGE_TAG:-latest}
+
   worker:
+    build: !reset null
+    image: ghcr.io/alexnikolskiy/trading-lab:${LAB_IMAGE_TAG:-latest}
     restart: "no"
     environment:
       LAB_BOT_RESULTS_INTEGRATION: "http"
