@@ -7,8 +7,6 @@ import { sourceFingerprint } from '../domain/fingerprint.ts';
 import { StrategyAnalystInputSchema, type SourceKind } from '../domain/strategy-source.ts';
 import { HypothesisBuildPayloadSchema } from '../orchestrator/handlers/hypothesis-build.handler.ts';
 import { z } from 'zod';
-
-export type PlatformRunConfig = NonNullable<z.infer<typeof HypothesisBuildPayloadSchema>['platformRun']>;
 import { TurnInterpretationSchema, type InterpretedTurn } from './turn-interpretation.ts';
 import { normalizeTurnOutput } from './normalize-turn-output.ts';
 import {
@@ -17,6 +15,8 @@ import {
 import {
   resolveStatusTask, resolveBuildableHypothesis, type RefResolverDeps,
 } from './ref-resolver.ts';
+
+export type PlatformRunConfig = NonNullable<z.infer<typeof HypothesisBuildPayloadSchema>['platformRun']>;
 
 export type ParseResult =
   | { ok: true; turn: InterpretedTurn }
