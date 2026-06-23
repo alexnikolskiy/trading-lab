@@ -19,12 +19,12 @@ stay behind the deterministic guard. Research-only — no live trading / executi
 | — | Operator confirmation UI (office) | ✅ Shipped (lab #59 PR-L + office #12 PR-O1 + #13 PR-O2; live-verified 2026-06-21; all follow-ups shipped — office #14 + lab #65 + office #15) |
 | — | Reranker follow-up | ✅ Scaffold shipped (#52; default OFF, enable deferred to independent corpus) |
 | — | TurnInterpreter model env + IntentClassifier cleanup | ✅ Shipped (#69 eval + #71 dataset/prompt fixes → `gemini-3.1-flash-lite` selected; **#72 → main `0cc4cf2`** decouples `TURN_INTERPRETER_MODEL` + deletes the legacy IntentClassifier — operator = one LLM call) |
-| 4 | Bot catalog + entity disambiguation | ⛔ Deferred — needs platform SDK + bot-identity DTO (see SDK initiative) |
-| 5 | Researcher / Artifact RAG | ⛔ Deferred — needs backtester SDK artifact API (see SDK initiative) |
+| 4 | Bot catalog + entity disambiguation | ⛔ Deferred — SDK split shipped (0.5.0 ops-read), but still needs a stable **bot-identity DTO** surface; confirm against 0.5.0 before starting |
+| 5 | Researcher / Artifact RAG | ⛔ Deferred — SDK split shipped, but still needs the **backtester artifact API** surface; confirm before starting |
 | — | Phoenix observability | 🔜 Backlog |
 | — | Answer Synthesizer (optional) | 🔜 Backlog |
 | — | Agentic RAG (bounded corrective) | 🕓 Later (only if eval justifies) |
-| — | SDK boundaries + distribution (cross-cutting) | 🔬 Researched — own brainstorm/spec pending |
+| — | SDK boundaries + distribution (cross-cutting) | ✅ Shipped (platform Stage 4 PR #11 + lab mcp-retirement **#75 → main `75b4d37`**); lab on `@trading-platform/sdk` 0.5.0 (ops-read only), MCP + `/builder`/`/agent` retired; demo = GHCR-pull self-contained; only platform-side research-gateway (031) retirement remains |
 | — | Tech debt: strip-types boot fix | ✅ Shipped (branch `fix/strip-types-boot`) |
 
 ## Shipped
@@ -225,14 +225,23 @@ Needs its own design/plan.
 
 ## SDK boundaries + distribution (cross-cutting)
 
-A cross-repo architectural initiative to replace the committed, platform-owned vendored
-SDK tarball (and the sibling `file:../trading-backtester/...` client dependency) with **two
-independently-versioned SDKs by bounded context**, delivered via **GitHub Release assets**
-(no npmjs, no sibling checkouts, no registry credentials). Research + conclusions:
-`docs/research/2026-06-19-sdk-boundaries-and-distribution.md` (branch
-`docs/sdk-boundaries-distribution`). This is **research input, not an approved spec** — it
-needs its own `superpowers:brainstorming` → spec → plan, and a re-check of all repos, before
-implementation.
+**✅ SHIPPED (2026-06-23).** A cross-repo architectural initiative to replace the committed,
+platform-owned vendored SDK tarball (and the sibling `file:../trading-backtester/...` client
+dependency) with **two independently-versioned SDKs by bounded context**, delivered via
+**GitHub Release assets** (no npmjs, no sibling checkouts, no registry credentials). Both tracks
+of Initiative #2 landed: **platform Stage 4** (PR #11 — in-repo `packages/sdk` cut, drift-control
+on published `0.5.0`, `check:038` 237/237) and **lab mcp-retirement** (PR #75 → main `75b4d37`).
+Lab now consumes `@trading-platform/sdk` 0.5.0 (**ops-read only**); the MCP research-platform
+integration + `/builder`/`/agent`/overlay/submitted-bundle surfaces are deleted; mock + backtester
+backends remain. End-state reached: backtester ← platform-SDK(historical); mock ←
+platform-SDK(ops-read+historical); lab ← platform-SDK(ops-read only). **Demo is now fully
+self-contained** — `make demo` pulls all five images from GHCR (zero source build, no sibling
+checkout; mock-platform replay fixture baked into its image). Research basis:
+`docs/research/2026-06-19-sdk-boundaries-and-distribution.md`.
+
+**Remaining (one item, platform-side):** the platform research-gateway (031) + its
+overlay-builder/agent client are now unconsumed by any repo → candidate for retirement on the
+platform side (separate decision/owner).
 
 **Target split:**
 - **`@trading-platform/sdk`** (new public repo `trading-platform-sdk`): platform data /
@@ -247,12 +256,15 @@ implementation.
   manifest); `pnpm-lock.yaml` records URL + integrity. Replaces `vendor/trading-platform-sdk/*.tgz`
   and the `file:` client dep. Clean-clone install with no sibling checkout is a done-criterion.
 
-**Impact on the operator roadmap:**
-- **Independent** of this initiative (can proceed now): Slice 3 (completion replies), the
-  Reranker follow-up, Phoenix observability, and the shipped strip-types boot fix.
-- **Slice 4 (Bot catalog)** — deferred until the platform SDK + a stable bot-identity DTO land.
-- **Slice 5 (Researcher / Artifact RAG)** — deferred until the backtester SDK artifact API lands.
-- Do **not** start Slice 4 or Slice 5 until their respective SDK surfaces are fixed.
+**Impact on the operator roadmap (post-ship):**
+- The SDK **split + distribution** is done; the WSL2 docker-build concern (URL-pinned SDKs
+  unreachable from the Docker Desktop VM) is moot for the demo — `make demo` now pulls prebuilt
+  GHCR images instead of building from source. Building the image locally on WSL2 still needs
+  CDN access; tracked platform-side.
+- **Slice 4 (Bot catalog)** — the SDK landed, but still needs a stable **bot-identity DTO**
+  surface in 0.5.0; confirm it exists before starting.
+- **Slice 5 (Researcher / Artifact RAG)** — the SDK landed, but still needs the **backtester
+  artifact API** surface; confirm before starting.
 
 Out of scope for the initiative itself: npmjs / private registry publication, moving any SDK
 into `trading-mock-platform`, a single universal package, live-execution changes, or rewriting
