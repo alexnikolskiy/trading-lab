@@ -411,6 +411,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 | `MOCK_OPS_TOKENS` | `6dd4bdc5…` | SHA256-хеш (hex) `MOCK_OPS_TOKEN` — генерировать: `echo -n "$TOKEN" \| sha256sum` |
 | `MOCK_SNAPSHOT_REF` | `fixtures/2026-06-12-real-top5` | Имя снапшота с тестовыми данными |
 | `BACKTESTER_AUTH_TOKEN` | `demo-backtester-token` | Bearer-токен для backtester |
+| `LAB_AGENTS_ADAPTER` | `fake` (default) / `mastra` | Семейный default для всех агентов; per-agent `<AGENT>_ADAPTER` может переопределять |
 | `TRADING_LAB_TASK_TOKEN` | `demo-task-token` | Bearer-токен для POST /tasks (e2e) |
 | `TRADING_LAB_READ_TOKEN` | `demo-read-token` | Bearer-токен для GET /v1/* (e2e + smoke) |
 
