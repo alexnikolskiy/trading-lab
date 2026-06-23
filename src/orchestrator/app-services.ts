@@ -42,7 +42,7 @@ export interface AppServices {
   platform: PlatformGatewayPort;
   researchPlatform: ResearchPlatformPort;
   /** Which research-platform integration is wired — selects the overlay-run target in runPlatformBacktest. */
-  researchIntegration: 'mock' | 'mcp' | 'backtester';
+  researchIntegration: 'mock' | 'backtester';
   botResults: BotResultsReadPort;
   tradeEvidence: TradeEvidenceReadPort;
   researcher: ResearcherPort;

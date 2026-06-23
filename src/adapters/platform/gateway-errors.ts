@@ -1,4 +1,4 @@
-import type { GatewayError } from '@trading-platform/sdk/agent';
+import type { GatewayError } from '../../ports/research-run-lifecycle.ts';
 
 /** Thrown when the gateway returns an `ok:false` envelope (transport-level / contract / bundle-load failure). */
 export class GatewayValidationError extends Error {

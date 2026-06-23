@@ -10,8 +10,8 @@ import type {
   RunStatusView,
   RunResultResult,
   Ref,
-} from '@trading-platform/sdk/agent';
-import { isTerminal } from '@trading-platform/sdk/agent';
+} from './research-run-lifecycle.ts';
+import { isTerminal } from './research-run-lifecycle.ts';
 import type { ModuleBundle } from '../domain/module-bundle.ts';
 
 export type {
@@ -38,7 +38,7 @@ export interface SubmitOverlayRunOptions {
    * What the run compares the submitted overlay bundle against. Per-integration support is
    * deliberate (see the adapters): the backtester/HTTP path needs a COMPLETE request
    * (risk/exec/metrics), which only a `registry_preset` supplies, so it rejects `baseline_ref`;
-   * the platform/MCP path supports `baseline_ref` only; the mock accepts both.
+   * the mock accepts both.
    */
   readonly target:
     | { readonly kind: 'registry_preset'; readonly presetId?: string }

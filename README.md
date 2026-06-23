@@ -575,7 +575,6 @@ trading-lab/
 ├── test/                 # e2e, fixtures, smoke-тесты (+ *.test.ts рядом с кодом)
 ├── migrations/           # SQL-миграции (Drizzle)
 ├── scripts/              # platform-discover.ts, platform-validate.ts
-├── vendor/               # вендоренный @trading-platform/sdk (tarball)
 ├── docs/                 # дизайн-спеки, планы (docs/superpowers/specs) + img/ для README
 ├── docker-compose.yml    # базовый стек + overlay'и demo/local/vps, Makefile, scripts/smoke.sh
 ├── .env.example          # переменные окружения (+ .env.{demo,local,vps}.example для Docker)

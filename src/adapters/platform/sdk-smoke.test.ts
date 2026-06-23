@@ -1,10 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { CONTRACT_VERSION, SDK_VERSION, SDK_CAPABILITIES } from '@trading-platform/sdk';
-import { discover, listDatasets } from '@trading-platform/sdk/agent';
 
-// SP-8 smoke test: proves the standalone @trading-platform/sdk resolves by name (from the
-// vendored tarball, no sibling repo) and exposes its documented public surface — no gateway needed.
-// Imports ONLY confirmed public exports; if the standalone SDK renames any, adjust to the real API.
+// Smoke test: proves the standalone @trading-platform/sdk resolves by name (from the published 0.5.0
+// release tarball, no sibling repo) and exposes its documented root surface. The /agent gateway
+// surface was cut in 0.5.0 (mcp integration retired), so this asserts only the surviving root.
 describe('@trading-platform/sdk standalone package', () => {
   it('exposes the root contract + version surface', () => {
     expect(typeof CONTRACT_VERSION).toBe('string');
@@ -20,10 +19,5 @@ describe('@trading-platform/sdk standalone package', () => {
       ingestion: false,
       rawStorage: false,
     });
-  });
-
-  it('exposes the agent workflow functions', () => {
-    expect(typeof discover).toBe('function');
-    expect(typeof listDatasets).toBe('function');
   });
 });

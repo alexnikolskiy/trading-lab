@@ -30,7 +30,7 @@ export function toBacktesterBundle(bundle: ModuleBundle, opts: ToBacktesterBundl
   // Overlay submissions need the RICH 017 overlay manifest: the backtester reads interceptionPoint /
   // hooks / targetStrategyRef from the materialized manifest.json to validate + resolve the overlay
   // (runner reads ro.manifest.*). The SDK builder manifest is minimal {id,version,kind,bundleCV}; the
-  // lab projects its overlay metadata on top (mirrors the MCP path's createOverlayManifest projection).
+  // lab projects its overlay metadata on top (the 017 overlay-manifest projection).
   const manifest: BtModuleManifest =
     kind === 'overlay'
       ? ({

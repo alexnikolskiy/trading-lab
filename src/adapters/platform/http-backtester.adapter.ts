@@ -37,7 +37,7 @@ import type {
   RunStatusView,
   RunResultView,
 } from '../../ports/research-platform.port.ts';
-import type { GatewayError } from '@trading-platform/sdk/agent';
+import type { GatewayError } from '../../ports/research-run-lifecycle.ts';
 import type { ModuleBundle } from '../../domain/module-bundle.ts';
 import { GatewayRunError, GatewayValidationError } from './gateway-errors.ts';
 import { toBacktesterBundle } from './backtester-bundle.ts';
