@@ -89,11 +89,19 @@ execute real backtests on WSL2 — so production is exactly where the trace stre
 keep.
 
 **vps exposure rule (security):** the Phoenix UI captures prompts/completions and must
-**not** be published to the internet. On vps the `6006` port is kept internal — reachable
-only on the compose network (no host port-publish to `0.0.0.0`), or bound to loopback /
-placed behind the existing reverse-proxy with auth. Trace data stays on the vps host. The
-demo/local overlays may publish `6006` to the host for convenience. `PHOENIX_ENABLED`
-remains a flag so any overlay can turn it off.
+**not** be published to the internet unauthenticated. vps reuses the **same host-level
+reverse proxy that already fronts trading-office** (`docs/docker-vps.md`: `BIND_ADDR=127.0.0.1`
++ "Put a reverse proxy in front that serves the web UI and routes `/api/office/*` + the
+WebSocket upgrade"). Phoenix is routed through that proxy on its own subdomain/path (e.g.
+`https://phoenix.example.com`) **with auth** (HTTP basic-auth or the same OAuth as office).
+The compose `phoenix` service binds `6006` to `${BIND_ADDR}` (loopback when proxied) — no
+direct `0.0.0.0` publish on vps. Trace data stays on the vps host. The demo/local overlays
+may publish `6006` to the host for convenience. `PHOENIX_ENABLED` remains a flag so any
+overlay can turn it off.
+
+> The reverse proxy is host-level (operator-provisioned nginx/caddy), not a compose service —
+> consistent with how office is already fronted. This slice does not add a proxy container;
+> it documents the Phoenix route + auth as a vps deploy step.
 
 ### New dependency
 
@@ -137,6 +145,11 @@ Not in scope here (possible later hardening): IO redaction/sampling, attribute s
 - Phoenix Cloud / hosted deployment.
 - Token/cost kill-switch enforcement (roadmap tech debt — uses Phoenix usage *numbers*, but
   enforcement is ours; separate work).
+- **Surfacing Phoenix traces in the trading-office dashboard via the Phoenix API** (planned
+  follow-up): once the trace stream exists, office can read selected trace/latency/cost data
+  through Phoenix's API and render it in the dashboard. Out of scope for this slice — it
+  needs its own design (which Phoenix API surface, auth, which metrics, office-side UI), and
+  lives partly in the trading-office repo.
 
 ## Done criteria
 
