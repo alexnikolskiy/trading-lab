@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Agent } from '@mastra/core/agent';
-import type { ResearcherInput, ResearcherPort } from '../../ports/researcher.port.ts';
+import type { ResearcherInput, ResearcherPort, AgentCallOpts } from '../../ports/researcher.port.ts';
 import { ResearcherOutputSchema, type ResearcherOutput } from '../../domain/hypothesis.ts';
 import { OVERLAY_ACTIONS } from '../../domain/hypothesis-rules.ts';
 import { DIRECTIONS } from '../../domain/strategy-profile.ts';
@@ -132,10 +132,11 @@ export class MastraResearcher implements ResearcherPort {
     this.model = label;
   }
 
-  async propose(input: ResearcherInput): Promise<ResearcherOutput> {
+  async propose(input: ResearcherInput, opts?: AgentCallOpts): Promise<ResearcherOutput> {
     const result = await this.agent.generate(buildPrompt(input), {
       structuredOutput: { schema: LlmResearcherOutputSchema },
     });
+    await opts?.onUsage?.(result.usage?.totalTokens ?? 0);
     const llm = LlmResearcherOutputSchema.parse(result.object);
     return llmOutputToDomain(llm);
   }

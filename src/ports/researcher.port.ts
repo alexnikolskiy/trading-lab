@@ -4,6 +4,9 @@ import type { MarketContext, MarketRegime } from './platform-gateway.port.ts';
 import type { BotRunResultDetail } from './bot-results-read.port.ts';
 import type { TradeEvidenceBundle } from './trade-evidence-read.port.ts';
 
+import type { AgentCallOpts } from './agent-call-opts.ts';
+export type { AgentCallOpts };
+
 export interface ResearcherInput {
   profile: StrategyProfile;
   marketContext: MarketContext;
@@ -17,5 +20,5 @@ export interface ResearcherInput {
 export interface ResearcherPort {
   readonly adapter: 'fake' | 'mastra';
   readonly model: string;
-  propose(input: ResearcherInput): Promise<ResearcherOutput>;
+  propose(input: ResearcherInput, opts?: AgentCallOpts): Promise<ResearcherOutput>;
 }

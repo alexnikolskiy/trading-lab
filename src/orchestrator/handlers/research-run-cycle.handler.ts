@@ -119,7 +119,7 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   try {
     output = await services.researcher.propose({
       profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax,
-    });
+    }, { onUsage: (t) => services.tokenUsage.add(task.correlationId, t) });
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.failed', { error: errMsg(err) }));
     throw err;
@@ -194,7 +194,10 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
       });
       if (services.critic) {
         try {
-          const review = await services.critic.review({ proposal: draft, profile });
+          const review = await services.critic.review(
+            { proposal: draft, profile },
+            { onUsage: (t) => services.tokenUsage.add(task.correlationId, t) },
+          );
           await services.hypothesisReviews.create({
             id: randomUUID(),
             hypothesisId: hypothesis.id,

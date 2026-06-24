@@ -22,6 +22,7 @@ import type { ChatPlanRepository } from '../ports/chat-plan.repository.ts';
 import type { ActionProposalRepository } from '../ports/action-proposal.repository.ts';
 import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 import type { StrategyProfile } from '../domain/strategy-profile.ts';
+import type { TokenUsageRepository } from '../ports/token-usage.repository.ts';
 
 /**
  * Fail-soft retrieval indexer seam. The concrete StrategyRetrievalIndexer satisfies it;
@@ -51,6 +52,9 @@ export interface AppServices {
   hypothesisReviews: HypothesisReviewRepository;
   similarHypotheses: SimilarHypothesisSearchPort;
   maxHypothesesPerCycle: number;      // budget guardrail injected from env
+  tokenUsage: TokenUsageRepository;
+  /** Cumulative token budget per research chain; 0 = unlimited. */
+  researchTaskTokenBudget: number;
   builder: BuilderPort;
   builds: HypothesisBuildRepository;
   backtests: BacktestRunRepository;

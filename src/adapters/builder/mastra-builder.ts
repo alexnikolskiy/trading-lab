@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { Agent } from '@mastra/core/agent';
-import type { BuilderInput, BuilderOutput, BuilderPort } from '../../ports/builder.port.ts';
+import type { BuilderInput, BuilderOutput, BuilderPort, AgentCallOpts } from '../../ports/builder.port.ts';
 import { BuilderOutputSchema } from '../../ports/builder.port.ts';
 import { SDK_CONTRACT_VERSION } from '../../domain/module-bundle.ts';
 import { DIRECTIONS } from '../../domain/strategy-profile.ts';
@@ -81,10 +81,11 @@ export class MastraBuilder implements BuilderPort {
     this.model = label;
   }
 
-  async build(input: BuilderInput): Promise<BuilderOutput> {
+  async build(input: BuilderInput, opts?: AgentCallOpts): Promise<BuilderOutput> {
     const result = await this.agent.generate(buildPromptFor(input), {
       structuredOutput: { schema: LlmBuilderOutputSchema },
     });
+    await opts?.onUsage?.(result.usage?.totalTokens ?? 0);
     const raw = LlmBuilderOutputSchema.parse(result.object);
     return llmOutputToDomain(raw);
   }

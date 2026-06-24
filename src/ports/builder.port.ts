@@ -4,6 +4,9 @@ import { ModuleManifestSchema } from '../domain/module-bundle.ts';
 import type { HypothesisProposal } from '../domain/hypothesis.ts';
 import type { StrategyProfile } from '../domain/strategy-profile.ts';
 
+import type { AgentCallOpts } from './agent-call-opts.ts';
+export type { AgentCallOpts };
+
 export interface BuilderInput {
   hypothesis: HypothesisProposal;
   profile: StrategyProfile;
@@ -21,5 +24,5 @@ export type BuilderOutput = z.infer<typeof BuilderOutputSchema>;
 export interface BuilderPort {
   readonly adapter: string;
   readonly model: string;
-  build(input: BuilderInput): Promise<BuilderOutput>;
+  build(input: BuilderInput, opts?: AgentCallOpts): Promise<BuilderOutput>;
 }

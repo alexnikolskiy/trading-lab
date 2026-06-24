@@ -1,5 +1,5 @@
 import type { Agent } from '@mastra/core/agent';
-import type { CriticPort } from '../../ports/critic.port.ts';
+import type { CriticPort, AgentCallOpts } from '../../ports/critic.port.ts';
 import { CriticOutputSchema, type CriticInput, type CriticOutput } from '../../domain/critic.ts';
 
 function buildPrompt(input: CriticInput): string {
@@ -23,10 +23,11 @@ export class MastraCritic implements CriticPort {
     this.model = label;
   }
 
-  async review(input: CriticInput): Promise<CriticOutput> {
+  async review(input: CriticInput, opts?: AgentCallOpts): Promise<CriticOutput> {
     const result = await this.agent.generate(buildPrompt(input), {
       structuredOutput: { schema: CriticOutputSchema },
     });
+    await opts?.onUsage?.(result.usage?.totalTokens ?? 0);
     return CriticOutputSchema.parse(result.object);
   }
 }
