@@ -4,12 +4,12 @@ import { CriticOutputSchema, type CriticInput, type CriticOutput } from '../../d
 
 function buildPrompt(input: CriticInput): string {
   return [
-    `Strategy core idea: ${input?.profile?.coreIdea}`,
-    `Thesis: ${input?.proposal?.thesis}`,
-    `Target behavior: ${input?.proposal?.targetBehavior}`,
-    `Rule action: ${JSON.stringify(input?.proposal?.ruleAction)}`,
-    `Validation plan: ${input?.proposal?.validationPlan}`,
-    `Invalidation criteria: ${input?.proposal?.invalidationCriteria?.join('; ')}`,
+    `Strategy core idea: ${input.profile.coreIdea}`,
+    `Thesis: ${input.proposal.thesis}`,
+    `Target behavior: ${input.proposal.targetBehavior}`,
+    `Rule action: ${JSON.stringify(input.proposal.ruleAction)}`,
+    `Validation plan: ${input.proposal.validationPlan}`,
+    `Invalidation criteria: ${input.proposal.invalidationCriteria.join('; ')}`,
   ].join('\n');
 }
 

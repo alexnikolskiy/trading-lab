@@ -72,7 +72,7 @@ function llmOutputToDomain(llm: LlmResearcherOutput): ResearcherOutput {
 }
 
 function profileDetailsText(input: ResearcherInput): string[] {
-  const profile = input?.profile?.profile;
+  const profile = input.profile.profile;
   if (!profile) return [];
   return [
     `Strategy summary: ${profile.summary}`,
@@ -104,21 +104,21 @@ function forensicBundleText(bundles: readonly TradeEvidenceBundle[] | undefined)
 }
 
 export function buildPrompt(input: ResearcherInput): string {
-  const similar = (input?.similarHypotheses?.length ?? 0) > 0
+  const similar = input.similarHypotheses.length > 0
     ? input.similarHypotheses.map((s) => `- [${s.status}] ${s.thesis}`).join('\n')
     : '(none)';
-  const botPerf = buildBotResultsDigestText(input?.botResults);
+  const botPerf = buildBotResultsDigestText(input.botResults);
   return [
-    `Strategy core idea: ${input?.profile?.coreIdea}`,
-    `Direction: ${input?.profile?.direction}`,
-    `Profile required features: ${input?.profile?.requiredMarketFeatures?.join(', ') || '(none)'}`,
+    `Strategy core idea: ${input.profile.coreIdea}`,
+    `Direction: ${input.profile.direction}`,
+    `Profile required features: ${input.profile.requiredMarketFeatures.join(', ') || '(none)'}`,
     ...profileDetailsText(input),
-    `Market regime: ${input?.marketRegime}`,
-    `Market context features: ${JSON.stringify(input?.marketContext?.features)}`,
+    `Market regime: ${input.marketRegime}`,
+    `Market context features: ${JSON.stringify(input.marketContext.features)}`,
     `Similar past hypotheses (advisory, avoid duplicating):\n${similar}`,
     ...(botPerf ? [botPerf] : []),
-    ...forensicBundleText(input?.tradeEvidence),
-    `Produce at most ${input?.maxHypotheses} hypotheses.`,
+    ...forensicBundleText(input.tradeEvidence),
+    `Produce at most ${input.maxHypotheses} hypotheses.`,
   ].join('\n');
 }
 
