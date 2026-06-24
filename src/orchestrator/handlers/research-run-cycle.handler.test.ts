@@ -11,6 +11,8 @@ import type { AppServices } from '../app-services.ts';
 import type { BotResultsReadPort } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceReadPort } from '../../ports/trade-evidence-read.port.ts';
 import { InMemoryQueueAdapter } from '../../adapters/queue/in-memory-queue.adapter.ts';
+import { InMemoryTokenUsageRepository } from '../../adapters/repository/in-memory-token-usage.repository.ts';
+import type { AgentCallOpts } from '../../ports/agent-call-opts.ts';
 
 function profile(): StrategyProfile {
   return {
@@ -256,6 +258,22 @@ describe('researchRunCycleHandler', () => {
     await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
     expect(cap.captured()?.botResults).toEqual([]);
     expect(await types(services)).toContain('researcher.bot_results_unavailable');
+  });
+
+  it('records researcher token usage against the task correlationId', async () => {
+    const tokenUsage = new InMemoryTokenUsageRepository();
+    const reportingResearcher: ResearcherPort = {
+      adapter: 'fake', model: 'test',
+      async propose(_input: ResearcherInput, opts?: AgentCallOpts) {
+        await opts?.onUsage?.(777);
+        return { researchSummary: 's', hypotheses: [] };
+      },
+    };
+    const services = makeServices({ tokenUsage, researcher: reportingResearcher });
+    const t = task({ strategyProfileId: 'p1' });
+    await seedProfile(services);
+    await researchRunCycleHandler(t, services);
+    expect(await tokenUsage.get(t.correlationId)).toBe(777);
   });
 
   it('selects suspicious trades and passes forensic tradeEvidence to the researcher', async () => {

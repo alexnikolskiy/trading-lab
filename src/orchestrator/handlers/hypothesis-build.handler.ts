@@ -67,7 +67,10 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   await services.events.append(event(task.id, 'builder.started', { buildId }));
   let out;
   try {
-    out = await services.builder.build({ hypothesis, profile, sdkDoc: BUILDER_SDK_DOC });
+    out = await services.builder.build(
+      { hypothesis, profile, sdkDoc: BUILDER_SDK_DOC },
+      { onUsage: (t) => services.tokenUsage.add(task.correlationId, t) },
+    );
   } catch (err) {
     const issues: ValidationIssue[] = [{ code: 'builder_failed', severity: 'error', path: 'builder', message: errMsg(err) }];
     await services.builds.markBuildFailed(buildId, issues);
