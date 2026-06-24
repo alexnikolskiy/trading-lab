@@ -21,10 +21,14 @@ services:
       MOCK_OPS_PORT: "8839"
       MOCK_OPS_TOKEN: "${MOCK_OPS_TOKEN:-}"
       MOCK_OPS_TOKENS: "${MOCK_OPS_TOKENS:?set MOCK_OPS_TOKENS to sha256-hex of MOCK_OPS_TOKEN}"
-      # The default fixture (and 2026-06-16-synthetic / historical-golden) is baked
-      # into the image at /app/data/snapshots/fixtures — no host bind-mount needed.
-      # To replay a different (non-baked) snapshot, mount it and set MOCK_SNAPSHOT_REF.
-      MOCK_SNAPSHOT_REF: "${MOCK_SNAPSHOT_REF:-fixtures/2026-06-12-real-top5}"
+      # The default fixture (and 2026-06-12-real-top5 / 2026-06-16-synthetic /
+      # historical-golden) is baked into the image at /app/data/snapshots/fixtures
+      # — no host bind-mount needed. Requires a mock-platform image built at/after
+      # the fixture's commit. To replay a different (non-baked) snapshot, mount it
+      # and set MOCK_SNAPSHOT_REF.
+      # Default = the loss-bearing taker-era day (2026-06-18, winrate ~59%, full raw
+      # taker_buy/sell + funding) — preferred over the win-skewed real-top5 for hypotheses.
+      MOCK_SNAPSHOT_REF: "${MOCK_SNAPSHOT_REF:-fixtures/2026-06-18-real-all}"
       MOCK_REPLAY_MODE: "${MOCK_REPLAY_MODE:-loop}"
       MOCK_REPLAY_SPEED: "${MOCK_REPLAY_SPEED:-1}"
     expose:
