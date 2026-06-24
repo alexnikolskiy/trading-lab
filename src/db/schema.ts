@@ -40,6 +40,12 @@ export const researchTask = pgTable('research_task', {
   corrIdx: index('research_task_correlation_idx').on(t.correlationId),
 }));
 
+export const researchTokenUsage = pgTable('research_token_usage', {
+  correlationId: text('correlation_id').primaryKey(),
+  cumulativeTokens: integer('cumulative_tokens').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const agentEvent = pgTable('agent_event', {
   id: text('id').primaryKey(),
   taskId: text('task_id').notNull(),
