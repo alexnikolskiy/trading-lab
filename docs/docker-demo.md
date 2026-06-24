@@ -52,7 +52,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 
 ## Notes
 
-- Демо по умолчанию использует реальный срез из 5 символов (ESPORTSUSDT, HUSDT, SIRENUSDT, BEATUSDT, COAIUSDT), 73 сделки. Снапшот задаётся переменной `MOCK_SNAPSHOT_REF` (по умолчанию `fixtures/2026-06-12-real-top5`); для синтетических данных используй `fixtures/2026-06-16-synthetic`.
+- Демо по умолчанию использует реальный срез за один день taker-эры (2026-06-18): 11 символов, 22 сделки, 9 убыточных (winrate ~59%), с полным поминутным taker_buy/sell + funding — для гипотез по убыточным сделкам. Снапшот задаётся переменной `MOCK_SNAPSHOT_REF` (по умолчанию `fixtures/2026-06-18-real-all`); прежний срез из 5 символов — `fixtures/2026-06-12-real-top5`; для синтетических данных — `fixtures/2026-06-16-synthetic`.
 - The demo is fully self-contained — it needs nothing beyond this repo and the `trading-office` checkout.
 - Default agents are fake. To use a real LLM, see `docs/docker-local.md`.
 - Host-only infra (run `pnpm ingress` / `pnpm worker` on your machine): `docker compose up postgres redis`.
