@@ -59,6 +59,18 @@ export function phoenixArizeConfig(
   };
 }
 
+/**
+ * Build the Mastra-compatible Observability instance for the Phoenix/Arize path.
+ * Returns `undefined` when the flag is off — lets callers spread conditionally so
+ * no `observability` key is set on the Mastra constructor (zero overhead, no exporter
+ * allocated). When enabled, returns a real `Observability` instance whose
+ * `getDefaultInstance` method satisfies `@mastra/core@1.41`'s internal type-guard.
+ */
+export function phoenixObservability(env: MastraCompositionEnv): Observability | undefined {
+  const arize = phoenixArizeConfig(env);
+  return arize ? new Observability({ configs: { arize } }) : undefined;
+}
+
 export function composeMastra(env: MastraCompositionEnv): MastraRuntime {
   const registry: Record<string, Agent> = {};
   const labels: Record<string, string> = {};
@@ -75,10 +87,10 @@ export function composeMastra(env: MastraCompositionEnv): MastraRuntime {
   if (env.BUILDER_ADAPTER === 'mastra') build(BUILDER_AGENT_ID, env.BUILDER_MODEL, createBuilderAgent);
   if (env.TURN_INTERPRETER_ADAPTER === 'mastra') build(TURN_INTERPRETER_AGENT_ID, env.TURN_INTERPRETER_MODEL, createTurnInterpreterAgent);
 
-  const arize = phoenixArizeConfig(env);
+  const observability = phoenixObservability(env);
   const mastra = new Mastra({
     agents: registry,
-    ...(arize ? { observability: new Observability({ configs: { arize } }) } : {}),
+    ...(observability ? { observability } : {}),
   });
 
   // getAgent returns the same object registered above (identity holds in @mastra/core@1.41);

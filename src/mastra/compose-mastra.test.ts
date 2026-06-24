@@ -1,6 +1,6 @@
 // src/mastra/compose-mastra.test.ts
 import { describe, it, expect } from 'vitest';
-import { composeMastra, phoenixArizeConfig, type MastraCompositionEnv } from './compose-mastra.ts';
+import { composeMastra, phoenixArizeConfig, phoenixObservability, type MastraCompositionEnv } from './compose-mastra.ts';
 import { ArizeExporter } from '@mastra/arize';
 
 const base: MastraCompositionEnv = {
@@ -79,5 +79,20 @@ describe('phoenixArizeConfig', () => {
   it('composeMastra still returns a Mastra instance with Phoenix enabled', () => {
     const rt = composeMastra({ ...base, PHOENIX_ENABLED: true });
     expect(rt.mastra).toBeDefined();
+  });
+});
+
+describe('phoenixObservability', () => {
+  it('returns undefined when PHOENIX_ENABLED is false', () => {
+    expect(phoenixObservability(base)).toBeUndefined();
+  });
+
+  it('returns a real Observability instance with getDefaultInstance when enabled', () => {
+    const obs = phoenixObservability({ ...base, PHOENIX_ENABLED: true });
+    expect(obs).toBeDefined();
+    // @mastra/core@1.41 checks `typeof config.observability.getDefaultInstance === 'function'`
+    // before attaching. This assertion proves we return a real Observability, not a bare
+    // config object or a NoOp stub.
+    expect(typeof obs!.getDefaultInstance).toBe('function');
   });
 });
