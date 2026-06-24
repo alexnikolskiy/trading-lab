@@ -31,4 +31,26 @@ export class DrizzleTokenUsageRepository implements TokenUsageRepository {
       .limit(1);
     return rows[0]?.total ?? 0;
   }
+
+  async addCost(correlationId: string, costUsd: number): Promise<void> {
+    await this.db
+      .insert(researchTokenUsage)
+      .values({ correlationId, cumulativeCostUsd: costUsd, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: researchTokenUsage.correlationId,
+        set: {
+          cumulativeCostUsd: sql`${researchTokenUsage.cumulativeCostUsd} + ${costUsd}`,
+          updatedAt: new Date(),
+        },
+      });
+  }
+
+  async getCost(correlationId: string): Promise<number> {
+    const rows = await this.db
+      .select({ total: researchTokenUsage.cumulativeCostUsd })
+      .from(researchTokenUsage)
+      .where(eq(researchTokenUsage.correlationId, correlationId))
+      .limit(1);
+    return rows[0]?.total ?? 0;
+  }
 }
