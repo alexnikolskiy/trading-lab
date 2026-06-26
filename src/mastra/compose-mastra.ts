@@ -9,6 +9,9 @@ import { createResearcherAgent, RESEARCHER_AGENT_ID } from './agents/researcher.
 import { createCriticAgent, CRITIC_AGENT_ID } from './agents/critic.agent.ts';
 import { createBuilderAgent, BUILDER_AGENT_ID } from './agents/builder.agent.ts';
 import { createTurnInterpreterAgent, TURN_INTERPRETER_AGENT_ID } from './agents/turn-interpreter.agent.ts';
+import { createStrategyCriticAgent, STRATEGY_CRITIC_AGENT_ID } from './agents/strategy-critic.agent.ts';
+import { createStrategyRefinerAgent, STRATEGY_REFINER_AGENT_ID } from './agents/strategy-refiner.agent.ts';
+import { createStrategyCriticCombinedAgent, STRATEGY_CRITIC_COMBINED_AGENT_ID } from './agents/strategy-critic-combined.agent.ts';
 
 export interface MastraCompositionEnv extends ModelProviderEnv {
   STRATEGY_ANALYST_ADAPTER: 'fake' | 'mastra';
@@ -22,6 +25,10 @@ export interface MastraCompositionEnv extends ModelProviderEnv {
   TURN_INTERPRETER_MODEL: string;
   BUILDER_ADAPTER: 'fake' | 'mastra';
   BUILDER_MODEL: string;
+  STRATEGY_CRITIC_ADAPTER: 'fake' | 'mastra';
+  STRATEGY_CRITIC_MODE: 'single' | 'two_stage';
+  STRATEGY_CRITIC_MODEL: string;
+  STRATEGY_REFINER_MODEL: string;
   PHOENIX_ENABLED: boolean;
   PHOENIX_COLLECTOR_ENDPOINT: string;
   PHOENIX_PROJECT_NAME: string;
@@ -40,6 +47,9 @@ export interface MastraRuntime {
     critic?: MastraAgentEntry;
     builder?: MastraAgentEntry;
     turnInterpreter?: MastraAgentEntry;
+    strategyCritic?: MastraAgentEntry;
+    strategyRefiner?: MastraAgentEntry;
+    strategyCriticCombined?: MastraAgentEntry;
   };
 }
 
@@ -94,6 +104,15 @@ export function composeMastra(env: MastraCompositionEnv): MastraRuntime {
   if (env.BUILDER_ADAPTER === 'mastra') build(BUILDER_AGENT_ID, env.BUILDER_MODEL, createBuilderAgent);
   if (env.TURN_INTERPRETER_ADAPTER === 'mastra') build(TURN_INTERPRETER_AGENT_ID, env.TURN_INTERPRETER_MODEL, createTurnInterpreterAgent);
 
+  if (env.STRATEGY_CRITIC_ADAPTER === 'mastra') {
+    if (env.STRATEGY_CRITIC_MODE === 'two_stage') {
+      build(STRATEGY_CRITIC_AGENT_ID, env.STRATEGY_CRITIC_MODEL, createStrategyCriticAgent);
+      build(STRATEGY_REFINER_AGENT_ID, env.STRATEGY_REFINER_MODEL, createStrategyRefinerAgent);
+    } else {
+      build(STRATEGY_CRITIC_COMBINED_AGENT_ID, env.STRATEGY_CRITIC_MODEL, createStrategyCriticCombinedAgent);
+    }
+  }
+
   const observability = phoenixObservability(env);
   const mastra = new Mastra({
     agents: registry,
@@ -113,6 +132,9 @@ export function composeMastra(env: MastraCompositionEnv): MastraRuntime {
       critic: entry(CRITIC_AGENT_ID),
       builder: entry(BUILDER_AGENT_ID),
       turnInterpreter: entry(TURN_INTERPRETER_AGENT_ID),
+      strategyCritic: entry(STRATEGY_CRITIC_AGENT_ID),
+      strategyRefiner: entry(STRATEGY_REFINER_AGENT_ID),
+      strategyCriticCombined: entry(STRATEGY_CRITIC_COMBINED_AGENT_ID),
     },
   };
 }

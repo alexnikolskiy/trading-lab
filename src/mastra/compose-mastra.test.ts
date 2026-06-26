@@ -11,6 +11,8 @@ const base: MastraCompositionEnv = {
   CRITIC_ADAPTER: 'fake', CRITIC_MODEL: 'anthropic/claude-sonnet-4-6', ENABLE_CRITIC_AGENT: false,
   TURN_INTERPRETER_ADAPTER: 'fake', TURN_INTERPRETER_MODEL: 'openrouter/google/gemini-3.1-flash-lite',
   BUILDER_ADAPTER: 'fake', BUILDER_MODEL: 'anthropic/claude-sonnet-4-6',
+  STRATEGY_CRITIC_ADAPTER: 'fake', STRATEGY_CRITIC_MODE: 'two_stage',
+  STRATEGY_CRITIC_MODEL: 'anthropic/claude-sonnet-4-6', STRATEGY_REFINER_MODEL: 'anthropic/claude-sonnet-4-6',
   PHOENIX_ENABLED: false,
   PHOENIX_COLLECTOR_ENDPOINT: 'http://localhost:6006/v1/traces',
   PHOENIX_PROJECT_NAME: 'trading-lab',
@@ -55,6 +57,31 @@ describe('composeMastra', () => {
     const on = composeMastra({ ...base, CRITIC_ADAPTER: 'mastra', ENABLE_CRITIC_AGENT: true });
     expect(on.agents.critic).toBeDefined();
     expect(on.agents.critic!.agent.name).toBe('Critic');
+  });
+});
+
+describe('composeMastra — strategy critic agents', () => {
+  it('registers no strategy-critic agents when the adapter is fake', () => {
+    const rt = composeMastra(base);
+    expect(rt.agents.strategyCritic).toBeUndefined();
+    expect(rt.agents.strategyRefiner).toBeUndefined();
+    expect(rt.agents.strategyCriticCombined).toBeUndefined();
+  });
+
+  it('two_stage + mastra builds the critic + refiner (not the combined)', () => {
+    const rt = composeMastra({ ...base, STRATEGY_CRITIC_ADAPTER: 'mastra', STRATEGY_CRITIC_MODE: 'two_stage',
+      STRATEGY_REFINER_MODEL: 'openrouter/google/gemini-3.5-flash', OPENROUTER_API_KEY: 'dummy' });
+    expect(rt.agents.strategyCritic?.agent.name).toBe('Strategy Critic');
+    expect(rt.agents.strategyRefiner?.agent.name).toBe('Strategy Refiner');
+    expect(rt.agents.strategyRefiner?.label).toContain('gemini-3.5-flash');
+    expect(rt.agents.strategyCriticCombined).toBeUndefined();
+  });
+
+  it('single + mastra builds only the combined agent', () => {
+    const rt = composeMastra({ ...base, STRATEGY_CRITIC_ADAPTER: 'mastra', STRATEGY_CRITIC_MODE: 'single' });
+    expect(rt.agents.strategyCriticCombined?.agent.name).toBe('Strategy Critic (combined)');
+    expect(rt.agents.strategyCritic).toBeUndefined();
+    expect(rt.agents.strategyRefiner).toBeUndefined();
   });
 });
 

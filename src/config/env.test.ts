@@ -294,3 +294,49 @@ describe('research task token budget env', () => {
     expect(loadEnv({ RESEARCH_TASK_TOKEN_BUDGET: '-3' } as unknown as NodeJS.ProcessEnv).RESEARCH_TASK_TOKEN_BUDGET).toBe(200000);
   });
 });
+
+describe('pre-flight strategy critic env', () => {
+  it('defaults the critic OFF with fake adapter + two_stage mode + sane models', () => {
+    const env = loadEnv({} as NodeJS.ProcessEnv);
+    expect(env.STRATEGY_PREFLIGHT_CRITIQUE).toBe(false);
+    expect(env.STRATEGY_CRITIC_ADAPTER).toBe('fake');
+    expect(env.STRATEGY_CRITIC_MODE).toBe('two_stage');
+    expect(env.STRATEGY_CRITIC_MODEL).toBe('anthropic/claude-sonnet-4-6');
+    expect(env.STRATEGY_REFINER_MODEL).toBe('anthropic/claude-sonnet-4-6'); // defaults to critic model
+  });
+
+  it('reads overrides; refiner model defaults to the critic model when unset', () => {
+    const env = loadEnv({
+      STRATEGY_PREFLIGHT_CRITIQUE: 'true',
+      STRATEGY_CRITIC_ADAPTER: 'mastra',
+      STRATEGY_CRITIC_MODE: 'single',
+      STRATEGY_CRITIC_MODEL: 'openrouter/x-ai/grok-4.3',
+    } as unknown as NodeJS.ProcessEnv);
+    expect(env.STRATEGY_PREFLIGHT_CRITIQUE).toBe(true);
+    expect(env.STRATEGY_CRITIC_ADAPTER).toBe('mastra');
+    expect(env.STRATEGY_CRITIC_MODE).toBe('single');
+    expect(env.STRATEGY_CRITIC_MODEL).toBe('openrouter/x-ai/grok-4.3');
+    expect(env.STRATEGY_REFINER_MODEL).toBe('openrouter/x-ai/grok-4.3'); // inherits critic model
+  });
+
+  it('reads an explicit refiner model and treats non-true / non-enum values as defaults', () => {
+    const env = loadEnv({
+      STRATEGY_PREFLIGHT_CRITIQUE: '1',
+      STRATEGY_CRITIC_ADAPTER: 'bogus',
+      STRATEGY_CRITIC_MODE: 'bogus',
+      STRATEGY_REFINER_MODEL: 'openrouter/google/gemini-3.5-flash',
+    } as unknown as NodeJS.ProcessEnv);
+    expect(env.STRATEGY_PREFLIGHT_CRITIQUE).toBe(false); // only 'true' enables
+    expect(env.STRATEGY_CRITIC_ADAPTER).toBe('fake'); // non-'mastra' -> fake
+    expect(env.STRATEGY_CRITIC_MODE).toBe('two_stage'); // non-'single' -> two_stage
+    expect(env.STRATEGY_REFINER_MODEL).toBe('openrouter/google/gemini-3.5-flash');
+  });
+
+  it('collapses to critic model when STRATEGY_REFINER_MODEL is empty string (docker passthrough pattern)', () => {
+    const env = loadEnv({
+      STRATEGY_CRITIC_MODEL: 'openrouter/x-ai/grok-4.3',
+      STRATEGY_REFINER_MODEL: '',
+    } as unknown as NodeJS.ProcessEnv);
+    expect(env.STRATEGY_REFINER_MODEL).toBe('openrouter/x-ai/grok-4.3');
+  });
+});

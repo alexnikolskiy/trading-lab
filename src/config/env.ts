@@ -52,6 +52,16 @@ export interface Env {
   PHOENIX_PROJECT_NAME: string;
   /** Cumulative token budget per research chain (correlationId). Default 200000; 0 = unlimited. */
   RESEARCH_TASK_TOKEN_BUDGET: number;
+  /** Feature flag: run the pre-flight strategy critic before the analyst (default: false). */
+  STRATEGY_PREFLIGHT_CRITIQUE: boolean;
+  /** Strategy-critic adapter: 'fake' (default, key-free) or 'mastra' (real LLM). */
+  STRATEGY_CRITIC_ADAPTER: 'fake' | 'mastra';
+  /** Critic mode: 'two_stage' (default; critic agent → refiner agent) or 'single' (one combined agent). */
+  STRATEGY_CRITIC_MODE: 'single' | 'two_stage';
+  /** Model for the critic / combined agent. */
+  STRATEGY_CRITIC_MODEL: string;
+  /** Model for the two_stage refiner agent; defaults to STRATEGY_CRITIC_MODEL when unset. */
+  STRATEGY_REFINER_MODEL: string;
   /** Feature flag: enable operator RAG retrieval (default: false). */
   OPERATOR_RAG_ENABLED: boolean;
   /** Embedding provider for operator strategy retrieval (default: 'openrouter'). */
@@ -116,6 +126,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const agentsDefault: 'fake' | 'mastra' = source.LAB_AGENTS_ADAPTER === 'mastra' ? 'mastra' : 'fake';
   const resolveAdapter = (v: string | undefined): 'fake' | 'mastra' =>
     v === 'mastra' ? 'mastra' : v === 'fake' ? 'fake' : agentsDefault;
+  const strategyCriticModel = source.STRATEGY_CRITIC_MODEL || 'anthropic/claude-sonnet-4-6';
 
   return {
     DATABASE_URL: source.DATABASE_URL,
@@ -171,6 +182,11 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     PHOENIX_COLLECTOR_ENDPOINT: source.PHOENIX_COLLECTOR_ENDPOINT ?? 'http://localhost:6006/v1/traces',
     PHOENIX_PROJECT_NAME: source.PHOENIX_PROJECT_NAME ?? 'trading-lab',
     RESEARCH_TASK_TOKEN_BUDGET: parseNonNegativeInt(source.RESEARCH_TASK_TOKEN_BUDGET, 200000),
+    STRATEGY_PREFLIGHT_CRITIQUE: source.STRATEGY_PREFLIGHT_CRITIQUE === 'true',
+    STRATEGY_CRITIC_ADAPTER: source.STRATEGY_CRITIC_ADAPTER === 'mastra' ? 'mastra' : 'fake',
+    STRATEGY_CRITIC_MODE: source.STRATEGY_CRITIC_MODE === 'single' ? 'single' : 'two_stage',
+    STRATEGY_CRITIC_MODEL: strategyCriticModel,
+    STRATEGY_REFINER_MODEL: source.STRATEGY_REFINER_MODEL || strategyCriticModel,
     ...loadRagEnv(source),
   };
 }

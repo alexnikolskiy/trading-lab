@@ -12,6 +12,7 @@ import type { ValidationIssue } from '../../domain/schemas.ts';
 import { event, errMsg, computeParamsHash, sha256, stableStringify } from './backtest-support.ts';
 import { BUILDER_SDK_DOC } from '../../adapters/builder/builder-sdk-doc.ts';
 import { runPlatformBacktest } from './run-platform-backtest.ts';
+import { makeOnUsage } from '../make-on-usage.ts';
 
 export const HypothesisBuildPayloadSchema = z.object({
   hypothesisId: z.string().min(1),
@@ -69,20 +70,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
   try {
     out = await services.builder.build(
       { hypothesis, profile, sdkDoc: BUILDER_SDK_DOC },
-      {
-        onUsage: async (u) => {
-          await services.tokenUsage.add(task.correlationId, u.totalTokens);
-          const price = await services.modelPricing.priceFor(u.modelId);
-          if (price) {
-            await services.tokenUsage.addCost(
-              task.correlationId,
-              u.inputTokens * price.inputUsdPerToken + u.outputTokens * price.outputUsdPerToken,
-            );
-          } else {
-            await services.events.append(event(task.id, 'research.cost_unpriced', { modelId: u.modelId }));
-          }
-        },
-      },
+      makeOnUsage(task, services),
     );
   } catch (err) {
     const issues: ValidationIssue[] = [{ code: 'builder_failed', severity: 'error', path: 'builder', message: errMsg(err) }];
