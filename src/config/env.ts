@@ -126,6 +126,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const agentsDefault: 'fake' | 'mastra' = source.LAB_AGENTS_ADAPTER === 'mastra' ? 'mastra' : 'fake';
   const resolveAdapter = (v: string | undefined): 'fake' | 'mastra' =>
     v === 'mastra' ? 'mastra' : v === 'fake' ? 'fake' : agentsDefault;
+  const strategyCriticModel = source.STRATEGY_CRITIC_MODEL || 'anthropic/claude-sonnet-4-6';
 
   return {
     DATABASE_URL: source.DATABASE_URL,
@@ -184,8 +185,8 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     STRATEGY_PREFLIGHT_CRITIQUE: source.STRATEGY_PREFLIGHT_CRITIQUE === 'true',
     STRATEGY_CRITIC_ADAPTER: source.STRATEGY_CRITIC_ADAPTER === 'mastra' ? 'mastra' : 'fake',
     STRATEGY_CRITIC_MODE: source.STRATEGY_CRITIC_MODE === 'single' ? 'single' : 'two_stage',
-    STRATEGY_CRITIC_MODEL: source.STRATEGY_CRITIC_MODEL ?? 'anthropic/claude-sonnet-4-6',
-    STRATEGY_REFINER_MODEL: source.STRATEGY_REFINER_MODEL ?? (source.STRATEGY_CRITIC_MODEL ?? 'anthropic/claude-sonnet-4-6'),
+    STRATEGY_CRITIC_MODEL: strategyCriticModel,
+    STRATEGY_REFINER_MODEL: source.STRATEGY_REFINER_MODEL || strategyCriticModel,
     ...loadRagEnv(source),
   };
 }

@@ -331,4 +331,12 @@ describe('pre-flight strategy critic env', () => {
     expect(env.STRATEGY_CRITIC_MODE).toBe('two_stage'); // non-'single' -> two_stage
     expect(env.STRATEGY_REFINER_MODEL).toBe('openrouter/google/gemini-3.5-flash');
   });
+
+  it('collapses to critic model when STRATEGY_REFINER_MODEL is empty string (docker passthrough pattern)', () => {
+    const env = loadEnv({
+      STRATEGY_CRITIC_MODEL: 'openrouter/x-ai/grok-4.3',
+      STRATEGY_REFINER_MODEL: '',
+    } as unknown as NodeJS.ProcessEnv);
+    expect(env.STRATEGY_REFINER_MODEL).toBe('openrouter/x-ai/grok-4.3');
+  });
 });
