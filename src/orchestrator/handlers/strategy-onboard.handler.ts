@@ -7,6 +7,7 @@ import {
 } from '../../domain/strategy-profile.ts';
 import { sourceFingerprint } from '../../domain/fingerprint.ts';
 import { validateWithSchema } from '../../validation/validator.ts';
+import { makeOnUsage } from '../make-on-usage.ts';
 
 export const strategyOnboardHandler: WorkflowHandler = async (task, services) => {
   const inputResult = validateWithSchema(StrategyAnalystInputSchema, task.payload);
@@ -31,6 +32,41 @@ export const strategyOnboardHandler: WorkflowHandler = async (task, services) =>
     metadata: { sourceKind: input.kind, uri: input.uri ?? null, title: input.title ?? null },
   });
 
+  let analyzeInput = input;
+  if (services.strategyCritic) {
+    await services.events.append({
+      id: randomUUID(), taskId: task.id, type: 'strategy_critic.started',
+      payload: { mode: services.strategyCritic.mode, model: services.strategyCritic.model },
+      createdAt: new Date().toISOString(),
+    });
+    try {
+      const refinement = await services.strategyCritic.refine(input, makeOnUsage(task, services));
+      const critiqueRef = await services.artifacts.put(JSON.stringify(refinement), {
+        kind: 'strategy_critique', mime_type: 'application/json', producer: 'strategy-critic',
+        metadata: { sourceKind: input.kind, mode: services.strategyCritic.mode },
+      });
+      await services.events.append({
+        id: randomUUID(), taskId: task.id, type: 'strategy_critic.completed',
+        payload: {
+          mode: services.strategyCritic.mode,
+          severity: refinement.verdict.severity,
+          badIdeaOrBadTiming: refinement.verdict.badIdeaOrBadTiming,
+          mainVulnerability: refinement.verdict.mainVulnerability,
+          critiqueRef: critiqueRef.artifact_id,
+        },
+        createdAt: new Date().toISOString(),
+      });
+      analyzeInput = { ...input, content: refinement.improvedStrategyText };
+    } catch (err) {
+      await services.events.append({
+        id: randomUUID(), taskId: task.id, type: 'strategy_critic.failed',
+        payload: { error: err instanceof Error ? err.message : String(err) },
+        createdAt: new Date().toISOString(),
+      });
+      analyzeInput = input; // fail-soft: analyst gets the original text
+    }
+  }
+
   const auditBase = {
     taskId: task.id, model: services.analyst.model, adapter: services.analyst.adapter, sourceFingerprint: fingerprint,
   };
@@ -41,7 +77,7 @@ export const strategyOnboardHandler: WorkflowHandler = async (task, services) =>
 
   let output: AnalystProfileOutput;
   try {
-    output = await services.analyst.analyze(input);
+    output = await services.analyst.analyze(analyzeInput);
   } catch (err) {
     await services.events.append({
       id: randomUUID(), taskId: task.id, type: 'strategy_analyst.failed',
