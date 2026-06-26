@@ -12,6 +12,7 @@ import {
   ResearcherOutputSchema, hypothesisFingerprint,
   HYPOTHESIS_PROPOSAL_CONTRACT_VERSION, type HypothesisProposal, type ResearcherOutput,
 } from '../../domain/hypothesis.ts';
+import { makeOnUsage } from '../make-on-usage.ts';
 
 export const RESEARCH_DEFAULT_SYMBOL = 'BTCUSDT';
 export const BOT_RESULTS_MAX = 10;
@@ -119,20 +120,7 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   try {
     output = await services.researcher.propose({
       profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax,
-    }, {
-      onUsage: async (u) => {
-        await services.tokenUsage.add(task.correlationId, u.totalTokens);
-        const price = await services.modelPricing.priceFor(u.modelId);
-        if (price) {
-          await services.tokenUsage.addCost(
-            task.correlationId,
-            u.inputTokens * price.inputUsdPerToken + u.outputTokens * price.outputUsdPerToken,
-          );
-        } else {
-          await services.events.append(event(task.id, 'research.cost_unpriced', { modelId: u.modelId }));
-        }
-      },
-    });
+    }, makeOnUsage(task, services));
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.failed', { error: errMsg(err) }));
     throw err;
@@ -209,20 +197,7 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
         try {
           const review = await services.critic.review(
             { proposal: draft, profile },
-            {
-              onUsage: async (u) => {
-                await services.tokenUsage.add(task.correlationId, u.totalTokens);
-                const price = await services.modelPricing.priceFor(u.modelId);
-                if (price) {
-                  await services.tokenUsage.addCost(
-                    task.correlationId,
-                    u.inputTokens * price.inputUsdPerToken + u.outputTokens * price.outputUsdPerToken,
-                  );
-                } else {
-                  await services.events.append(event(task.id, 'research.cost_unpriced', { modelId: u.modelId }));
-                }
-              },
-            },
+            makeOnUsage(task, services),
           );
           await services.hypothesisReviews.create({
             id: randomUUID(),
