@@ -12,6 +12,8 @@ const BASE_INSTRUCTIONS = [
   'Give a terse verdict (`verdict`): main vulnerability, severity (low/medium/high), bad_idea vs bad_timing (or neither),',
   'and what would strengthen it. Then write `improvedStrategyText` in the SAME language as the input — addressing your',
   'own findings (regime filter, invalidation condition, liquidity / BTC caveats) — plus a short `changeLog`.',
+  'Structure `improvedStrategyText` into four explicit labelled sections, each starting on its own line:',
+  '"Entry conditions:", "Exit & invalidation:", "Required data signals:", and "Caveats:" — so a downstream analyst can extract entry and exit cleanly.',
   'Risk sizing, order execution, and fills stay runner-owned. Never invent facts; flag missing data explicitly.',
   'Ground every proposed improvement in the available platform signals below; do not reference data the platform cannot provide.',
 ].join(' ');
