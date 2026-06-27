@@ -2,7 +2,8 @@
 import type { StrategyCriticPort } from '../../ports/strategy-critic.port.ts';
 import type { StrategyRefinement } from '../../domain/strategy-critic.ts';
 import { scoreRefinement } from './scoring.ts';
-import type { Candidate, CandidateError, CandidateResult, CriticEvalCase, EvalRunResult, JudgeVerdict, ModelAggregate, Stats } from './types.ts';
+import { aggregateRuns } from './aggregate.ts';
+import type { Candidate, CandidateError, CandidateResult, CriticEvalCase, EvalRunResult, JudgeVerdict, ModelAggregate } from './types.ts';
 
 export interface RunEvalInput {
   candidates: Candidate[];
@@ -90,25 +91,5 @@ export async function runEval(input: RunEvalInput, deps: RunEvalDeps): Promise<E
     perCandidate,
     aggregates,
     overallSuccess: perCandidate.some((r) => r.verdict === 'PASS'),
-  };
-}
-
-// TEMPORARY stub — replaced by an import from ./aggregate.ts in Task 7.
-function aggregateRuns(runs: CandidateResult[]): ModelAggregate {
-  const first = runs[0]!;
-  const failed = runs.filter((r) => r.error !== null);
-  const passCount = runs.filter((r) => r.verdict === 'PASS').length;
-  const zero: Stats = { mean: 0, median: 0, std: 0, min: 0, max: 0 };
-  const latencies = runs.map((r) => r.latencyMs);
-  return {
-    label: first.label,
-    mode: first.mode,
-    criticModel: first.criticModel,
-    refinerModel: first.refinerModel,
-    runs: { total: runs.length, ok: runs.length - failed.length, failed: failed.length, failedByType: {} },
-    passRate: passCount / runs.length,
-    det: null,
-    judge: null,
-    latency: { mean: latencies.reduce((a, b) => a + b, 0) / latencies.length, median: 0 },
   };
 }
