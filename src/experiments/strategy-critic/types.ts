@@ -1,6 +1,8 @@
 // src/experiments/strategy-critic/types.ts
 import { z } from 'zod';
 import type { StrategyRefinement } from '../../domain/strategy-critic.ts';
+import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
+import type { ScoreResult as AnalystScoreResult } from '../strategy-analyst/types.ts';
 
 export type Direction = 'long' | 'short';
 export type EvalMode = 'dry-run' | 'run';
@@ -66,6 +68,8 @@ export interface CandidateResult {
   rawOutput: StrategyRefinement | null; // present only when refine() returned
   error: CandidateError | null;
   judge: JudgeVerdict | null;           // populated only when --judge ran
+  profile: AnalystProfileOutput | null;   // round-trip analyst profile; null when off or on analyst failure
+  profileScore: AnalystScoreResult | null; // deterministic scoreProfile() result; null when off or on analyst failure
 }
 
 export interface Stats {
@@ -85,6 +89,7 @@ export interface ModelAggregate {
   passRate: number;
   det: Stats | null;
   judge: Stats | null;
+  profile?: Stats; // mean/std of profileScore.score across ok round-trip runs; absent when round-trip off
   latency: { mean: number; median: number };
 }
 

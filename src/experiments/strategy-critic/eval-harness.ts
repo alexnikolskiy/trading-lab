@@ -1,6 +1,7 @@
 // src/experiments/strategy-critic/eval-harness.ts
 import type { StrategyCriticPort } from '../../ports/strategy-critic.port.ts';
 import type { StrategyRefinement } from '../../domain/strategy-critic.ts';
+import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
 import { scoreRefinement } from './scoring.ts';
 import { aggregateRuns } from './aggregate.ts';
 import type { Candidate, CandidateError, CandidateResult, CriticEvalCase, EvalRunResult, JudgeVerdict, ModelAggregate } from './types.ts';
@@ -10,6 +11,8 @@ export interface RunEvalInput {
   cases: CriticEvalCase[];
   threshold: number;
   repeat?: number; // independent runs per (candidate, case); default 1, assumed >= 1
+  roundTrip: boolean;   // when true, feed improvedStrategyText to the analyst
+  analystModel: string; // analyst model id used when roundTrip (e.g. 'openrouter/x-ai/grok-4.3')
 }
 
 export interface RunEvalDeps {
@@ -17,6 +20,7 @@ export interface RunEvalDeps {
   providerOf: (modelId: string) => { provider: string; modelId: string };
   clock: () => number;
   judge?: (refinement: StrategyRefinement, evalCase: CriticEvalCase) => Promise<JudgeVerdict>;
+  analystFor?: (modelId: string) => StrategyAnalystPort; // only used when roundTrip
 }
 
 export function classifyError(err: unknown): CandidateError {
@@ -57,10 +61,10 @@ export async function runOnce(candidate: Candidate, evalCase: CriticEvalCase, in
       }
     }
 
-    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge };
+    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge, profile: null, profileScore: null };
   } catch (err) {
     const latencyMs = deps.clock() - start;
-    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null };
+    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null, profile: null, profileScore: null };
   }
 }
 

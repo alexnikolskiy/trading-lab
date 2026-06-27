@@ -21,7 +21,7 @@ function flakyCritic(failTimes: number, out: StrategyRefinement): StrategyCritic
   return { adapter: 'fake', mode: 'two_stage', model: 'c', async refine(): Promise<StrategyRefinement> { n += 1; if (n <= failTimes) throw new Error('schema validation failed'); return out; } };
 }
 
-const baseInput: RunEvalInput = { candidates: [CAND], cases: [CASE], threshold: 0.6 };
+const baseInput: RunEvalInput = { candidates: [CAND], cases: [CASE], threshold: 0.6, roundTrip: false, analystModel: 'fake' };
 
 function deps(critic: StrategyCriticPort, judge?: (r: StrategyRefinement, c: CriticEvalCase) => Promise<JudgeVerdict>): RunEvalDeps {
   let tick = 0;
@@ -77,7 +77,7 @@ describe('runOnce / runEval', () => {
 
   it('iterates candidates × cases × repeat sequentially', async () => {
     const result = await runEval(
-      { candidates: [CAND], cases: [resolveCase('pump-short'), resolveCase('dump-long')], threshold: 0.6, repeat: 2 },
+      { candidates: [CAND], cases: [resolveCase('pump-short'), resolveCase('dump-long')], threshold: 0.6, repeat: 2, roundTrip: false, analystModel: 'fake' },
       deps(flakyCritic(1, GOOD_PUMP_SHORT_REFINEMENT)),
     );
     expect(result.repeat).toBe(2);

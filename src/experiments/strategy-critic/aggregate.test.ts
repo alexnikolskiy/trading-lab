@@ -6,7 +6,7 @@ function score(s: number): ScoreResult {
   return { gates: { schemaValid: true, directionPreserved: true, noRunnerOverreach: true, nonTrivialChange: true }, checks: [], score: s, threshold: 0.6, verdict: s >= 0.6 ? 'PASS' : 'FAIL' };
 }
 function run(over: Partial<CandidateResult>): CandidateResult {
-  return { label: 'l', mode: 'single', criticModel: 'm', refinerModel: null, caseId: 'pump-short', latencyMs: 100, verdict: 'PASS', score: score(0.8), rawOutput: null, error: null, judge: null, ...over };
+  return { label: 'l', mode: 'single', criticModel: 'm', refinerModel: null, caseId: 'pump-short', latencyMs: 100, verdict: 'PASS', score: score(0.8), rawOutput: null, error: null, judge: null, profile: null, profileScore: null, ...over };
 }
 
 describe('aggregateRuns', () => {
