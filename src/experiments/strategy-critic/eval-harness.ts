@@ -3,7 +3,10 @@ import type { StrategyCriticPort } from '../../ports/strategy-critic.port.ts';
 import type { StrategyRefinement } from '../../domain/strategy-critic.ts';
 import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
 import { scoreRefinement } from './scoring.ts';
+import { scoreProfile } from '../strategy-analyst/scoring.ts';
 import { aggregateRuns } from './aggregate.ts';
+import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
+import type { ScoreResult as AnalystScoreResult } from '../strategy-analyst/types.ts';
 import type { Candidate, CandidateError, CandidateResult, CriticEvalCase, EvalRunResult, JudgeVerdict, ModelAggregate } from './types.ts';
 
 export interface RunEvalInput {
@@ -19,7 +22,7 @@ export interface RunEvalDeps {
   criticFor: (candidate: Candidate) => StrategyCriticPort;
   providerOf: (modelId: string) => { provider: string; modelId: string };
   clock: () => number;
-  judge?: (refinement: StrategyRefinement, evalCase: CriticEvalCase) => Promise<JudgeVerdict>;
+  judge?: (refinement: StrategyRefinement, evalCase: CriticEvalCase, profile?: AnalystProfileOutput) => Promise<JudgeVerdict>;
   analystFor?: (modelId: string) => StrategyAnalystPort; // only used when roundTrip
 }
 
@@ -50,10 +53,25 @@ export async function runOnce(candidate: Candidate, evalCase: CriticEvalCase, in
     const latencyMs = deps.clock() - start;
     const score = scoreRefinement(raw, evalCase, { threshold: input.threshold });
 
+    let profile: AnalystProfileOutput | null = null;
+    let profileScore: AnalystScoreResult | null = null;
+    if (input.roundTrip && deps.analystFor) {
+      try {
+        const analyst = deps.analystFor(input.analystModel);
+        profile = await analyst.analyze({ kind: 'manual_description', content: raw.improvedStrategyText });
+        profileScore = scoreProfile(profile, { threshold: input.threshold });
+      } catch (analystErr) {
+        // Fail-soft: the analyst is downstream of the critique; its failure must NOT fail the candidate.
+        process.stderr.write(`analyst failed for ${candidate.label}/${evalCase.id}: ${analystErr instanceof Error ? analystErr.message : String(analystErr)}\n`);
+        profile = null;
+        profileScore = null;
+      }
+    }
+
     let judge: JudgeVerdict | null = null;
     if (deps.judge) {
       try {
-        judge = await deps.judge(raw, evalCase);
+        judge = await deps.judge(raw, evalCase, profile ?? undefined);
       } catch (judgeErr) {
         // Judge is best-effort and NEVER affects the deterministic verdict.
         process.stderr.write(`judge failed for ${candidate.label}/${evalCase.id}: ${judgeErr instanceof Error ? judgeErr.message : String(judgeErr)}\n`);
@@ -61,7 +79,7 @@ export async function runOnce(candidate: Candidate, evalCase: CriticEvalCase, in
       }
     }
 
-    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge, profile: null, profileScore: null };
+    return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: score.verdict, score, rawOutput: raw, error: null, judge, profile, profileScore };
   } catch (err) {
     const latencyMs = deps.clock() - start;
     return { label: candidate.label, mode: candidate.mode, criticModel, refinerModel, caseId: evalCase.id, latencyMs, verdict: 'FAIL', score: null, rawOutput: null, error: classifyError(err), judge: null, profile: null, profileScore: null };

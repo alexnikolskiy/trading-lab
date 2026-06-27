@@ -6,6 +6,10 @@ import type { StrategyCriticInput, StrategyRefinement } from '../../domain/strat
 import type { Candidate, CriticEvalCase, JudgeVerdict } from './types.ts';
 import { resolveCase } from './fixtures.ts';
 import { GOOD_PUMP_SHORT_REFINEMENT } from './__fixtures__/refinements.ts';
+import type { StrategyAnalystPort } from '../../ports/strategy-analyst.port.ts';
+import type { StrategyAnalystInput } from '../../domain/strategy-source.ts';
+import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
+import { GOOD_LONG_OI_PROFILE } from '../strategy-analyst/__fixtures__/profiles.ts';
 
 const CAND: Candidate = { mode: 'two_stage', label: 'two_stage:critic=c,refiner=r', criticModel: 'c', refinerModel: 'r' };
 const CASE: CriticEvalCase = resolveCase('pump-short');
@@ -84,5 +88,68 @@ describe('runOnce / runEval', () => {
     expect(result.perCandidate).toHaveLength(4); // 1 candidate × 2 cases × 2 repeats
     expect(result.cases).toEqual(['pump-short', 'dump-long']);
     expect(result.aggregates).toHaveLength(1);
+  });
+});
+
+function fakeAnalyst(profile: AnalystProfileOutput, onCall?: (i: StrategyAnalystInput) => void): StrategyAnalystPort {
+  return { adapter: 'fake', model: 'fake', async analyze(i: StrategyAnalystInput): Promise<AnalystProfileOutput> { onCall?.(i); return profile; } };
+}
+function throwingAnalyst(message: string): StrategyAnalystPort {
+  return { adapter: 'fake', model: 'fake', async analyze(): Promise<AnalystProfileOutput> { throw new Error(message); } };
+}
+
+describe('runOnce — round-trip stage', () => {
+  const rtInput: RunEvalInput = { candidates: [CAND], cases: [CASE], threshold: 0.6, roundTrip: true, analystModel: 'fake/analyst' };
+
+  it('populates profile + profileScore and hands the profile to the judge', async () => {
+    let analystInput: StrategyAnalystInput | undefined;
+    let judgeProfile: AnalystProfileOutput | undefined;
+    const d: RunEvalDeps = {
+      criticFor: () => fakeCritic(GOOD_PUMP_SHORT_REFINEMENT),
+      providerOf: (m) => ({ provider: 'fake', modelId: m }),
+      clock: (() => { let t = 0; return () => (t += 100); })(),
+      analystFor: () => fakeAnalyst(GOOD_LONG_OI_PROFILE, (i) => { analystInput = i; }),
+      judge: async (_r, _c, p) => { judgeProfile = p; return { dimensions: [], overallScore: 0.9, hallucinations: [], missing: [], notes: 'ok' }; },
+    };
+    const r = await runOnce(CAND, CASE, rtInput, d);
+    expect(analystInput).toEqual({ kind: 'manual_description', content: GOOD_PUMP_SHORT_REFINEMENT.improvedStrategyText });
+    expect(r.profile).toEqual(GOOD_LONG_OI_PROFILE);
+    expect(r.profileScore).not.toBeNull();
+    expect(typeof r.profileScore!.score).toBe('number');
+    expect(judgeProfile).toEqual(GOOD_LONG_OI_PROFILE);
+    expect(r.verdict).toBe('PASS'); // critique verdict, unaffected
+  });
+
+  it('is fail-soft when the analyst throws: profile/profileScore null, critique verdict intact, judge still runs', async () => {
+    let judgeProfile: AnalystProfileOutput | undefined = GOOD_LONG_OI_PROFILE;
+    let judged = false;
+    const d: RunEvalDeps = {
+      criticFor: () => fakeCritic(GOOD_PUMP_SHORT_REFINEMENT),
+      providerOf: (m) => ({ provider: 'fake', modelId: m }),
+      clock: (() => { let t = 0; return () => (t += 100); })(),
+      analystFor: () => throwingAnalyst('analyst boom'),
+      judge: async (_r, _c, p) => { judged = true; judgeProfile = p; return { dimensions: [], overallScore: 0.9, hallucinations: [], missing: [], notes: 'ok' }; },
+    };
+    const r = await runOnce(CAND, CASE, rtInput, d);
+    expect(r.profile).toBeNull();
+    expect(r.profileScore).toBeNull();
+    expect(r.verdict).toBe('PASS');
+    expect(r.error).toBeNull(); // analyst failure is NOT a candidate error
+    expect(judged).toBe(true);
+    expect(judgeProfile).toBeUndefined(); // judge ran without a profile
+  });
+
+  it('does not call the analyst when round-trip is off', async () => {
+    let called = false;
+    const d: RunEvalDeps = {
+      criticFor: () => fakeCritic(GOOD_PUMP_SHORT_REFINEMENT),
+      providerOf: (m) => ({ provider: 'fake', modelId: m }),
+      clock: (() => { let t = 0; return () => (t += 100); })(),
+      analystFor: () => fakeAnalyst(GOOD_LONG_OI_PROFILE, () => { called = true; }),
+    };
+    const r = await runOnce(CAND, CASE, baseInput, d); // baseInput has roundTrip:false
+    expect(called).toBe(false);
+    expect(r.profile).toBeNull();
+    expect(r.profileScore).toBeNull();
   });
 });
