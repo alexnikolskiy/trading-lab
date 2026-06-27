@@ -1,0 +1,51 @@
+{
+  "data": [
+    {
+      "id": "U3Bhbjo2",
+      "name": "strategy-analyst",
+      "context": {
+        "trace_id": "b362dc6164514e691c595967b4def0e8",
+        "span_id": "b454f25a1031a8f5"
+      },
+      "span_kind": "AGENT",
+      "parent_id": null,
+      "start_time": "2026-06-27T12:11:16.349252+00:00",
+      "end_time": "2026-06-27T12:11:16.431229+00:00",
+      "status_code": "OK",
+      "status_message": "",
+      "attributes": {
+        "input.value": "Should we enter a long position on BTC/USDT now?",
+        "metadata.agentId": "strategy-analyst",
+        "mastra.span.type": "agent_run",
+        "session.id": "sess-spike-003"
+      },
+      "events": []
+    },
+    {
+      "id": "U3Bhbjo1",
+      "name": "ChatModel",
+      "context": {
+        "trace_id": "b362dc6164514e691c595967b4def0e8",
+        "span_id": "f40089515367a98e"
+      },
+      "span_kind": "LLM",
+      "parent_id": "b454f25a1031a8f5",
+      "start_time": "2026-06-27T12:11:16.354878+00:00",
+      "end_time": "2026-06-27T12:11:16.405111+00:00",
+      "status_code": "OK",
+      "status_message": "",
+      "attributes": {
+        "output.value": "{\"role\":\"assistant\",\"content\":\"Momentum indicators show bullish signal. Recommend entry.\"}",
+        "llm.model_name": "grok-3-mini",
+        "llm.token_count.total": 640,
+        "llm.token_count.prompt": 512,
+        "llm.token_count.completion": 128,
+        "metadata.agentId": "strategy-analyst",
+        "mastra.span.type": "llm",
+        "session.id": "sess-spike-003"
+      },
+      "events": []
+    }
+  ],
+  "next_cursor": null
+}
