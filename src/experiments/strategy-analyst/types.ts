@@ -21,7 +21,7 @@ export interface CheckResult {
 }
 
 export interface ScoreResult {
-  gates: { schemaValid: boolean; directionLong: boolean };
+  gates: { schemaValid: boolean; directionLong?: boolean; directionMatches?: boolean };
   checks: CheckResult[];
   score: number; // 0..1 — always a number; scoreProfile only runs when a raw object exists
   threshold: number;
