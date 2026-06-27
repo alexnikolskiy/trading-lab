@@ -143,21 +143,23 @@ expect(a2.bundleHash).toBe(a.bundleHash);            // determinism
 
 ---
 
-### Task 5: validateStrategyBundle (composite: SDK 017 + ambient scan)
+### Task 5: validateStrategyBundle (ambient/self-contained scan; SDK-017 deferred)
 
 **Files:**
 - Create: `src/validation/strategy-bundle-validator.ts`
 - Test: `src/validation/strategy-bundle-validator.test.ts`
 
 **Interfaces:**
-- Consumes: `AssembledStrategyBundle` (Task 4); `@trading-platform/sdk/validation` `validate` (confirm exact signature against installed 0.5.0 in `node_modules/@trading-platform/sdk`).
+- Consumes: `AssembledStrategyBundle` (Task 4).
 - Produces: `type ValidationVerdict = {status:'valid'} | {status:'rejected'; reason:string; violations:string[]}`; `validateStrategyBundle(a): ValidationVerdict`.
 
-- [ ] **Step 1: Write the failing test** — valid assembled bundle → `{status:'valid'}`; an assembled bundle whose source contains ambient authority (e.g. `process.env`) → `{status:'rejected', violations: non-empty}` (do NOT throw); (esbuild-unbuildable is covered in Task 4's throw path).
+> **Scope note (resolved post-grounding):** `@trading-platform/sdk/validation` (017 kernel `validate`) is NOT exported by lab's installed `@trading-platform/sdk` 0.5.0 (the `./validation` kernel export landed in 0.7.x). For F1 the composite's **SDK-017 manifest-validate half is DEFERRED** (follow-on: bump platform-SDK ≥0.7.x). The backtester acceptance-gate (`validateBundle` in `produceStrategyEvidence`, `platformContractContext`) validates manifest-contract downstream, so F1 does not lose contract coverage. The lab-side gate for F1 = the **ambient/self-contained scan** (the F2-critical "reject untrusted LLM code" check). Design's `ValidationVerdict` union + fail-closed behavior are unchanged.
+
+- [ ] **Step 1: Write the failing test** — valid assembled bundle (the clean shortAfterPump twin) → `{status:'valid'}`; an assembled bundle whose source contains ambient authority (e.g. `process.env`/`eval(`) → `{status:'rejected', reason:'forbidden_ambient_authority', violations: non-empty}` (do NOT throw); (esbuild-unbuildable is covered in Task 4's throw path).
 - [ ] **Step 2: Run, verify it fails.**
-- [ ] **Step 3: Implement** — `validateStrategyBundle` = composite: (1) self-contained/ambient scan over `a.source` (reuse a local lexical scan mirroring platform `scanAmbientAuthority`: flag `process.`/`require(`/`import(`/`eval(`/`new Function(`/node-builtin strings) → on hit `{rejected, reason:'forbidden_ambient_authority', violations}`; (2) SDK `validate(a.manifest, …)` (017 contract/manifest) → on reject map to `{rejected, reason, violations}`; else `{valid}`. Wrap SDK-load errors in try/catch → rethrow (infra).
+- [ ] **Step 3: Implement** — `validateStrategyBundle` = self-contained/ambient lexical scan over `a.source` mirroring platform `scanAmbientAuthority`: flag `process.`(env|binding|exit|kill|mainModule)/`require(`/`import(`/`eval(`/`new Function(`/node-builtin module strings (`'fs'`,`'net'`,`'child_process'`, etc.) → on hit `{status:'rejected', reason:'forbidden_ambient_authority', violations}`; else `{status:'valid'}`. (SDK-017 manifest-validate deferred per scope note above — leave a `// TODO(sdk-0.7): add SDK validate() manifest gate` marker, no SDK import.)
 - [ ] **Step 4: Run, verify it passes.**
-- [ ] **Step 5: Commit** — `feat(strategy-authoring): composite validateStrategyBundle (SDK 017 + ambient scan)`
+- [ ] **Step 5: Commit** — `feat(strategy-authoring): validateStrategyBundle (ambient/self-contained scan; SDK-017 deferred to platform-sdk 0.7)`
 
 ---
 
