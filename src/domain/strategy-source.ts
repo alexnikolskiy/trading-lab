@@ -10,5 +10,11 @@ export const StrategyAnalystInputSchema = z.object({
   content: z.string().min(1),
   uri: z.string().min(1).optional(),
   title: z.string().min(1).optional(),
+  /**
+   * Chat HITL already resolved the pre-flight critic for this onboard — the worker MUST NOT re-run it.
+   * Absent (crawler / direct /tasks) → the worker auto-critic runs (gated by STRATEGY_PREFLIGHT_CRITIQUE).
+   * Not part of the source fingerprint (dedupe keys on kind+content only).
+   */
+  skipPreflightCritique: z.boolean().optional(),
 });
 export type StrategyAnalystInput = z.infer<typeof StrategyAnalystInputSchema>;
