@@ -10,7 +10,7 @@ export interface PlannedNextStep {
 }
 
 export interface ProposedActionView {
-  id: 'confirm' | 'cancel';
+  id: 'confirm' | 'accept_as_is' | 'cancel';
   label: string;
   style: 'primary' | 'secondary';
 }

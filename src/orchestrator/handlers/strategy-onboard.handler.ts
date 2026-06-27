@@ -33,7 +33,7 @@ export const strategyOnboardHandler: WorkflowHandler = async (task, services) =>
   });
 
   let analyzeInput = input;
-  if (services.strategyCritic) {
+  if (services.strategyCritic && !input.skipPreflightCritique) {
     await services.events.append({
       id: randomUUID(), taskId: task.id, type: 'strategy_critic.started',
       payload: { mode: services.strategyCritic.mode, model: services.strategyCritic.model },

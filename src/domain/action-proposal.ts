@@ -9,12 +9,27 @@ export interface ProposedChain {
   resolveProfileByFingerprint: string;
 }
 
+export interface PreflightCritiqueSummary {
+  /** The refined strategy text the analyst receives if the operator picks "improve & analyze". */
+  improvedStrategyText: string;
+  severity: 'low' | 'medium' | 'high';
+  mainVulnerability: string;
+  /** Top critic-found vulnerabilities, for the problem list shown to the operator. */
+  vulnerabilities: string[];
+}
+
 export interface ProposedTaskSnapshot {
   taskType: AgentTaskType;
   payload: Record<string, unknown>;
   dedupeKey: string;
   chain?: ProposedChain;
   userGoal: string;
+  /**
+   * Chat HITL pre-flight critique. Present only when a chat-time critic produced a refinement; rides
+   * inside the JSONB `task` column (no migration). The confirm step picks improvedStrategyText vs the
+   * original payload.content based on the chosen action.
+   */
+  preflightCritique?: PreflightCritiqueSummary;
 }
 
 export interface ActionProposal {

@@ -168,4 +168,33 @@ describe('strategyOnboardHandler — pre-flight critic', () => {
     const types = (await services.events.listByTask('task-1')).map((e) => e.type);
     expect(types).toContain('strategy.onboard.deduped');
   });
+
+  it('skipPreflightCritique:true → critic NOT called; analyst sees the payload content as-is', async () => {
+    const { analyst, seen } = spyAnalyst();
+    let refineCalls = 0;
+    const critic: StrategyCriticPort = {
+      adapter: 'fake', mode: 'two_stage', model: 'fake',
+      refine: async (input) => { refineCalls += 1; return cannedRefinement(`IMPROVED: ${input.content}`); },
+    };
+    const services = makeServices({ analyst, strategyCritic: critic });
+    await strategyOnboardHandler(task({ ...validPayload, skipPreflightCritique: true }), services);
+    expect(refineCalls).toBe(0);
+    expect(seen).toEqual([validPayload.content]); // original, never improved
+    const types = (await services.events.listByTask('task-1')).map((e) => e.type);
+    expect(types).not.toContain('strategy_critic.started');
+    expect(types).not.toContain('strategy_critic.completed');
+  });
+
+  it('absent flag + critic present → the auto-critic runs (analyst sees improvedStrategyText)', async () => {
+    const { analyst, seen } = spyAnalyst();
+    const critic: StrategyCriticPort = {
+      adapter: 'fake', mode: 'two_stage', model: 'fake',
+      refine: async (input) => cannedRefinement(`IMPROVED: ${input.content}`),
+    };
+    const services = makeServices({ analyst, strategyCritic: critic });
+    await strategyOnboardHandler(task(validPayload), services); // no skip flag
+    expect(seen).toEqual([`IMPROVED: ${validPayload.content}`]);
+    const types = (await services.events.listByTask('task-1')).map((e) => e.type);
+    expect(types).toContain('strategy_critic.completed');
+  });
 });
