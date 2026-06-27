@@ -48,6 +48,7 @@ const submission: StrategyRunSubmission = {
 function makeClient(opts: {
   resultHash?: `sha256:${string}`;
   throwOn?: 'submitRun' | 'getRunStatus' | 'getRunResult';
+  nonTerminal?: boolean;
 }): BacktesterClientLike {
   return {
     async submitRun(_req: BtRunSubmitRequest): Promise<RunJobHandle> {
@@ -56,6 +57,9 @@ function makeClient(opts: {
     },
     async getRunStatus(runId: string): Promise<BtRunStatusView> {
       if (opts.throwOn === 'getRunStatus') throw new Error('timeout');
+      if (opts.nonTerminal) {
+        return { runId, jobId: 'j1', status: 'running', timeline: [{ status: 'accepted', atMs: 1 }, { status: 'running', atMs: 2 }] };
+      }
       return {
         runId,
         jobId: 'j1',
@@ -131,11 +135,27 @@ describe('HttpBacktesterAdapter.submitStrategyRun', () => {
   });
 
   it('backward compat: existing single-arg constructor still compiles and works', async () => {
-    // no opts arg → goldenResultHash is undefined; resultHash undefined too → equivalent
+    // no opts arg → goldenResultHash is undefined; resultHash undefined too → unavailable (vacuous guard)
     const adapter = new HttpBacktesterAdapter(makeClient({}));
     const result = await adapter.submitStrategyRun(submission);
-    // undefined === undefined → equivalent (degenerate but must not throw)
-    expect(result.status).toBe('equivalent');
+    // no configured golden → cannot prove equivalence → unavailable (not 'equivalent')
+    expect(result.status).toBe('unavailable');
+  });
+
+  it('returns unavailable when poll never reaches terminal (deadline)', async () => {
+    const adapter = new HttpBacktesterAdapter(
+      makeClient({ nonTerminal: true }),
+      { goldenResultHash: GOLDEN, maxPollMs: 30, pollIntervalMs: 5 },
+    );
+    const result = await adapter.submitStrategyRun(submission);
+    expect(result.status).toBe('unavailable');
+  });
+
+  it('returns unavailable when backtester omits resultHash (golden set)', async () => {
+    // makeClient({}) returns no resultHash → summary.resultHash is undefined
+    const adapter = new HttpBacktesterAdapter(makeClient({}), { goldenResultHash: GOLDEN });
+    const result = await adapter.submitStrategyRun(submission);
+    expect(result.status).toBe('unavailable');
   });
 
   it('sends engine:strategy and correct moduleRef in the request', async () => {

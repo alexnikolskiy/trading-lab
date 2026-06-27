@@ -153,10 +153,14 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort, BacktesterSt
   /** Memoized: the registry is immutable for the life of the adapter, so discover it at most once. */
   private registryPromise?: Promise<RegistryDescriptor>;
   private readonly goldenResultHash?: string;
+  private readonly maxPollMs: number;
+  private readonly pollIntervalMs: number;
 
-  constructor(client: BacktesterClientLike, opts?: { goldenResultHash?: string }) {
+  constructor(client: BacktesterClientLike, opts?: { goldenResultHash?: string; maxPollMs?: number; pollIntervalMs?: number }) {
     this.client = client;
     this.goldenResultHash = opts?.goldenResultHash;
+    this.maxPollMs = opts?.maxPollMs ?? 120_000;
+    this.pollIntervalMs = opts?.pollIntervalMs ?? 1000;
   }
 
   private registry(): Promise<RegistryDescriptor> {
@@ -285,13 +289,15 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort, BacktesterSt
 
   // ── BacktesterStrategyPort ────────────────────────────────────────────────
 
-  /** Poll until the run reaches a terminal status. Returns as soon as the first terminal status is observed. */
-  private async pollUntilTerminal(runId: string, pollIntervalMs = 1000): Promise<void> {
-    while (true) {
+  /** Poll until the run reaches a terminal status, bounded by maxPollMs. Throws if the deadline is exceeded. */
+  private async pollUntilTerminal(runId: string): Promise<void> {
+    const deadline = Date.now() + this.maxPollMs;
+    while (Date.now() < deadline) {
       const view = await this.client.getRunStatus(runId);
       if (TERMINAL.has(view.status)) return;
-      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
+      await new Promise<void>((resolve) => setTimeout(resolve, this.pollIntervalMs));
     }
+    throw new Error(`pollUntilTerminal: run ${runId} did not reach a terminal status within ${this.maxPollMs}ms`);
   }
 
   /**
@@ -329,6 +335,10 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort, BacktesterSt
       await this.pollUntilTerminal(runId);
       const summary = await this.client.getRunResult(runId);
       const resultHash = summary.resultHash;
+      if (resultHash === undefined || this.goldenResultHash === undefined) {
+        // No result hash (or no configured golden) → cannot prove equivalence; never read missing data as a match.
+        return { status: 'unavailable' };
+      }
       if (resultHash === this.goldenResultHash) {
         return { status: 'equivalent', resultHash };
       }
