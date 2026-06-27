@@ -44,6 +44,7 @@ export function aggregateRuns(runs: CandidateResult[]): ModelAggregate {
 
   const detScores = runs.filter((r) => r.score != null).map((r) => r.score!.score);
   const judgeScores = runs.filter((r) => r.judge != null).map((r) => r.judge!.overallScore);
+  const profileScores = runs.filter((r) => r.profileScore != null).map((r) => r.profileScore!.score);
   const latencies = runs.map((r) => r.latencyMs);
   const passCount = runs.filter((r) => r.verdict === 'PASS').length;
 
@@ -56,21 +57,29 @@ export function aggregateRuns(runs: CandidateResult[]): ModelAggregate {
     passRate: passCount / total,
     det: detScores.length > 0 ? stats(detScores) : null,
     judge: judgeScores.length > 0 ? stats(judgeScores) : null,
+    profile: profileScores.length > 0 ? stats(profileScores) : undefined,
     latency: { mean: mean(latencies), median: median(latencies) },
   };
 }
 
 /**
- * Rank candidates: judge-mean desc (only when judge ran) -> PASS-rate desc -> det-mean desc.
- * Candidates without a judge/det mean sort last on that key. Pure; returns a new array.
+ * Rank candidates: judge-mean desc (only when judge ran) -> profileMean desc (only when round-trip
+ * data present) -> PASS-rate desc -> det-mean desc. Candidates without a given mean sort last on
+ * that key. Pure; returns a new array.
  */
 export function rankAggregates(aggs: ModelAggregate[], judgeEnabled: boolean): ModelAggregate[] {
+  const hasProfile = aggs.some((a) => a.profile != null);
   const j = (a: ModelAggregate): number => a.judge?.mean ?? -1;
+  const p = (a: ModelAggregate): number => a.profile?.mean ?? -1;
   const d = (a: ModelAggregate): number => a.det?.mean ?? -1;
   return [...aggs].sort((a, b) => {
     if (judgeEnabled) {
       const dj = j(b) - j(a);
       if (dj !== 0) return dj;
+    }
+    if (hasProfile) {
+      const dpf = p(b) - p(a);
+      if (dpf !== 0) return dpf;
     }
     const dp = b.passRate - a.passRate;
     if (dp !== 0) return dp;

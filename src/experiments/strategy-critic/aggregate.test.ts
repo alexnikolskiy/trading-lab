@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateRuns, rankAggregates } from './aggregate.ts';
 import type { CandidateResult, ModelAggregate, ScoreResult } from './types.ts';
+import type { ScoreResult as AnalystScoreResult } from '../strategy-analyst/types.ts';
 
 function score(s: number): ScoreResult {
   return { gates: { schemaValid: true, directionPreserved: true, noRunnerOverreach: true, nonTrivialChange: true }, checks: [], score: s, threshold: 0.6, verdict: s >= 0.6 ? 'PASS' : 'FAIL' };
@@ -31,5 +32,38 @@ describe('rankAggregates', () => {
     expect(ranked.map((a) => a.label)).toEqual(['two_stage:critic=a,refiner=b', 'single:a']);
     expect(ranked[0]!.mode).toBe('two_stage');
     expect(ranked[0]!.refinerModel).toBe('b');
+  });
+});
+
+function pscore(s: number): AnalystScoreResult {
+  return { gates: { schemaValid: true, directionLong: true }, checks: [], score: s, threshold: 0.8, verdict: s >= 0.8 ? 'PASS' : 'FAIL' };
+}
+
+describe('aggregateRuns — profile stats', () => {
+  it('computes profile Stats over runs that have a profileScore', () => {
+    const agg = aggregateRuns([
+      run({ profileScore: pscore(0.6) }),
+      run({ profileScore: pscore(0.8) }),
+      run({ profileScore: null }), // no profile -> excluded
+    ]);
+    expect(agg.profile).toBeDefined();
+    expect(agg.profile!.mean).toBeCloseTo(0.7, 10);
+    expect(agg.profile!.min).toBe(0.6);
+    expect(agg.profile!.max).toBe(0.8);
+  });
+
+  it('leaves profile undefined when no run has a profileScore', () => {
+    const agg = aggregateRuns([run({}), run({})]);
+    expect(agg.profile).toBeUndefined();
+  });
+});
+
+describe('rankAggregates — profileMean tiebreak', () => {
+  it('breaks ties on profileMean when round-trip data is present', () => {
+    const base = { mode: 'single' as const, criticModel: 'm', refinerModel: null, runs: { total: 1, ok: 1, failed: 0, failedByType: {} }, passRate: 1, det: { mean: 0.8, median: 0.8, std: 0, min: 0.8, max: 0.8 }, judge: null, latency: { mean: 100, median: 100 } };
+    const lo: ModelAggregate = { ...base, label: 'single:lo', profile: { mean: 0.5, median: 0.5, std: 0, min: 0.5, max: 0.5 } };
+    const hi: ModelAggregate = { ...base, label: 'single:hi', profile: { mean: 0.9, median: 0.9, std: 0, min: 0.9, max: 0.9 } };
+    const ranked = rankAggregates([lo, hi], false);
+    expect(ranked.map((a) => a.label)).toEqual(['single:hi', 'single:lo']);
   });
 });
