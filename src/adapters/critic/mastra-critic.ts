@@ -1,6 +1,7 @@
 import type { Agent } from '@mastra/core/agent';
 import type { CriticPort, AgentCallOpts } from '../../ports/critic.port.ts';
 import { CriticOutputSchema, type CriticInput, type CriticOutput } from '../../domain/critic.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 function buildPrompt(input: CriticInput): string {
   return [
@@ -26,6 +27,7 @@ export class MastraCritic implements CriticPort {
   async review(input: CriticInput, opts?: AgentCallOpts): Promise<CriticOutput> {
     const result = await this.agent.generate(buildPrompt(input), {
       structuredOutput: { schema: CriticOutputSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.model,

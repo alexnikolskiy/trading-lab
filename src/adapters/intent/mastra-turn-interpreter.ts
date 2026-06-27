@@ -1,6 +1,7 @@
 import type { Agent } from '@mastra/core/agent';
 import type { TurnInterpreterPort } from '../../ports/turn-interpreter.port.ts';
 import { TurnProviderSchema } from '../../chat/turn-provider-schema.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 function buildPrompt(message: string): string {
   return `Interpret the following user message and extract structured turn information.\n\n--- USER MESSAGE START ---\n${message}\n--- USER MESSAGE END ---\n\nReturn the structured turn interpretation.`;
@@ -26,6 +27,7 @@ export class MastraTurnInterpreter implements TurnInterpreterPort {
   async interpret(message: string): Promise<unknown> {
     const result = await this.agent.generate(buildPrompt(message), {
       structuredOutput: { schema: TurnProviderSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     return result.object;
   }

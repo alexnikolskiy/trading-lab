@@ -6,6 +6,7 @@ import { OVERLAY_ACTIONS } from '../../domain/hypothesis-rules.ts';
 import { DIRECTIONS } from '../../domain/strategy-profile.ts';
 import { buildBotResultsDigestText } from './bot-results-digest.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 /**
  * OpenAI/Azure strict mode requires all schema properties to be listed in `required`.
@@ -135,6 +136,7 @@ export class MastraResearcher implements ResearcherPort {
   async propose(input: ResearcherInput, opts?: AgentCallOpts): Promise<ResearcherOutput> {
     const result = await this.agent.generate(buildPrompt(input), {
       structuredOutput: { schema: LlmResearcherOutputSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.model,

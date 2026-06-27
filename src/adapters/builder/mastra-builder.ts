@@ -4,6 +4,7 @@ import type { BuilderInput, BuilderOutput, BuilderPort, AgentCallOpts } from '..
 import { BuilderOutputSchema } from '../../ports/builder.port.ts';
 import { SDK_CONTRACT_VERSION } from '../../domain/module-bundle.ts';
 import { DIRECTIONS } from '../../domain/strategy-profile.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 /**
  * LLM-compatible schema:
@@ -84,6 +85,7 @@ export class MastraBuilder implements BuilderPort {
   async build(input: BuilderInput, opts?: AgentCallOpts): Promise<BuilderOutput> {
     const result = await this.agent.generate(buildPromptFor(input), {
       structuredOutput: { schema: LlmBuilderOutputSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.model,

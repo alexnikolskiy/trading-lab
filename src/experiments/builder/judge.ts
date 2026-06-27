@@ -3,6 +3,7 @@ import type { BuilderOutput } from '../../ports/builder.port.ts';
 import type { HypothesisProposal } from '../../domain/hypothesis.ts';
 import { BuilderJudgeVerdictSchema } from './types.ts';
 import type { BuilderJudgeVerdict } from './types.ts';
+import { MAX_OUTPUT_TOKENS } from '../../adapters/llm/generate-defaults.ts';
 
 export const BUILDER_JUDGE_RUBRIC = `
 Dimension: hypothesis_fidelity (0–1)
@@ -78,6 +79,7 @@ export function buildBuilderJudgePrompt(input: BuilderJudgeInput): string {
 export async function runBuilderJudge(agent: Agent, input: BuilderJudgeInput): Promise<BuilderJudgeVerdict> {
   const result = await agent.generate(buildBuilderJudgePrompt(input), {
     structuredOutput: { schema: BuilderJudgeVerdictSchema },
+    modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
   });
   return BuilderJudgeVerdictSchema.parse(result.object);
 }
