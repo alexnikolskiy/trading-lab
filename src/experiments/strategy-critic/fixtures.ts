@@ -3,7 +3,7 @@ import type { AspectGroup, CriticEvalCase } from './types.ts';
 
 // Data-grounded expected-improvement groups (keyword/regex; RU + EN synonyms).
 const TAKER_FLOW: AspectGroup = { label: 'taker-flow', weight: 1, any: ['taker', 'тейкер', '\\bcvd\\b', 'delta', 'дельт', 'агресс'] };
-const OI_TREND: AspectGroup = { label: 'oi-trend', weight: 1, any: ['\\boi\\b', 'open[ _]?interest', 'открыт\\w*\\s+интерес', 'интерес'] };
+const OI_TREND: AspectGroup = { label: 'oi-trend', weight: 1, any: ['\\boi\\b', 'open[ _]?interest', 'открыт\\w*\\s+интерес'] };
 const FUNDING: AspectGroup = { label: 'funding', weight: 1, any: ['funding', 'фандинг', 'финансир'] };
 const LIQUIDATION: AspectGroup = { label: 'liquidation', weight: 1, any: ['liquidation', '\\bliq\\b', 'ликвидац', 'каскад'] };
 const INVALIDATION: AspectGroup = { label: 'invalidation', weight: 1, any: ['invalidat', 'инвалидац', '\\bstop\\b', 'стоп', 'уровень\\s+отмен', 'отмен\\w*\\s+сетап'] };

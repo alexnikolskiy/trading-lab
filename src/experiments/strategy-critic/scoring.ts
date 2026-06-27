@@ -9,7 +9,7 @@ export const DEFAULT_THRESHOLD = 0.6;
 const FAB_PATTERNS: RegExp[] = [
   /(?<![.\d])\b(?:[2-9]|\d{2,})(?:\.\d+)?\s*[x×]\b/i, // leverage >= 2x
   /leverage\s*[:=]?\s*\d/i,
-  /плеч\w*\s*[:=]?\s*\d/i,
+  /плеч[\p{L}]*\s*[:=]?\s*\d/iu,
   /\$\s*\d|\b\d+\s*(?:usd|usdt|dollars?)\b|base[ _]?order\s*[:=]?\s*\d/i,
   /\b\d+(?:\.\d+)?\s*%\s*(?:of\s+)?(?:equity|account|balance|capital|portfolio|deposit|депозит)/i,
 ];
@@ -48,7 +48,7 @@ export function scoreRefinement(
 
   const haystack = [improved, ...(refinement.changeLog ?? [])].join(' • ').toLowerCase();
   const checks: CheckResult[] = evalCase.expectedAspects.map((aspect) => {
-    const matched = aspect.any.filter((src) => new RegExp(src, 'i').test(haystack));
+    const matched = aspect.any.filter((src) => new RegExp(src, 'iu').test(haystack));
     return { id: aspect.label, weight: aspect.weight, hit: matched.length > 0, matched };
   });
 

@@ -21,6 +21,12 @@ describe('scoreRefinement', () => {
     expect(r.score).toBeGreaterThanOrEqual(0.6);
     expect(r.verdict).toBe('PASS');
   });
+  it('GOOD refinement covers all 6 aspects (full coverage regression guard)', () => {
+    const r = scoreRefinement(GOOD_PUMP_SHORT_REFINEMENT, CASE);
+    const failedAspects = r.checks.filter((c) => !c.hit).map((c) => c.id);
+    expect(failedAspects).toEqual([]);
+    expect(r.score).toBe(1);
+  });
   it('FAILs when direction is not preserved', () => {
     const r = scoreRefinement(WRONG_DIRECTION_REFINEMENT, CASE);
     expect(r.gates.directionPreserved).toBe(false);
