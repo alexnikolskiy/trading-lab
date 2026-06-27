@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildJudgePrompt } from './judge.ts';
 import { GOOD_PUMP_SHORT_REFINEMENT } from './__fixtures__/refinements.ts';
+import { GOOD_LONG_OI_PROFILE } from '../strategy-analyst/__fixtures__/profiles.ts';
 
 describe('buildJudgePrompt', () => {
   it('embeds the original text and the candidate refinement JSON', () => {
@@ -8,5 +9,19 @@ describe('buildJudgePrompt', () => {
     expect(prompt).toContain('шорт после пампа от 10% за 20 минут');
     expect(prompt).toContain(GOOD_PUMP_SHORT_REFINEMENT.improvedStrategyText);
     expect(prompt).toContain('Return the structured judge verdict.');
+  });
+});
+
+describe('buildJudgePrompt — resulting profile block', () => {
+  it('appends the profile block when a profile is present', () => {
+    const prompt = buildJudgePrompt({ originalText: 'orig', refinement: GOOD_PUMP_SHORT_REFINEMENT, profile: GOOD_LONG_OI_PROFILE });
+    expect(prompt).toContain('--- RESULTING ANALYST PROFILE (JSON) ---');
+    expect(prompt).toContain(JSON.stringify(GOOD_LONG_OI_PROFILE, null, 2));
+    expect(prompt).toContain('Return the structured judge verdict.');
+  });
+
+  it('omits the profile block when no profile is provided', () => {
+    const prompt = buildJudgePrompt({ originalText: 'orig', refinement: GOOD_PUMP_SHORT_REFINEMENT });
+    expect(prompt).not.toContain('RESULTING ANALYST PROFILE');
   });
 });

@@ -11,6 +11,7 @@ export const STRATEGY_CRITIC_JUDGE_INSTRUCTIONS = [
   'did it add the missing nuances grounded in AVAILABLE data (OHLCV; open interest + trend; long/short liquidations; funding rate; taker buy/sell -> delta/CVD);',
   'did it AVOID inventing facts or unavailable data sources;',
   'is the strategy still analyzable and buildable with NO runner overreach (no leverage / base-order sizing / equity %).',
+  'If a resulting analyst profile is provided, also assess how completely it captures the strategy — entry conditions, exit & invalidation, required data signals — and penalize empty exits or many unknowns.',
   'List any invented or unavailable-data claims (`hallucinations`) and any weaknesses it failed to address (`missing`).',
   'Be strict and concise. Do not rewrite the strategy; only assess.',
 ].join(' ');
