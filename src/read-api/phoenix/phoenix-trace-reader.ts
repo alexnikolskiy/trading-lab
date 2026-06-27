@@ -25,8 +25,10 @@ export const LAB_AGENT_SPAN_CANDIDATES: Record<string, string[]> = {
 };
 
 export class PhoenixTraceReader {
+  private readonly deps: PhoenixTraceReaderDeps;
   private readonly fetchImpl: typeof fetch;
-  constructor(private readonly deps: PhoenixTraceReaderDeps) {
+  constructor(deps: PhoenixTraceReaderDeps) {
+    this.deps = deps;
     this.fetchImpl = deps.fetchImpl ?? fetch;
   }
 
