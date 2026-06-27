@@ -108,11 +108,13 @@ services:
       OPERATOR_RERANK_LIMIT: ${OPERATOR_RERANK_LIMIT:-5}
       OPERATOR_RERANK_MIN_CANDIDATES: ${OPERATOR_RERANK_MIN_CANDIDATES:-10}
       OPERATOR_RERANK_RRF_MARGIN: ${OPERATOR_RERANK_RRF_MARGIN:-0.002}
-      # Pre-flight strategy critic (off by default; zero behavior change).
-      STRATEGY_PREFLIGHT_CRITIQUE: ${STRATEGY_PREFLIGHT_CRITIQUE:-false}
+      # Pre-flight strategy critic (ON by default; single + grok-4.3). Chat=HITL, crawler/-/tasks=auto.
+      STRATEGY_PREFLIGHT_CRITIQUE: ${STRATEGY_PREFLIGHT_CRITIQUE:-true}
+      # Adapter follows LAB_AGENTS_ADAPTER unless set; the default-on critic is the FAKE echo in keyless dev —
+      # the real grok-4.3 critic needs LAB_AGENTS_ADAPTER=mastra (or STRATEGY_CRITIC_ADAPTER=mastra) + OPENROUTER_API_KEY.
       STRATEGY_CRITIC_ADAPTER: ${STRATEGY_CRITIC_ADAPTER:-fake}
-      STRATEGY_CRITIC_MODE: ${STRATEGY_CRITIC_MODE:-two_stage}
-      STRATEGY_CRITIC_MODEL: ${STRATEGY_CRITIC_MODEL:-anthropic/claude-sonnet-4-6}
+      STRATEGY_CRITIC_MODE: ${STRATEGY_CRITIC_MODE:-single}
+      STRATEGY_CRITIC_MODEL: ${STRATEGY_CRITIC_MODEL:-openrouter/x-ai/grok-4.3}
       STRATEGY_REFINER_MODEL: ${STRATEGY_REFINER_MODEL:-}
     depends_on:
       postgres:
@@ -188,11 +190,13 @@ services:
       OPERATOR_RERANK_LIMIT: ${OPERATOR_RERANK_LIMIT:-5}
       OPERATOR_RERANK_MIN_CANDIDATES: ${OPERATOR_RERANK_MIN_CANDIDATES:-10}
       OPERATOR_RERANK_RRF_MARGIN: ${OPERATOR_RERANK_RRF_MARGIN:-0.002}
-      # Pre-flight strategy critic (off by default; zero behavior change).
-      STRATEGY_PREFLIGHT_CRITIQUE: ${STRATEGY_PREFLIGHT_CRITIQUE:-false}
+      # Pre-flight strategy critic (ON by default; single + grok-4.3). Chat=HITL, crawler/-/tasks=auto.
+      STRATEGY_PREFLIGHT_CRITIQUE: ${STRATEGY_PREFLIGHT_CRITIQUE:-true}
+      # Adapter follows LAB_AGENTS_ADAPTER unless set; the default-on critic is the FAKE echo in keyless dev —
+      # the real grok-4.3 critic needs LAB_AGENTS_ADAPTER=mastra (or STRATEGY_CRITIC_ADAPTER=mastra) + OPENROUTER_API_KEY.
       STRATEGY_CRITIC_ADAPTER: ${STRATEGY_CRITIC_ADAPTER:-fake}
-      STRATEGY_CRITIC_MODE: ${STRATEGY_CRITIC_MODE:-two_stage}
-      STRATEGY_CRITIC_MODEL: ${STRATEGY_CRITIC_MODEL:-anthropic/claude-sonnet-4-6}
+      STRATEGY_CRITIC_MODE: ${STRATEGY_CRITIC_MODE:-single}
+      STRATEGY_CRITIC_MODEL: ${STRATEGY_CRITIC_MODEL:-openrouter/x-ai/grok-4.3}
       STRATEGY_REFINER_MODEL: ${STRATEGY_REFINER_MODEL:-}
     depends_on:
       postgres:

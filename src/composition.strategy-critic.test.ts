@@ -8,8 +8,8 @@ function envWith(over: Record<string, string>) {
 }
 
 describe('buildStrategyCritic', () => {
-  it('returns null when STRATEGY_PREFLIGHT_CRITIQUE is false (default)', () => {
-    const env = envWith({});
+  it('returns null when STRATEGY_PREFLIGHT_CRITIQUE=false', () => {
+    const env = envWith({ STRATEGY_PREFLIGHT_CRITIQUE: 'false' });
     expect(buildStrategyCritic(env, composeMastra(env))).toBeNull();
   });
 
@@ -23,6 +23,7 @@ describe('buildStrategyCritic', () => {
   it('builds a two-stage mastra critic when enabled with adapter=mastra + two_stage', () => {
     const env = envWith({
       STRATEGY_PREFLIGHT_CRITIQUE: 'true', STRATEGY_CRITIC_ADAPTER: 'mastra', STRATEGY_CRITIC_MODE: 'two_stage',
+      STRATEGY_CRITIC_MODEL: 'anthropic/claude-sonnet-4-6',
       MODEL_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'dummy',
     });
     const c = buildStrategyCritic(env, composeMastra(env));
@@ -33,6 +34,7 @@ describe('buildStrategyCritic', () => {
   it('builds a single-stage mastra critic when enabled with adapter=mastra + single', () => {
     const env = envWith({
       STRATEGY_PREFLIGHT_CRITIQUE: 'true', STRATEGY_CRITIC_ADAPTER: 'mastra', STRATEGY_CRITIC_MODE: 'single',
+      STRATEGY_CRITIC_MODEL: 'anthropic/claude-sonnet-4-6',
       MODEL_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'dummy',
     });
     const c = buildStrategyCritic(env, composeMastra(env));
