@@ -9,6 +9,7 @@ export interface FixtureRef {
   sourcePath: string;
   notesPath: string;
   rubricPath: string;
+  direction: 'long' | 'short';
 }
 
 export interface CheckResult {
