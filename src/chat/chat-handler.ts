@@ -13,6 +13,9 @@ import type { TaskQueuePort } from '../ports/task-queue.port.ts';
 import type { ActionProposalRepository } from '../ports/action-proposal.repository.ts';
 import type { ActionProposal } from '../domain/action-proposal.ts';
 import type { StrategyCriticPort } from '../ports/strategy-critic.port.ts';
+import type { StrategyRefinement } from '../domain/strategy-critic.ts';
+import { validateWithSchema } from '../validation/validator.ts';
+import { StrategyAnalystInputSchema } from '../domain/strategy-source.ts';
 import { createAndEnqueueTask } from '../orchestrator/task-intake.ts';
 import { parseTurn, planChatAction, type PlanDecision } from './guard.ts';
 import type { PlatformRunConfig } from '../ports/research-platform.port.ts';
@@ -190,13 +193,41 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     timingsMs: evidence.timingsMs,
   });
 
+  // Source-aware HITL: for a chat onboard of a strategy, run the pre-flight critic synchronously
+  // (fail-soft) so the operator can choose to apply its improvements. Crawler/direct-/tasks onboarding
+  // never reaches this path — that critique stays on the worker (auto). Adds one LLM call to this turn.
+  let refinement: StrategyRefinement | undefined;
+  if (deps.strategyCritic && decision.taskType === 'strategy.onboard') {
+    const criticInput = validateWithSchema(StrategyAnalystInputSchema, decision.payload);
+    if (criticInput.status === 'valid') {
+      await ev('chat.strategy_critic.started', {
+        chatRequestId, sessionId: sid, mode: deps.strategyCritic.mode, model: deps.strategyCritic.model,
+      });
+      try {
+        refinement = await deps.strategyCritic.refine(criticInput.data);
+        // Privacy: severity / count / mainVulnerability (a short verdict label) only — never raw text.
+        await ev('chat.strategy_critic.completed', {
+          chatRequestId, sessionId: sid,
+          severity: refinement.verdict.severity,
+          mainVulnerability: refinement.verdict.mainVulnerability,
+          vulnerabilityCount: refinement.vulnerabilities.length,
+        });
+      } catch (err) {
+        await ev('chat.strategy_critic.failed', {
+          chatRequestId, sessionId: sid, error: err instanceof Error ? err.message : String(err),
+        });
+        refinement = undefined; // fail-soft: fall back to the simple two-action onboard confirm
+      }
+    }
+  }
+
   // Propose-and-confirm: the first turn writes an ActionProposal and asks the operator
   // to confirm. No task is created or enqueued here — that happens on confirmation (a
   // separate turn). The session pendingInteraction points at the proposal.
   const proposalId = randomUUID();
   const expiresAt = new Date(Date.now() + deps.proposalTtlMs).toISOString();
   const proposal = buildActionProposal({
-    id: proposalId, sessionId: sid, source: input.source, message: input.message, decision, evidence, now: now(), expiresAt,
+    id: proposalId, sessionId: sid, source: input.source, message: input.message, decision, evidence, refinement, now: now(), expiresAt,
   });
   await deps.proposals.create(proposal);
 
@@ -213,6 +244,11 @@ export async function handleChatMessage(input: HandleChatInput, deps: ChatHandle
     evidenceRefCount: proposal.evidenceRefs.length, evidenceWarningCount: proposal.evidenceWarnings.length,
   });
 
+  if (refinement) {
+    const message = buildCritiqueMessage(refinement);
+    const evidenceCards = buildEvidenceCards(message, evidence);
+    return assistantMessage(sid, message, { evidence: evidenceCards, actions: CRITIQUE_ACTIONS, pendingInteractionId: proposalId });
+  }
   const interpretation = interpretProposal(decision);
   const evidenceCards = buildEvidenceCards(interpretation, evidence);
   return assistantMessage(sid, interpretation, { evidence: evidenceCards, actions: PENDING_ACTIONS, pendingInteractionId: proposalId });
@@ -223,6 +259,29 @@ const PENDING_ACTIONS: ProposedActionView[] = [
   { id: 'confirm', label: 'Подтвердить', style: 'primary' },
   { id: 'cancel', label: 'Отмена', style: 'secondary' },
 ];
+
+/** The three-action view offered after a chat-time pre-flight critique. */
+const CRITIQUE_ACTIONS: ProposedActionView[] = [
+  { id: 'confirm', label: 'Улучшить и анализировать', style: 'primary' },
+  { id: 'accept_as_is', label: 'Анализировать как есть', style: 'secondary' },
+  { id: 'cancel', label: 'Отмена', style: 'secondary' },
+];
+
+/** Deterministic operator-facing problem list: severity + main vulnerability + top-N vulnerabilities. */
+function buildCritiqueMessage(refinement: StrategyRefinement, topN = 3): string {
+  const sev = { low: 'низкая', medium: 'средняя', high: 'высокая' }[refinement.verdict.severity];
+  const lines = [
+    `Проверил стратегию перед анализом. Критичность найденных проблем: ${sev}.`,
+    `Главная уязвимость: ${refinement.verdict.mainVulnerability}.`,
+  ];
+  const top = refinement.vulnerabilities.slice(0, topN);
+  if (top.length > 0) {
+    lines.push('Что ещё нашёл:');
+    for (const v of top) lines.push(`• ${v}`);
+  }
+  lines.push('Улучшить стратегию и анализировать, анализировать как есть, или отменить?');
+  return lines.join('\n');
+}
 
 /**
  * The single place a confirmed proposal turns into a task. Runs the STORED snapshot

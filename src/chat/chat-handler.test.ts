@@ -12,6 +12,29 @@ import { InMemoryActionProposalRepository } from '../adapters/repository/in-memo
 import { InMemoryQueueAdapter } from '../adapters/queue/in-memory-queue.adapter.ts';
 import type { TurnInterpreterPort } from '../ports/turn-interpreter.port.ts';
 import type { ChatSessionContext } from '../ports/chat-session.repository.ts';
+import type { StrategyCriticPort } from '../ports/strategy-critic.port.ts';
+import type { StrategyRefinement } from '../domain/strategy-critic.ts';
+
+function cannedRefinement(improved: string): StrategyRefinement {
+  return {
+    vulnerabilities: ['нет инвалидации сделки', 'не учтён режим BTC', 'тонкая ликвидность'],
+    selfDeception: [],
+    risks: { market: 'm', timing: 't', news: 'n', liquidity: 'l', btcRegime: 'b', exhaustion: 'e' },
+    earlyBreakSigns: [],
+    preEntryChecks: [],
+    verdict: { mainVulnerability: 'нет стопа', severity: 'high', badIdeaOrBadTiming: 'bad_timing', whatWouldStrengthen: 'добавить фильтр' },
+    improvedStrategyText: improved,
+    changeLog: ['добавлен фильтр режима'],
+  };
+}
+
+function cannedCritic(improved: string): StrategyCriticPort {
+  return { adapter: 'fake', mode: 'single', model: 'fake', refine: async () => cannedRefinement(improved) };
+}
+
+function throwingCritic(): StrategyCriticPort {
+  return { adapter: 'fake', mode: 'single', model: 'fake', refine: async () => { throw new Error('critic exploded'); } };
+}
 
 /** A turn interpreter that always returns a fixed (canned) raw turn — for confidence-gate tests. */
 function cannedInterpreter(raw: unknown): TurnInterpreterPort {
@@ -455,5 +478,50 @@ describe('ChatHandlerDeps strategyCritic plumbing', () => {
   it('the base fixture exposes strategyCritic, defaulting to null', () => {
     const { d } = deps();
     expect(d.strategyCritic).toBeNull();
+  });
+});
+
+describe('handleChatMessage — chat-time critic (HITL)', () => {
+  const strategyMsg =
+    'Стратегия только в лонг. Работаем на 1m свечах. После резкого пролива цены ищем подтверждённый отскок от локального минимума. Входим в лонг, когда цена начинает восстанавливаться, open interest восстанавливается, и на рынке видны long-ликвидации. Первый тейк на +3.5%, второй тейк на +5%, стоп -12%, выход по времени через 180 минут.';
+
+  it('critic present → 3-action proposal; stores original content + improvedStrategyText + critique summary', async () => {
+    const { d, sessions, proposals } = deps({ strategyCritic: cannedCritic('УЛУЧШЕННЫЙ ТЕКСТ СТРАТЕГИИ') });
+    const r = await handleChatMessage({ message: strategyMsg, session: session(), source: 'web' }, d);
+    expect(r.kind).toBe('assistant_message');
+    if (r.kind === 'assistant_message') {
+      expect(r.actions.map((a) => a.id)).toEqual(['confirm', 'accept_as_is', 'cancel']);
+    }
+    const saved = await proposals.findById((await sessions.get('s1'))!.pendingInteraction!.proposalId);
+    expect(saved?.task.taskType).toBe('strategy.onboard');
+    // Original content stays in the payload…
+    expect((saved?.task.payload as { content: string }).content).toContain('Стратегия только в лонг');
+    // …the improved alternative + critique summary ride on the snapshot.
+    expect(saved?.task.preflightCritique?.improvedStrategyText).toBe('УЛУЧШЕННЫЙ ТЕКСТ СТРАТЕГИИ');
+    expect(saved?.task.preflightCritique?.severity).toBe('high');
+    expect(saved?.task.preflightCritique?.mainVulnerability).toBe('нет стопа');
+    expect(saved?.task.preflightCritique?.vulnerabilities.length).toBeGreaterThan(0);
+  });
+
+  it('critic throws → fail-soft to the simple two-action onboard confirm (no critique stored)', async () => {
+    const { d, sessions, proposals } = deps({ strategyCritic: throwingCritic() });
+    const r = await handleChatMessage({ message: strategyMsg, session: session(), source: 'web' }, d);
+    expect(r.kind).toBe('assistant_message');
+    if (r.kind === 'assistant_message') {
+      expect(r.actions.map((a) => a.id)).toEqual(['confirm', 'cancel']);
+    }
+    const saved = await proposals.findById((await sessions.get('s1'))!.pendingInteraction!.proposalId);
+    expect(saved?.task.preflightCritique).toBeUndefined();
+  });
+
+  it('critic null (flag off) → today\'s two-action behavior, no critique', async () => {
+    const { d, sessions, proposals } = deps(); // strategyCritic: null
+    const r = await handleChatMessage({ message: strategyMsg, session: session(), source: 'web' }, d);
+    expect(r.kind).toBe('assistant_message');
+    if (r.kind === 'assistant_message') {
+      expect(r.actions.map((a) => a.id)).toEqual(['confirm', 'cancel']);
+    }
+    const saved = await proposals.findById((await sessions.get('s1'))!.pendingInteraction!.proposalId);
+    expect(saved?.task.preflightCritique).toBeUndefined();
   });
 });
