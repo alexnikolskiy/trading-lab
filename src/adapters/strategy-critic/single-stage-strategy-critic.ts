@@ -5,6 +5,7 @@ import {
   type StrategyCriticInput,
   type StrategyRefinement,
 } from '../../domain/strategy-critic.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 function buildPrompt(input: StrategyCriticInput): string {
   const header =
@@ -28,6 +29,7 @@ export class SingleStageStrategyCritic implements StrategyCriticPort {
   async refine(input: StrategyCriticInput, opts?: AgentCallOpts): Promise<StrategyRefinement> {
     const result = await this.agent.generate(buildPrompt(input), {
       structuredOutput: { schema: StrategyRefinementSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.model,

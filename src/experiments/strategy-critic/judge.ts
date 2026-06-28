@@ -3,6 +3,7 @@ import type { Agent } from '@mastra/core/agent';
 import type { StrategyRefinement } from '../../domain/strategy-critic.ts';
 import type { AnalystProfileOutput } from '../../domain/strategy-profile.ts';
 import { JudgeVerdictSchema, type JudgeVerdict } from './types.ts';
+import { MAX_OUTPUT_TOKENS } from '../../adapters/llm/generate-defaults.ts';
 
 export interface JudgeInput {
   originalText: string;
@@ -34,6 +35,9 @@ export function buildJudgePrompt(input: JudgeInput): string {
 }
 
 export async function runJudge(agent: Agent, input: JudgeInput): Promise<JudgeVerdict> {
-  const result = await agent.generate(buildJudgePrompt(input), { structuredOutput: { schema: JudgeVerdictSchema } });
+  const result = await agent.generate(buildJudgePrompt(input), {
+    structuredOutput: { schema: JudgeVerdictSchema },
+    modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+  });
   return JudgeVerdictSchema.parse(result.object);
 }

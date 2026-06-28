@@ -8,6 +8,7 @@ import {
   type StrategyCritique,
   type StrategyRefinement,
 } from '../../domain/strategy-critic.ts';
+import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 
 const RefinementDeltaSchema = z.object({
   improvedStrategyText: z.string(),
@@ -54,6 +55,7 @@ export class TwoStageStrategyCritic implements StrategyCriticPort {
   async refine(input: StrategyCriticInput, opts?: AgentCallOpts): Promise<StrategyRefinement> {
     const critiqueResult = await this.criticAgent.generate(buildCritiquePrompt(input), {
       structuredOutput: { schema: StrategyCritiqueSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.model,
@@ -65,6 +67,7 @@ export class TwoStageStrategyCritic implements StrategyCriticPort {
 
     const refineResult = await this.refinerAgent.generate(buildRefinePrompt(input, critique), {
       structuredOutput: { schema: RefinementDeltaSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     await opts?.onUsage?.({
       modelId: this.refinerModel,
