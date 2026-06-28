@@ -6,9 +6,12 @@
 // inline bundle the service accepts (canonical file ordering, frozen, pinned bundleContractVersion).
 
 import { createModuleBundle, createModuleManifest } from '@trading-backtester/sdk/builder';
-import type { ModuleBundle as BacktesterModuleBundle, ModuleManifest as BtModuleManifest } from '@trading-backtester/sdk/contracts';
+import type { ModuleBundle as BacktesterModuleBundle } from '@trading-backtester/sdk/contracts';
 import type { ModuleBundle } from '../../domain/module-bundle.ts';
 import { OVERLAY_INTERCEPTION_POINT } from '../../domain/overlay-manifest-meta.ts';
+
+/** BundleManifest is not re-exported from the SDK; derive it from the builder's return type. */
+type BundleManifest = ReturnType<typeof createModuleManifest>;
 
 export interface ToBacktesterBundleOptions {
   /**
@@ -25,13 +28,25 @@ export function toBacktesterBundle(bundle: ModuleBundle, opts: ToBacktesterBundl
   const kind = bundle.manifest.moduleKind === 'hypothesis_overlay' ? 'overlay' : 'strategy';
   // The lab manifest has no version; prefer the overlay manifest meta, else a stable default.
   const version = bundle.overlayMeta?.version ?? '1.0.0';
-  const base = createModuleManifest({ id: bundle.manifest.moduleId, version, kind });
+  // 0.3.0: CreateModuleManifestInput requires all fields; provide defaults (overlay path overrides all).
+  const base = createModuleManifest({
+    id: bundle.manifest.moduleId,
+    version,
+    kind,
+    name: bundle.manifest.moduleId,
+    summary: '',
+    rationale: '',
+    hooks: ['onBarClose'] as const,
+    paramsSchema: { type: 'object', additionalProperties: false } as object,
+    capabilities: { platformSdk: true },
+    dataNeeds: { closedCandlesUpToCurrent: true },
+  });
 
   // Overlay submissions need the RICH 017 overlay manifest: the backtester reads interceptionPoint /
   // hooks / targetStrategyRef from the materialized manifest.json to validate + resolve the overlay
   // (runner reads ro.manifest.*). The SDK builder manifest is minimal {id,version,kind,bundleCV}; the
   // lab projects its overlay metadata on top (the 017 overlay-manifest projection).
-  const manifest: BtModuleManifest =
+  const manifest: BundleManifest =
     kind === 'overlay'
       ? ({
           ...base,
@@ -49,7 +64,7 @@ export function toBacktesterBundle(bundle: ModuleBundle, opts: ToBacktesterBundl
           capabilities: { platformSdk: true },
           dataNeeds: { closedCandlesUpToCurrent: true },
           ...(opts.contractVersion !== undefined ? { contractVersion: opts.contractVersion } : {}),
-        } as unknown as BtModuleManifest)
+        } as unknown as BundleManifest)
       : base;
 
   return createModuleBundle({
