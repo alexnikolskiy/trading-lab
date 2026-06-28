@@ -4,6 +4,7 @@
 import { composeMastra, type MastraCompositionEnv } from '../../mastra/compose-mastra.ts';
 import { MastraTurnInterpreter } from '../../adapters/intent/mastra-turn-interpreter.ts';
 import { resolveLanguageModel, type ModelProviderEnv } from '../../adapters/llm/model-provider.ts';
+import { MAX_OUTPUT_TOKENS } from '../../adapters/llm/generate-defaults.ts';
 import { createTurnInterpreterJudgeAgent } from '../../mastra/agents/turn-interpreter-judge.agent.ts';
 import { JudgeVerdictSchema, type EvalCase, type JudgeVerdict } from './types.ts';
 import type { TurnInterpreterPort } from '../../ports/turn-interpreter.port.ts';
@@ -67,6 +68,7 @@ export function buildRealJudge(
   return async (parsed: unknown, c: EvalCase): Promise<JudgeVerdict> => {
     const result = await agent.generate(buildJudgePrompt(parsed, c), {
       structuredOutput: { schema: JudgeVerdictSchema },
+      modelSettings: { maxOutputTokens: MAX_OUTPUT_TOKENS },
     });
     return JudgeVerdictSchema.parse(result.object);
   };
