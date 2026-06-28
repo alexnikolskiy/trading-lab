@@ -14,6 +14,7 @@ import {
 } from '../../domain/hypothesis.ts';
 import { makeOnUsage } from '../make-on-usage.ts';
 import { buildMarketContextMath } from '../../research-math/market-context-math.ts';
+import { formatMarketContextMath } from '../../research-math/format-market-context-math.ts';
 
 export const RESEARCH_DEFAULT_SYMBOL = 'BTCUSDT';
 export const BOT_RESULTS_MAX = 10;
@@ -132,6 +133,18 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.market_history_unavailable', { error: errMsg(err) }));
     marketContextMath = undefined;
+  }
+
+  if (marketContextMath && marketContextMath.terms.length > 0) {
+    try {
+      const markdown = formatMarketContextMath(marketContextMath);
+      await services.artifacts.put(markdown, {
+        kind: 'market-context-math',
+        mime_type: 'text/markdown',
+        producer: 'research-run-cycle',
+        metadata: { correlationId: task.correlationId, symbol },
+      });
+    } catch { /* best-effort: never fail the cycle on artifact commit */ }
   }
 
   await services.events.append(event(task.id, 'researcher.started', { strategyProfileId: profile.id }));
