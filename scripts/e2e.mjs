@@ -154,7 +154,9 @@ try {
     taskType: 'research.run_cycle',
     source: 'operator',
     correlationId: `e2e-cycle-${Date.now()}`,
-    payload: { strategyProfileId: profileId },
+    // ts pinned to the 2026-06-18-real-all fixture's data day so the commitXTermMath
+    // market-history window [ts-7d, ts] overlaps the fixture's 1m+taker rows (CVD + multi-term).
+    payload: { strategyProfileId: profileId, ts: '2026-06-18T23:59:00Z' },
   });
 } catch (err) {
   fail(`research.run_cycle submit: ${err.message}`);
