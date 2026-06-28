@@ -26,7 +26,7 @@ describe('HttpMarketHistoryAdapter', () => {
     const adapter = new HttpMarketHistoryAdapter(fakeSource([[a, b], [bDup]]));
     const out = await adapter.getRows({ symbol: 'BTCUSDT', fromMs: 0, toMs: 200_000 });
     expect(out.map((r) => r.minute_ts)).toEqual([60_000, 120_000]);
-    expect(out[0].close).toBe(99);
+    expect(out[0]!.close).toBe(99);
   });
 
   it('returns [] when the source yields nothing', async () => {
