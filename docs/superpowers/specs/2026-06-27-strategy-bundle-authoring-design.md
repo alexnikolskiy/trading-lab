@@ -129,9 +129,13 @@ spec → [Author] → {source, manifestMeta}
 | Статус | Источник | Бандл сохранён? | Evidence? |
 |--------|----------|-----------------|-----------|
 | `signed` | happy path | да | да |
-| `divergent` | backtest ≠ curated (result_hash / per-trade) | да | нет |
-| `rejected` | validate ∨ backtester gate (contract / capability / ambient) | да | нет |
-| `unavailable` | backtester недоступен / timeout | да | нет |
+| `equivalent` | resultHash == golden (real-HTTP; evidence отложен) | да | нет |
+| `divergent` | resultHash ≠ golden (per-trade diff) | да | нет |
+| `rejected` (validate / ambient, lab-side) | untrusted-код не прошёл ambient-scan, ДО submit | **НЕТ** (untrusted-код не хранится) | нет |
+| `rejected` (backtester gate, post-submit) | backtester contract / capability gate | да (persist-before-submit) | нет |
+| `unavailable` | backtester недоступен / timeout / poll-deadline | да* | нет |
+
+\* `unavailable` сохраняет бандл, только если дошёл до submit (valid-путь); до этого — нет.
 
 **`throw` — только инфра-неожиданности:** esbuild crash (нерешаемый импорт), SDK-модуль не загрузился, artifact-store write fail, serialize error.
 
