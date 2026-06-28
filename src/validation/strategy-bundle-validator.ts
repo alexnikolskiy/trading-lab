@@ -42,6 +42,9 @@ export function validateStrategyBundle(a: AssembledStrategyBundle): ValidationVe
     return { status: 'rejected', reason: 'forbidden_ambient_authority', violations };
   }
 
+  // 017's module-manifest schema is `additionalProperties:false`; strip the backtester-only
+  // `bundleContractVersion` before validating. Any future backtester-only manifest field must be
+  // added here too (the `clean twin → valid` test is the live tripwire if one slips through).
   const { bundleContractVersion: _bundleContractVersion, ...manifest017 } = a.manifest;
   const result = validate({ inputKind: 'module', manifest: manifest017 }, platformContractContext());
   if (result.status === 'rejected') {
