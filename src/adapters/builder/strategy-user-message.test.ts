@@ -89,4 +89,16 @@ describe('buildStrategyUserMessage', () => {
     const msg = buildStrategyUserMessage(PROFILE);
     expect(msg).not.toContain('FEEDBACK');
   });
+
+  it('includes evidence lines in output', () => {
+    const msg = buildStrategyUserMessage(PROFILE);
+    for (const ev of PROFILE.evidence) {
+      expect(msg).toContain(ev);
+    }
+  });
+
+  it('includes confidence in output', () => {
+    const msg = buildStrategyUserMessage(PROFILE);
+    expect(msg).toContain(String(PROFILE.confidence));
+  });
 });
