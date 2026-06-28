@@ -3,7 +3,7 @@ import { MastraStrategyAnalyst } from './mastra-strategy-analyst.ts';
 import { AnalystProfileOutputSchema } from '../../domain/strategy-profile.ts';
 import { loadEnv } from '../../config/env.ts';
 import { resolveLanguageModel } from '../llm/model-provider.ts';
-import { createStrategyAnalystAgent } from '../../mastra/agents/strategy-analyst.agent.ts';
+import { createStrategyAnalystAgent, INSTRUCTIONS } from '../../mastra/agents/strategy-analyst.agent.ts';
 
 describe('MastraStrategyAnalyst (construction)', () => {
   it('stores the label and builds an agent from an injected model', () => {
@@ -11,6 +11,24 @@ describe('MastraStrategyAnalyst (construction)', () => {
     const a = new MastraStrategyAnalyst(createStrategyAnalystAgent(model), label);
     expect(a.adapter).toBe('mastra');
     expect(a.model).toBe('anthropic/claude-sonnet-4-6');
+  });
+});
+
+describe('strategy-analyst INSTRUCTIONS', () => {
+  it('contains the five structured extraction section markers', () => {
+    expect(INSTRUCTIONS).toContain('Entry conditions');
+    expect(INSTRUCTIONS).toContain('Exit &');
+    expect(INSTRUCTIONS).toContain('invalidation');
+    expect(INSTRUCTIONS).toContain('OHLCV');
+    expect(INSTRUCTIONS).toContain('Position management');
+  });
+
+  it('retains the no-invent guardrail', () => {
+    expect(INSTRUCTIONS).toContain('unknowns');
+  });
+
+  it('retains the runner-owned guardrail', () => {
+    expect(INSTRUCTIONS).toContain('runnerOwnedAuthorities');
   });
 });
 
