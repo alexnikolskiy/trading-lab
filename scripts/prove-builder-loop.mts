@@ -28,8 +28,6 @@ import { resolveLanguageModel } from '../src/adapters/llm/model-provider.ts';
 import type { ModelProviderEnv } from '../src/adapters/llm/model-provider.ts';
 import { createStrategyBuilderAgent } from '../src/mastra/agents/strategy-builder.agent.ts';
 import { MastraStrategyBuilder } from '../src/adapters/builder/mastra-strategy-builder.ts';
-import { composeMastra } from '../src/mastra/compose-mastra.ts';
-import type { MastraCompositionEnv } from '../src/mastra/compose-mastra.ts';
 import type { StrategyProfile } from '../src/domain/strategy-profile.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -44,17 +42,13 @@ const profileFixture = JSON.parse(
   readFileSync(join(__dirname, '../src/adapters/builder/fixtures/long-oi-profile.json'), 'utf8'),
 ) as StrategyProfile;
 
-// 1) Mastra runtime — wires observability + all configured agents; closes F2a M5 env-contract.
-// process.env cast to MastraCompositionEnv: missing adapters default to disabled (no-op) at runtime.
-const mastraEnv = process.env as unknown as MastraCompositionEnv;
-composeMastra(mastraEnv);
-
-// 2) Resolve LLM model for the strategy builder from the same env (ModelProviderEnv subset).
+// M5 is closed by createStrategyBuilderAgent + MastraStrategyBuilder wiring below.
+// 1) Resolve LLM model for the strategy builder from env (ModelProviderEnv subset).
 const modelEnv: ModelProviderEnv = {
-  MODEL_PROVIDER: mastraEnv.MODEL_PROVIDER,
-  ANTHROPIC_API_KEY: mastraEnv.ANTHROPIC_API_KEY,
-  OPENAI_API_KEY: mastraEnv.OPENAI_API_KEY,
-  OPENROUTER_API_KEY: mastraEnv.OPENROUTER_API_KEY,
+  MODEL_PROVIDER: process.env['MODEL_PROVIDER'],
+  ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'],
+  OPENAI_API_KEY: process.env['OPENAI_API_KEY'],
+  OPENROUTER_API_KEY: process.env['OPENROUTER_API_KEY'],
 };
 const strategyBuilderModelId =
   process.env['STRATEGY_BUILDER_MODEL'] ?? 'claude-3-5-sonnet-20241022';
