@@ -432,4 +432,50 @@ describe('researchRunCycleHandler', () => {
     await expect(researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services)).resolves.toBeUndefined();
     expect((await types(services)).at(-1)).toBe('research.run_cycle.completed');
   });
+
+  it('I2: emits researcher.market_context_committed with artifactId, correlationId, symbol after successful artifact put', async () => {
+    const marketHistoryRows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => marketHistoryRows };
+    const artifactStore = new InMemoryArtifactStore();
+    const putSpy = vi.spyOn(artifactStore, 'put');
+    const services = makeServices({
+      researcher: stubResearcher({ hypotheses: [draft('thesis I2')], researchSummary: 's' }),
+      marketHistory,
+      artifacts: artifactStore,
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+
+    expect(putSpy).toHaveBeenCalledOnce();
+    const ref = await (putSpy.mock.results[0]!.value as Promise<import('../../domain/types.ts').ArtifactRef>);
+    const allEvents = await services.events.listByTask('t1');
+    const commitEvent = allEvents.find((e) => e.type === 'researcher.market_context_committed');
+    expect(commitEvent).toBeDefined();
+    expect(commitEvent?.payload.artifactId).toBe(ref.artifact_id);
+    expect(commitEvent?.payload.correlationId).toBe('c1');
+    expect(commitEvent?.payload.symbol).toBe('BTCUSDT');
+  });
+
+  it('M1: does not attach marketContextMath to propose when rows are too sparse to form any term (zero terms → raw fallback)', async () => {
+    // 5 rows at 1h cadence: cadenceMs=3_600_000; barCount=5 < long.minBars(28) → all terms excluded → zero terms
+    const sparseRows = Array.from({ length: 5 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 3_600_000, symbol: 'BTCUSDT',
+      open: 100, high: 101, low: 99, close: 100, volume: 10, turnover: 1000,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => sparseRows };
+    const cap = capturingResearcher({ hypotheses: [draft('thesis sparse')], researchSummary: 's' });
+    const services = makeServices({ researcher: cap.port, marketHistory });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+    expect(cap.captured()?.marketContextMath).toBeUndefined();
+  });
 });

@@ -119,7 +119,8 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
 
   let marketContextMath;
   try {
-    const lookbackDays = Number(process.env.MARKET_HISTORY_LOOKBACK_DAYS ?? '7');
+    const parsedLookback = Number(process.env.MARKET_HISTORY_LOOKBACK_DAYS ?? '7');
+    const lookbackDays = Number.isFinite(parsedLookback) && parsedLookback > 0 ? parsedLookback : 7;
     const toMs = Date.parse(ts);
     const fromMs = toMs - lookbackDays * 86_400_000;
     const rows = await services.marketHistory.getRows({ symbol, fromMs, toMs });
@@ -138,12 +139,15 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   if (marketContextMath && marketContextMath.terms.length > 0) {
     try {
       const markdown = formatMarketContextMath(marketContextMath);
-      await services.artifacts.put(markdown, {
+      const ref = await services.artifacts.put(markdown, {
         kind: 'market-context-math',
         mime_type: 'text/markdown',
         producer: 'research-run-cycle',
         metadata: { correlationId: task.correlationId, symbol },
       });
+      await services.events.append(event(task.id, 'researcher.market_context_committed', {
+        artifactId: ref.artifact_id, correlationId: task.correlationId, symbol,
+      }));
     } catch { /* best-effort: never fail the cycle on artifact commit */ }
   }
 
@@ -151,7 +155,8 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   let output: ResearcherOutput;
   try {
     output = await services.researcher.propose({
-      profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax, marketContextMath,
+      profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax,
+      ...(marketContextMath && marketContextMath.terms.length > 0 ? { marketContextMath } : {}),
     }, makeOnUsage(task, services));
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.failed', { error: errMsg(err) }));
