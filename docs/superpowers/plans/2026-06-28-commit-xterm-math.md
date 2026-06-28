@@ -959,7 +959,7 @@ export function resampleRows(rows: readonly CanonicalRowV2[], tfMs: number): Can
       a = {
         minute_ts: key, symbol: row.symbol,
         open: row.open, high: row.high, low: row.low, close: row.close, closeTs: row.minute_ts,
-        volume: row.volume ?? 0, turnover: row.turnover ?? 0,
+        volume: row.volume, turnover: row.turnover,
         oi: row.oi_total_usd, funding: row.funding_rate, oiTs: row.minute_ts, fundingTs: row.minute_ts,
         liqLong: row.liq_long_usd ?? 0, liqShort: row.liq_short_usd ?? 0, anyLiq: row.has_liquidations,
         takerBuy: row.taker_buy_volume_usd ?? 0, takerSell: row.taker_sell_volume_usd ?? 0, anyTaker: row.has_taker_flow,
@@ -971,8 +971,8 @@ export function resampleRows(rows: readonly CanonicalRowV2[], tfMs: number): Can
     if (row.high > a.high) a.high = row.high;
     if (row.low < a.low) a.low = row.low;
     if (row.minute_ts >= a.closeTs) { a.close = row.close; a.closeTs = row.minute_ts; }
-    a.volume += row.volume ?? 0;
-    a.turnover += row.turnover ?? 0;
+    a.volume += row.volume;
+    a.turnover += row.turnover;
     a.liqLong = addNull(a.liqLong, row.liq_long_usd); a.liqShort = addNull(a.liqShort, row.liq_short_usd);
     a.anyLiq = a.anyLiq || row.has_liquidations;
     a.takerBuy = addNull(a.takerBuy, row.taker_buy_volume_usd);
@@ -1223,8 +1223,8 @@ export interface CoverageFlags {
 
 export interface TermMathRow {
   readonly tsMs: number;
-  readonly open: number | null; readonly high: number | null; readonly low: number | null; readonly close: number;
-  readonly volume: number | null;
+  readonly open: number; readonly high: number; readonly low: number; readonly close: number;
+  readonly volume: number;
   readonly emaFast: number | null; readonly emaSlow: number | null;
   readonly rsi: number | null; readonly atr: number | null;
   readonly oi: number | null; readonly oiDelta: number | null; readonly cvd: number | null;
@@ -1322,7 +1322,7 @@ function buildTerm(rows: readonly CanonicalRowV2[], cfg: TermConfig): TermMath {
 
   const tableRows: TermMathRow[] = rows.map((r, i) => ({
     tsMs: r.minute_ts,
-    open: r.open ?? null, high: r.high ?? null, low: r.low ?? null, close: r.close, volume: r.volume ?? null,
+    open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume,
     emaFast: emaF[i], emaSlow: emaS[i], rsi: rsiArr[i], atr: atrArr[i],
     oi: cov.hasOi ? r.oi_total_usd : null, oiDelta: oiDeltaArr[i], cvd: cvdArr[i],
     liqLong: cov.hasLiquidations ? r.liq_long_usd : null, liqShort: cov.hasLiquidations ? r.liq_short_usd : null,
