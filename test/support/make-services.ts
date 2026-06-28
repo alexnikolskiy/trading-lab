@@ -38,6 +38,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     researchPlatform: new MockResearchPlatformAdapter(),
     researchIntegration: 'mock',
     botResults: new MockBotResultsAdapter(),
+    marketHistory: { getRows: async () => [] },
     tradeEvidence: new MockTradeEvidenceAdapter(),
     researcher: new FakeResearcher(),
     critic: null, // base happy-path does not invoke Critic; tests opt in via overrides

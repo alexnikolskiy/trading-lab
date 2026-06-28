@@ -1,5 +1,5 @@
 // src/orchestrator/handlers/research-run-cycle.handler.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { researchRunCycleHandler } from './research-run-cycle.handler.ts';
 import { makeServices } from '../../../test/support/make-services.ts';
 import { FakeCritic } from '../../adapters/critic/fake-critic.ts';
@@ -10,8 +10,11 @@ import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { AppServices } from '../app-services.ts';
 import type { BotResultsReadPort } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceReadPort } from '../../ports/trade-evidence-read.port.ts';
+import type { MarketHistoryReadPort } from '../../ports/market-history-read.port.ts';
 import { InMemoryQueueAdapter } from '../../adapters/queue/in-memory-queue.adapter.ts';
 import { InMemoryTokenUsageRepository } from '../../adapters/repository/in-memory-token-usage.repository.ts';
+import { InMemoryArtifactStore } from '../../adapters/artifact/in-memory-artifact-store.ts';
+import type { ArtifactStorePort } from '../../ports/artifact-store.port.ts';
 import type { AgentCallOpts } from '../../ports/agent-call-opts.ts';
 import type { ModelPricingPort } from '../../ports/model-pricing.port.ts';
 
@@ -347,5 +350,132 @@ describe('researchRunCycleHandler', () => {
     // 1000*0.00001 + 500*0.00003 = 0.01 + 0.015 = 0.025
     expect(await tokenUsage.getCost(t.correlationId)).toBeCloseTo(0.025, 10);
     expect(await tokenUsage.get(t.correlationId)).toBe(1500); // tokens still recorded
+  });
+
+  it('attaches marketContextMath to the researcher propose input when market history is available', async () => {
+    const marketHistoryRows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => marketHistoryRows };
+    const cap = capturingResearcher({ hypotheses: [draft('thesis math')], researchSummary: 's' });
+    const services = makeServices({ researcher: cap.port, marketHistory });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+    expect(cap.captured()?.marketContextMath).toBeDefined();
+    expect(cap.captured()?.marketContextMath?.terms.length).toBeGreaterThan(0);
+  });
+
+  it('is fail-soft: when marketHistory.getRows throws, propose is still called without marketContextMath and the unavailable event is emitted', async () => {
+    const throwingHistory: MarketHistoryReadPort = {
+      async getRows() { throw new Error('history down'); },
+    };
+    const cap = capturingResearcher({ hypotheses: [draft('thesis no-math')], researchSummary: 's' });
+    const services = makeServices({ researcher: cap.port, marketHistory: throwingHistory });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+    expect(cap.captured()?.marketContextMath).toBeUndefined();
+    expect(await types(services)).toContain('researcher.market_history_unavailable');
+  });
+
+  it('commits market-context math markdown as an artifact when market history is available', async () => {
+    const marketHistoryRows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => marketHistoryRows };
+    const artifactStore = new InMemoryArtifactStore();
+    const putSpy = vi.spyOn(artifactStore, 'put');
+    const services = makeServices({
+      researcher: stubResearcher({ hypotheses: [draft('thesis artifact')], researchSummary: 's' }),
+      marketHistory,
+      artifacts: artifactStore,
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+
+    expect(putSpy).toHaveBeenCalledOnce();
+    const [content, meta] = putSpy.mock.calls[0]!;
+    expect(typeof content).toBe('string');
+    expect(content as string).toContain('## Market Context:');
+    expect(meta.kind).toBe('market-context-math');
+    expect(meta.mime_type).toBe('text/markdown');
+    expect(meta.producer).toBe('research-run-cycle');
+  });
+
+  it('is fail-soft: a throwing artifactStore.put never fails the research cycle', async () => {
+    const marketHistoryRows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => marketHistoryRows };
+    const throwingStore: ArtifactStorePort = {
+      async put() { throw new Error('storage down'); },
+      async get() { throw new Error('storage down'); },
+      resolveUri() { return ''; },
+    };
+    const services = makeServices({
+      researcher: stubResearcher({ hypotheses: [draft('thesis no-artifact')], researchSummary: 's' }),
+      marketHistory,
+      artifacts: throwingStore,
+    });
+    await seedProfile(services);
+    await expect(researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services)).resolves.toBeUndefined();
+    expect((await types(services)).at(-1)).toBe('research.run_cycle.completed');
+  });
+
+  it('I2: emits researcher.market_context_committed with artifactId, correlationId, symbol after successful artifact put', async () => {
+    const marketHistoryRows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => marketHistoryRows };
+    const artifactStore = new InMemoryArtifactStore();
+    const putSpy = vi.spyOn(artifactStore, 'put');
+    const services = makeServices({
+      researcher: stubResearcher({ hypotheses: [draft('thesis I2')], researchSummary: 's' }),
+      marketHistory,
+      artifacts: artifactStore,
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+
+    expect(putSpy).toHaveBeenCalledOnce();
+    const ref = await (putSpy.mock.results[0]!.value as Promise<import('../../domain/types.ts').ArtifactRef>);
+    const allEvents = await services.events.listByTask('t1');
+    const commitEvent = allEvents.find((e) => e.type === 'researcher.market_context_committed');
+    expect(commitEvent).toBeDefined();
+    expect(commitEvent?.payload.artifactId).toBe(ref.artifact_id);
+    expect(commitEvent?.payload.correlationId).toBe('c1');
+    expect(commitEvent?.payload.symbol).toBe('BTCUSDT');
+  });
+
+  it('M1: does not attach marketContextMath to propose when rows are too sparse to form any term (zero terms → raw fallback)', async () => {
+    // 5 rows at 1h cadence: cadenceMs=3_600_000; barCount=5 < long.minBars(28) → all terms excluded → zero terms
+    const sparseRows = Array.from({ length: 5 }, (_, i) => ({
+      schema_version: 2 as const, minute_ts: i * 3_600_000, symbol: 'BTCUSDT',
+      open: 100, high: 101, low: 99, close: 100, volume: 10, turnover: 1000,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const marketHistory: MarketHistoryReadPort = { getRows: async () => sparseRows };
+    const cap = capturingResearcher({ hypotheses: [draft('thesis sparse')], researchSummary: 's' });
+    const services = makeServices({ researcher: cap.port, marketHistory });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1' }), services);
+    expect(cap.captured()?.marketContextMath).toBeUndefined();
   });
 });

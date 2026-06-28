@@ -7,6 +7,7 @@ import { DIRECTIONS } from '../../domain/strategy-profile.ts';
 import { buildBotResultsDigestText } from './bot-results-digest.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
 import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
+import { formatMarketContextMath } from '../../research-math/format-market-context-math.ts';
 
 /**
  * OpenAI/Azure strict mode requires all schema properties to be listed in `required`.
@@ -115,7 +116,9 @@ export function buildPrompt(input: ResearcherInput): string {
     `Profile required features: ${input.profile.requiredMarketFeatures.join(', ') || '(none)'}`,
     ...profileDetailsText(input),
     `Market regime: ${input.marketRegime}`,
-    `Market context features: ${JSON.stringify(input.marketContext.features)}`,
+    input.marketContextMath
+      ? formatMarketContextMath(input.marketContextMath)
+      : `Market context features: ${JSON.stringify(input.marketContext.features)}`,
     `Similar past hypotheses (advisory, avoid duplicating):\n${similar}`,
     ...(botPerf ? [botPerf] : []),
     ...forensicBundleText(input.tradeEvidence),

@@ -93,6 +93,7 @@ services:
       LAB_BOT_RESULTS_INTEGRATION: "http"
       LAB_OPS_READ_URL: "http://mock-platform:8839"
       LAB_OPS_READ_TOKEN: "${MOCK_OPS_TOKEN:-}"
+      LAB_MARKET_HISTORY_URL: http://mock-platform:8839
       TRADING_PLATFORM_INTEGRATION: "backtester"
       BACKTESTER_API_URL: "http://backtester:8080"
       BACKTESTER_API_TOKEN: "${BACKTESTER_AUTH_TOKEN:-demo-backtester-token}"
@@ -112,6 +113,7 @@ services:
       LAB_BOT_RESULTS_INTEGRATION: "http"
       LAB_OPS_READ_URL: "http://mock-platform:8839"
       LAB_OPS_READ_TOKEN: "${MOCK_OPS_TOKEN:-}"
+      LAB_MARKET_HISTORY_URL: http://mock-platform:8839
       TRADING_PLATFORM_INTEGRATION: "backtester"
       BACKTESTER_API_URL: "http://backtester:8080"
       BACKTESTER_API_TOKEN: "${BACKTESTER_AUTH_TOKEN:-demo-backtester-token}"

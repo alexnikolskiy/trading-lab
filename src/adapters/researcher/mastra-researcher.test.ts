@@ -7,6 +7,7 @@ import type { StrategyProfile } from '../../domain/strategy-profile.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
 import { resolveLanguageModel } from '../llm/model-provider.ts';
 import { createResearcherAgent } from '../../mastra/agents/researcher.agent.ts';
+import { buildMarketContextMath } from '../../research-math/market-context-math.ts';
 
 const baseInput: ResearcherInput = {
   profile: {
@@ -84,6 +85,30 @@ describe('buildPrompt bot-results block', () => {
   it('omits the block when botResults is empty or undefined', () => {
     expect(buildPrompt(baseInput)).not.toContain('Live/paper bot performance');
     expect(buildPrompt({ ...baseInput, botResults: [] })).not.toContain('Live/paper bot performance');
+  });
+});
+
+describe('buildPrompt marketContextMath injection', () => {
+  it('injects the formatted market-context block when marketContextMath is present', () => {
+    const rows = Array.from({ length: 60 }, (_, i) => ({
+      schema_version: 2, minute_ts: i * 60_000, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    }));
+    const math = buildMarketContextMath({
+      symbol: 'BTCUSDT', rows: rows as any, direction: 'long', regime: 'ranging',
+      requiredFeatures: ['oi'], window: { fromMs: 0, toMs: 1 },
+    }, 0);
+    const prompt = buildPrompt({ ...baseInput, marketContextMath: math });
+    expect(prompt).toContain('## Market Context: BTCUSDT');
+    expect(prompt).not.toContain('Market context features: {');
+  });
+
+  it('falls back to the raw features line when marketContextMath is absent', () => {
+    const prompt = buildPrompt(baseInput);
+    expect(prompt).toContain('Market context features:');
   });
 });
 
