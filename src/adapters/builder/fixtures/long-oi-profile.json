@@ -1,0 +1,136 @@
+{
+  "_note": "PLACEHOLDER — перегенерировать через scripts/regen-long-oi-profile.mts с реальным LLM-ключом перед F2b",
+  "id": "00000000-0000-0000-0000-000000000001",
+  "version": 1,
+  "sourceKind": "manual_description",
+  "sourceFingerprint": "sha256:placeholder-not-real",
+  "direction": "long",
+  "coreIdea": "Enter long on crypto futures after a ≥10% price dump in ~20 minutes, wait for bounce confirmation (rising price action + OI growth + prior long liquidations), take partial profit at +3.5% and full exit at +5%, with a hard stop at -12% and a 180-minute time exit.",
+  "requiredMarketFeatures": ["oi", "liquidations"],
+  "confidence": 0.82,
+  "unknowns": [
+    "Exact candle count or momentum threshold for bounce confirmation",
+    "Precise OI growth rate threshold to distinguish genuine recovery from noise",
+    "Whether averaging is volume-weighted or equal-size adds"
+  ],
+  "profile": {
+    "direction": "long",
+    "coreIdea": "Enter long on crypto futures after a ≥10% price dump in ~20 minutes, wait for bounce confirmation (rising price action + OI growth + prior long liquidations), take partial profit at +3.5% and full exit at +5%, with a hard stop at -12% and a 180-minute time exit.",
+    "summary": "The strategy monitors for sharp price drops of ≥10% over a ~20-minute window on crypto futures. Once a dump is detected the instrument enters a 'watch' phase rather than entering immediately. Entry is triggered only when three conditions align: price begins to recover (e.g., two consecutive green candles or a fast bounce), open interest starts growing again (signalling new long money), and the dump was preceded by long liquidations (confirming forced selling is likely exhausted). After entry, the first take-profit (TP1) closes 50% of the position at +3.5% and moves the stop-loss to break-even. The remaining position targets +5% (TP2). A hard stop-loss at -12% limits downside. If neither TP nor stop is hit within 180 minutes the position is closed by time. The strategy allows up to two averaging-down entries if price falls a further ~3% from the last entry price and a new bounce confirmation appears.",
+    "requiredMarketFeatures": ["oi", "liquidations"],
+    "entryConditions": [
+      "Price has dropped ≥10% within the last ~20 minutes (dump detection, watch phase activated)",
+      "Price begins rising: at least two consecutive green candles or a rapid bounce from the local low",
+      "Open interest is growing again (new demand entering the market)",
+      "Long liquidations occurred before or during the dump (forced sellers likely exhausted)"
+    ],
+    "exitConditions": [
+      "TP1: close 50% of position at +3.5% from entry, move stop to break-even",
+      "TP2: close remaining 50% at +5% from entry",
+      "Hard stop-loss: close entire position at -12% from entry",
+      "Time-based exit: close position if still open after 180 minutes"
+    ],
+    "timeframes": ["1m", "5m"],
+    "indicators": ["open_interest", "liquidations", "candles"],
+    "parameters": [
+      {
+        "name": "dumpPct",
+        "value": 10,
+        "unit": "%",
+        "description": "Minimum price drop over the observation window to trigger watch phase",
+        "tunable": true
+      },
+      {
+        "name": "windowMin",
+        "value": 20,
+        "unit": "minutes",
+        "description": "Lookback window in minutes for detecting the initial price dump",
+        "tunable": true
+      },
+      {
+        "name": "tp1Pct",
+        "value": 3.5,
+        "unit": "%",
+        "description": "First take-profit level as % gain from entry; closes 50% of position",
+        "tunable": true
+      },
+      {
+        "name": "tp2Pct",
+        "value": 5,
+        "unit": "%",
+        "description": "Second take-profit level as % gain from entry; closes remaining position",
+        "tunable": true
+      },
+      {
+        "name": "stopPct",
+        "value": -12,
+        "unit": "%",
+        "description": "Hard stop-loss as % loss from entry",
+        "tunable": true
+      },
+      {
+        "name": "timeoutMin",
+        "value": 180,
+        "unit": "minutes",
+        "description": "Maximum time in minutes to hold a position before forced exit",
+        "tunable": true
+      },
+      {
+        "name": "avgDownTriggerPct",
+        "value": 3,
+        "unit": "%",
+        "description": "Additional price drop from last entry that qualifies for averaging down",
+        "tunable": true
+      },
+      {
+        "name": "maxAvgDowns",
+        "value": 2,
+        "unit": null,
+        "description": "Maximum number of averaging-down additions allowed",
+        "tunable": true
+      }
+    ],
+    "watchLifecycleSummary": "On dump detection the instrument enters a watch phase. No position is opened immediately. The watch phase monitors for bounce + OI recovery + liquidation evidence before allowing entry. If no confirmation appears the watch expires passively.",
+    "positionManagementSummary": "Entry at confirmation. TP1 closes 50% at +3.5% and promotes stop to break-even. TP2 closes remainder at +5%. Up to two additional entries (averaging down) are allowed if price drops ~3% from last entry and a new reversal confirmation appears.",
+    "riskManagementSummary": "Hard stop at -12% from entry. Time-based forced exit at 180 minutes. Break-even stop activated after TP1. Maximum two averaging-down adds limit compounding loss.",
+    "runnerOwnedAuthorities": [
+      "position_sizing",
+      "order_execution",
+      "fills",
+      "slippage_model",
+      "leverage"
+    ],
+    "confidence": 0.82,
+    "unknowns": [
+      "Exact candle count or momentum threshold for bounce confirmation",
+      "Precise OI growth rate threshold to distinguish genuine recovery from noise",
+      "Whether averaging is volume-weighted or equal-size adds"
+    ],
+    "evidence": [
+      "«если за последние примерно 20 минут цена падает на 10% или больше, я не вхожу сразу, а беру инструмент на наблюдение и жду отскок»",
+      "«Вход делаю только после подтверждения: цена начинает расти, например появляются две зелёные свечи или быстрый bounce, open interest снова растёт, и перед этим были long-ликвидации»",
+      "«первый тейк на +3.5% — там фиксирую половину позиции. После TP1 стоп переношу в безубыток. Остаток держу до +5%»",
+      "«Жёсткий стоп ставлю примерно на −12%»",
+      "«Если за 180 минут позиция не дошла ни до тейка, ни до стопа, закрываю по времени»",
+      "«Если после входа цена ещё падает примерно на 3% от последней цены входа, но потом снова появляется подтверждение разворота, могу усредниться. Всего максимум две доливки»"
+    ]
+  },
+  "sourceArtifactRef": {
+    "artifact_id": "00000000-0000-0000-0000-000000000002",
+    "uri": "artifacts/strategy_source/placeholder-long-oi",
+    "content_hash": "sha256:placeholder-not-real",
+    "kind": "strategy_source",
+    "size_bytes": 0,
+    "mime_type": "text/plain",
+    "created_at": "2026-06-28T00:00:00.000Z",
+    "producer": "scripts/regen-long-oi-profile.mts",
+    "metadata": {
+      "sourceKind": "manual_description",
+      "uri": null,
+      "title": null
+    }
+  },
+  "contractVersion": "strategy-profile-v1",
+  "createdAt": "2026-06-28T00:00:00.000Z",
+  "updatedAt": "2026-06-28T00:00:00.000Z"
+}
