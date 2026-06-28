@@ -20,6 +20,7 @@ describe('cvd', () => {
   it('accumulates buy minus sell, null where taker missing from the start', () => {
     expect(cvd([10, 5, null], [4, 5, null])).toEqual([6, 6, 6]);
     expect(cvd([null, null], [null, null])).toEqual([null, null]);
+    expect(cvd([null, 10], [null, 4])).toEqual([null, 6]);
   });
 });
 
