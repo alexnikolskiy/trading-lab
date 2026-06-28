@@ -23,8 +23,8 @@ describe('env', () => {
   it('parses STRATEGY_ANALYST_ADAPTER=mastra', () => {
     expect(loadEnv({ STRATEGY_ANALYST_ADAPTER: 'mastra' }).STRATEGY_ANALYST_ADAPTER).toBe('mastra');
   });
-  it('defaults STRATEGY_ANALYST_MODEL to anthropic/claude-sonnet-4-6', () => {
-    expect(loadEnv({}).STRATEGY_ANALYST_MODEL).toBe('anthropic/claude-sonnet-4-6');
+  it('defaults STRATEGY_ANALYST_MODEL to openrouter/openai/gpt-5.5', () => {
+    expect(loadEnv({}).STRATEGY_ANALYST_MODEL).toBe('openrouter/openai/gpt-5.5');
   });
   it('defaults RUN_LLM_TESTS to false and parses true', () => {
     expect(loadEnv({}).RUN_LLM_TESTS).toBe(false);

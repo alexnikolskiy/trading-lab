@@ -15,6 +15,13 @@ describe('loadEnv SP-3 fields', () => {
     expect(env.RESEARCHER_ADAPTER).toBe('mastra');
     expect(env.MAX_HYPOTHESES_PER_CYCLE).toBe(5); // 0 is invalid -> fallback
   });
+
+  it('defaults STRATEGY_ANALYST_MODEL to gpt-5.5 (analyst:eval verdict) and honors override', () => {
+    expect(loadEnv({} as NodeJS.ProcessEnv).STRATEGY_ANALYST_MODEL).toBe('openrouter/openai/gpt-5.5');
+    expect(
+      loadEnv({ STRATEGY_ANALYST_MODEL: 'openrouter/x-ai/grok-4.3' } as NodeJS.ProcessEnv).STRATEGY_ANALYST_MODEL,
+    ).toBe('openrouter/x-ai/grok-4.3');
+  });
 });
 
 describe('SP-4 env', () => {

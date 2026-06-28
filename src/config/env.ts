@@ -160,7 +160,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     PLATFORM_RUN_POLL_DELAY_MS: parsePositiveInt(source.PLATFORM_RUN_POLL_DELAY_MS, 2000),
     TRADING_PLATFORM_BASELINE_VERSION: source.TRADING_PLATFORM_BASELINE_VERSION ?? 'v1',
     STRATEGY_ANALYST_ADAPTER: resolveAdapter(source.STRATEGY_ANALYST_ADAPTER),
-    STRATEGY_ANALYST_MODEL: source.STRATEGY_ANALYST_MODEL ?? 'anthropic/claude-sonnet-4-6',
+    STRATEGY_ANALYST_MODEL: source.STRATEGY_ANALYST_MODEL ?? 'openrouter/openai/gpt-5.5',
     ANTHROPIC_API_KEY: source.ANTHROPIC_API_KEY,
     RUN_LLM_TESTS: source.RUN_LLM_TESTS === 'true',
     RESEARCHER_ADAPTER: resolveAdapter(source.RESEARCHER_ADAPTER),
