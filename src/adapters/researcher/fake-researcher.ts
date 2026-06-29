@@ -9,19 +9,23 @@ export class FakeResearcher implements ResearcherPort {
 
   async propose(input: ResearcherInput): Promise<ResearcherOutput> {
     const n = Math.max(0, Math.min(2, input.maxHypotheses));
+    const profit = input.focus === 'profit_improvement';
     const hypotheses = Array.from({ length: n }, (_unused, i) => ({
-      thesis: `Hypothesis ${i + 1}: ${input.profile.coreIdea} conditioned on ${input.marketRegime} regime`,
-      targetBehavior: 'Adjust entry filtering using open interest trend',
+      thesis: profit
+        ? `Hypothesis ${i + 1}: improve exit on winning ${input.profile.coreIdea} trades (larger take-profit)`
+        : `Hypothesis ${i + 1}: ${input.profile.coreIdea} conditioned on ${input.marketRegime} regime`,
+      targetBehavior: profit ? 'Widen take-profit / trail the stop on confirmed continuation' : 'Adjust entry filtering using open interest trend',
       ruleAction: {
         appliesTo: input.profile.direction,
-        rules: [{ when: `oi trend persists for ${i + 1} bars`, action: 'skip_entry' as const, params: { bars: i + 1 } }],
+        rules: [{ when: profit ? `price continues ${i + 1} bars past exit` : `oi trend persists for ${i + 1} bars`,
+          action: profit ? ('widen_stop' as const) : ('skip_entry' as const), params: { bars: i + 1 } }],
       },
       requiredFeatures: ['oi', 'funding'],
       validationPlan: 'Backtest baseline vs variant over the last 90 days',
-      expectedEffect: { metric: 'win_rate', direction: 'increase' as const },
-      invalidationCriteria: ['No win_rate improvement vs baseline'],
+      expectedEffect: { metric: profit ? 'profit_factor' : 'win_rate', direction: 'increase' as const },
+      invalidationCriteria: [profit ? 'No profit_factor improvement vs baseline' : 'No win_rate improvement vs baseline'],
       confidence: 0.5,
     }));
-    return { hypotheses, researchSummary: `Fake researcher produced ${n} hypotheses (botResults: ${input.botResults?.length ?? 0})` };
+    return { hypotheses, researchSummary: `Fake researcher (${input.focus}) produced ${n} hypotheses (botResults: ${input.botResults?.length ?? 0})` };
   }
 }
