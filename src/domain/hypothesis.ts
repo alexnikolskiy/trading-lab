@@ -5,6 +5,7 @@ import { OVERLAY_ACTIONS } from './hypothesis-rules.ts';
 import { DIRECTIONS } from './strategy-profile.ts';
 import { canonicalizeContent } from './fingerprint.ts';
 import type { ValidationIssue } from './schemas.ts';
+import type { ResearcherFocus } from '../ports/researcher.port.ts';
 
 export const HypothesisRuleSchema = z.object({
   when: z.string().min(1),
@@ -65,6 +66,7 @@ export interface HypothesisProposal {
   proposal: HypothesisProposalDraft; // full original draft
   issues: ValidationIssue[]; // [] for validated; reasons for rejected
   contractVersion: string;
+  origin?: ResearcherFocus; // which research pass produced this; undefined for legacy single-pass
   createdAt: string;
   updatedAt: string;
 }
