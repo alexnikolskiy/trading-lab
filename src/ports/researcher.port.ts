@@ -5,6 +5,7 @@ import type { BotRunResultDetail } from './bot-results-read.port.ts';
 import type { TradeEvidenceBundle } from './trade-evidence-read.port.ts';
 
 import type { MarketContextMath } from '../research-math/market-context-math.ts';
+import type { TradeContextMath } from '../research-math/trade-context-math.ts';
 import type { AgentCallOpts } from './agent-call-opts.ts';
 export type { AgentCallOpts };
 
@@ -16,6 +17,7 @@ export interface ResearcherInput {
   similarHypotheses: SimilarHypothesisSummary[];
   botResults?: readonly BotRunResultDetail[];
   tradeEvidence?: readonly TradeEvidenceBundle[];
+  tradeContexts?: readonly TradeContextMath[];
   maxHypotheses: number;
 }
 

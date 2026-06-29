@@ -8,6 +8,7 @@ import { buildBotResultsDigestText } from './bot-results-digest.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
 import { MAX_OUTPUT_TOKENS } from '../llm/generate-defaults.ts';
 import { formatMarketContextMath } from '../../research-math/format-market-context-math.ts';
+import { formatTradeContexts } from '../../research-math/format-trade-context-math.ts';
 
 /**
  * OpenAI/Azure strict mode requires all schema properties to be listed in `required`.
@@ -122,6 +123,7 @@ export function buildPrompt(input: ResearcherInput): string {
     `Similar past hypotheses (advisory, avoid duplicating):\n${similar}`,
     ...(botPerf ? [botPerf] : []),
     ...forensicBundleText(input.tradeEvidence),
+    ...(input.tradeContexts && input.tradeContexts.length > 0 ? [formatTradeContexts(input.tradeContexts)] : []),
     `Produce at most ${input.maxHypotheses} hypotheses.`,
   ].join('\n');
 }

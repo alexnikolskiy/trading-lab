@@ -8,6 +8,8 @@ import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.t
 import { resolveLanguageModel } from '../llm/model-provider.ts';
 import { createResearcherAgent } from '../../mastra/agents/researcher.agent.ts';
 import { buildMarketContextMath } from '../../research-math/market-context-math.ts';
+import { buildTradeContextMath } from '../../research-math/trade-context-math.ts';
+import type { CanonicalRowV2 } from '../../ports/market-history-read.port.ts';
 
 const baseInput: ResearcherInput = {
   profile: {
@@ -173,4 +175,35 @@ describe('MastraResearcher.propose – tracingOptions forwarding', () => {
     const out = await new MastraResearcher(createResearcherAgent(model), label).propose(input);
     expect(ResearcherOutputSchema.safeParse(out).success).toBe(true);
   }, 60_000);
+});
+
+describe('buildPrompt per-trade context', () => {
+  const MIN = 60_000;
+  function rows(): CanonicalRowV2[] {
+    return Array.from({ length: 260 }, (_, i) => ({
+      schema_version: 2, minute_ts: i * MIN, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000 + i, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    } as CanonicalRowV2));
+  }
+  function tc() {
+    return buildTradeContextMath({
+      tradeId: 'tr1', symbol: 'BTCUSDT', rows: rows(), entryMs: 200 * MIN, exitMs: 240 * MIN,
+      realizedPnl: -12, pnlPct: -1.5, closeReason: 'stop_loss',
+      direction: 'long', regime: 'ranging', requiredFeatures: ['oi'],
+    }, 0);
+  }
+
+  it('injects per-trade context sections when tradeContexts is present', () => {
+    const prompt = buildPrompt({ ...baseInput, tradeContexts: [tc()] });
+    expect(prompt).toContain('## Per-trade context (losing trades)');
+    expect(prompt).toContain('### Trade tr1 · BTCUSDT');
+  });
+
+  it('omits per-trade sections when tradeContexts is absent', () => {
+    const prompt = buildPrompt(baseInput);
+    expect(prompt).not.toContain('## Per-trade context');
+  });
 });
