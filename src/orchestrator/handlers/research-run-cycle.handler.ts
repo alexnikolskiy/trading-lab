@@ -6,6 +6,7 @@ import { validateWithSchema } from '../../validation/validator.ts';
 import type { BotRunResultDetail } from '../../ports/bot-results-read.port.ts';
 import type { ClosedTrade } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
+import type { CanonicalRowV2 } from '@trading-platform/sdk/historical';
 import { validateHypothesis } from '../../validation/hypothesis-validator.ts';
 import { LAB_FEATURE_CATALOG, normalizeFeature } from '../../domain/hypothesis-rules.ts';
 import {
@@ -54,6 +55,77 @@ function selectSuspiciousTrades(botResults: readonly BotRunResultDetail[], limit
       || ((b.closedAtMs ?? 0) - b.openedAtMs) - ((a.closedAtMs ?? 0) - a.openedAtMs)
       || a.tradeId.localeCompare(b.tradeId))
     .slice(0, limit);
+}
+
+/** Canonical close-reason vocabulary lab recognizes once the platform ships the typed CloseReason enum. */
+export const CANONICAL_CLOSE_REASONS = [
+  'take_profit_final', 'take_profit_partial', 'stop_loss', 'breakeven',
+  'trailing_stop', 'signal_exit', 'time_exit', 'liquidation', 'manual', 'other',
+] as const;
+
+/** True once closeReason carries a recognized canonical member (i.e. the SDK enum has shipped). */
+export function isTypedCloseReason(reason: string | null): boolean {
+  return reason != null && (CANONICAL_CLOSE_REASONS as readonly string[]).includes(reason);
+}
+
+/** "Exited early / left headroom" close reasons — prime profit-improvement candidates. */
+const HEADROOM_CLOSE_REASONS = new Set(['take_profit_partial', 'breakeven', 'signal_exit', 'time_exit']);
+
+/** Winners = isWin===true, or (isWin==null && realizedPnl>0) fallback. Recency order (closedAt DESC). Uncapped. */
+export function selectWinningTrades(botResults: readonly BotRunResultDetail[]): ClosedTrade[] {
+  return botResults
+    .flatMap((detail) => detail.trades)
+    .filter((t) => t.isWin === true || (t.isWin == null && Number(t.realizedPnl) > 0))
+    .slice()
+    .sort((a, b) =>
+      ((b.closedAtMs ?? 0) - (a.closedAtMs ?? 0)) || a.tradeId.localeCompare(b.tradeId));
+}
+
+/** Typed path: headroom-class reasons first, then by recency; tiebreak tradeId. */
+export function rankWinnersTyped(winners: readonly ClosedTrade[], cap: number): ClosedTrade[] {
+  return winners.slice().sort((a, b) => {
+    const ah = HEADROOM_CLOSE_REASONS.has(a.closeReason ?? '') ? 0 : 1;
+    const bh = HEADROOM_CLOSE_REASONS.has(b.closeReason ?? '') ? 0 : 1;
+    return (ah - bh)
+      || ((b.closedAtMs ?? 0) - (a.closedAtMs ?? 0))
+      || a.tradeId.localeCompare(b.tradeId);
+  }).slice(0, cap);
+}
+
+/** Favourable continuation after exit, as a fraction of the exit-bar close. Vocabulary-free.
+ *  Long: (max high after exit − exitClose)/exitClose. Short: (exitClose − min low after exit)/exitClose.
+ *  0 when no post-exit bars or no usable exit bar. Never NaN. */
+export function postExitHeadroomPct(trade: ClosedTrade, rows: readonly CanonicalRowV2[]): number {
+  const exitMs = trade.closedAtMs;
+  if (exitMs == null || rows.length === 0) return 0;
+  let exitIdx = -1;
+  for (let i = 0; i < rows.length; i += 1) { if (rows[i]!.minute_ts <= exitMs) exitIdx = i; else break; }
+  if (exitIdx < 0) return 0;
+  const exitClose = rows[exitIdx]!.close;
+  if (!(exitClose > 0)) return 0;
+  const tail = rows.slice(exitIdx + 1);
+  if (tail.length === 0) return 0;
+  if (trade.side === 'long') {
+    const hi = Math.max(...tail.map((r) => r.high));
+    return Math.max(0, (hi - exitClose) / exitClose);
+  }
+  const lo = Math.min(...tail.map((r) => r.low));
+  return Math.max(0, (exitClose - lo) / exitClose);
+}
+
+/** Fallback path: rank by post-exit headroom DESC; tiebreak recency then tradeId. */
+export function rankWinnersByHeadroom(
+  winners: readonly ClosedTrade[],
+  rowsByTradeId: ReadonlyMap<string, readonly CanonicalRowV2[]>,
+  cap: number,
+): ClosedTrade[] {
+  return winners.slice().sort((a, b) => {
+    const ha = postExitHeadroomPct(a, rowsByTradeId.get(a.tradeId) ?? []);
+    const hb = postExitHeadroomPct(b, rowsByTradeId.get(b.tradeId) ?? []);
+    return (hb - ha)
+      || ((b.closedAtMs ?? 0) - (a.closedAtMs ?? 0))
+      || a.tradeId.localeCompare(b.tradeId);
+  }).slice(0, cap);
 }
 
 export const researchRunCycleHandler: WorkflowHandler = async (task, services) => {

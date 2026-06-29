@@ -1,6 +1,13 @@
 // src/orchestrator/handlers/research-run-cycle.handler.test.ts
 import { describe, it, expect, vi } from 'vitest';
-import { researchRunCycleHandler } from './research-run-cycle.handler.ts';
+import {
+  researchRunCycleHandler,
+  selectWinningTrades,
+  isTypedCloseReason,
+  rankWinnersTyped,
+  postExitHeadroomPct,
+  rankWinnersByHeadroom,
+} from './research-run-cycle.handler.ts';
 import { makeServices } from '../../../test/support/make-services.ts';
 import { FakeCritic } from '../../adapters/critic/fake-critic.ts';
 import type { HypothesisProposalDraft, ResearcherOutput } from '../../domain/hypothesis.ts';
@@ -613,5 +620,61 @@ describe('researchRunCycleHandler per-trade context', () => {
     await seedProfile(services);
     await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
     expect(toMsSeen).toContain(240 * MIN + 60 * MIN); // per-trade window = closedAtMs + 60min tail
+  });
+});
+
+describe('winner selection', () => {
+  function trade(over: Partial<import('../../ports/bot-results-read.port.ts').ClosedTrade>): import('../../ports/bot-results-read.port.ts').ClosedTrade {
+    return {
+      tradeId: 't', runId: 'r', symbol: 'ESPORTSUSDT', side: 'long',
+      openedAtMs: 1_000_000, closedAtMs: 2_000_000,
+      realizedPnl: '1', pnlPct: '1', isWin: true, closeReason: 'take_profit_final',
+      ...over,
+    };
+  }
+
+  it('selectWinningTrades picks isWin===true and the realizedPnl>0 fallback, excludes losers/breakeven', () => {
+    const details = [{ run: {} as any, summary: {} as any, trades: [
+      trade({ tradeId: 'win-flag', isWin: true, realizedPnl: '5' }),
+      trade({ tradeId: 'win-fallback', isWin: null, realizedPnl: '3' }),
+      trade({ tradeId: 'loser', isWin: false, realizedPnl: '-2' }),
+      trade({ tradeId: 'breakeven', isWin: null, realizedPnl: '0' }),
+    ] }];
+    const ids = selectWinningTrades(details).map((t) => t.tradeId).sort();
+    expect(ids).toEqual(['win-fallback', 'win-flag']);
+  });
+
+  it('isTypedCloseReason recognizes canonical members only', () => {
+    expect(isTypedCloseReason('take_profit_partial')).toBe(true);
+    expect(isTypedCloseReason('TP2_hit_raw_strategy_string')).toBe(false);
+    expect(isTypedCloseReason(null)).toBe(false);
+  });
+
+  it('rankWinnersTyped puts headroom-class reasons first and caps', () => {
+    const ws = [
+      trade({ tradeId: 'final', closeReason: 'take_profit_final', closedAtMs: 9 }),
+      trade({ tradeId: 'partial', closeReason: 'take_profit_partial', closedAtMs: 8 }),
+      trade({ tradeId: 'be', closeReason: 'breakeven', closedAtMs: 7 }),
+    ];
+    expect(rankWinnersTyped(ws, 2).map((t) => t.tradeId)).toEqual(['partial', 'be']);
+  });
+
+  it('postExitHeadroomPct measures favourable continuation after exit for a long', () => {
+    const rows = [
+      { minute_ts: 1, open: 0, high: 100, low: 100, close: 100 } as CanonicalRowV2,
+      { minute_ts: 2, open: 0, high: 110, low: 90, close: 100 } as CanonicalRowV2,
+    ];
+    expect(postExitHeadroomPct(trade({ side: 'long', closedAtMs: 1 }), rows)).toBeCloseTo(0.10, 6);
+    expect(postExitHeadroomPct(trade({ side: 'long', closedAtMs: 2 }), rows)).toBe(0);
+  });
+
+  it('rankWinnersByHeadroom orders by left-on-table and caps', () => {
+    const big = trade({ tradeId: 'big', side: 'long', closedAtMs: 1 });
+    const small = trade({ tradeId: 'small', side: 'long', closedAtMs: 1 });
+    const map = new Map<string, readonly CanonicalRowV2[]>([
+      ['big', [{ minute_ts: 1, high: 100, low: 100, close: 100 } as CanonicalRowV2, { minute_ts: 2, high: 130, low: 100, close: 120 } as CanonicalRowV2]],
+      ['small', [{ minute_ts: 1, high: 100, low: 100, close: 100 } as CanonicalRowV2, { minute_ts: 2, high: 102, low: 100, close: 101 } as CanonicalRowV2]],
+    ]);
+    expect(rankWinnersByHeadroom([small, big], map, 1).map((t) => t.tradeId)).toEqual(['big']);
   });
 });
