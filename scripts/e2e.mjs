@@ -154,8 +154,9 @@ try {
     taskType: 'research.run_cycle',
     source: 'operator',
     correlationId: `e2e-cycle-${Date.now()}`,
-    // ts pinned to the 2026-06-18-real-all fixture's data day so the commitXTermMath
-    // market-history window [ts-7d, ts] overlaps the fixture's 1m+taker rows (CVD + multi-term).
+    // ts pinned to the tail of the 2026-06-16-to-18-extended fixture so the commitXTermMath
+    // market-history window [ts-7d, ts] overlaps its 1m+taker rows; the 3-day span gives enough
+    // 1h bars to render the Long (1h) term too (CVD + full multi-term, not just sub-hour).
     payload: { strategyProfileId: profileId, ts: '2026-06-18T23:59:00Z' },
   });
 } catch (err) {
