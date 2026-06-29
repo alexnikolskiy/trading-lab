@@ -240,3 +240,35 @@ describe('buildPrompt focus branching', () => {
     expect(p).toMatch(/no active overlay rules yet/i);
   });
 });
+
+describe('buildPrompt trade-context header by focus', () => {
+  const MIN = 60_000;
+  function rows(): CanonicalRowV2[] {
+    return Array.from({ length: 260 }, (_, i) => ({
+      schema_version: 2, minute_ts: i * MIN, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000 + i, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    } as CanonicalRowV2));
+  }
+  function tc() {
+    return buildTradeContextMath({
+      tradeId: 'tr1', symbol: 'BTCUSDT', rows: rows(), entryMs: 200 * MIN, exitMs: 240 * MIN,
+      realizedPnl: -12, pnlPct: -1.5, closeReason: 'stop_loss',
+      direction: 'long', regime: 'ranging', requiredFeatures: ['oi'],
+    }, 0);
+  }
+
+  it('loss_reduction renders "(losing trades)" header for per-trade context', () => {
+    const prompt = buildPrompt({ ...baseInput, focus: 'loss_reduction', tradeContexts: [tc()] });
+    expect(prompt).toContain('## Per-trade context (losing trades)');
+    expect(prompt).not.toContain('(winning trades)');
+  });
+
+  it('profit_improvement renders "(winning trades)" header for per-trade context', () => {
+    const prompt = buildPrompt({ ...baseInput, focus: 'profit_improvement', tradeContexts: [tc()] });
+    expect(prompt).toContain('## Per-trade context (winning trades)');
+    expect(prompt).not.toContain('(losing trades)');
+  });
+});

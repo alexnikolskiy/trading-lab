@@ -63,4 +63,14 @@ describe('formatTradeContexts', () => {
     const tc = buildTradeContextMath({ ...base, rows: series(260, true), entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
     expect(formatTradeContexts([tc])).toContain('## Per-trade context (losing trades)');
   });
+
+  it('defaults to losing-trades header and accepts winning override', () => {
+    const tc = buildTradeContextMath({ ...base, rows: series(260, true), entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
+    // default (no second arg) → losing trades — byte-identical to the old header
+    expect(formatTradeContexts([tc])).toContain('## Per-trade context (losing trades)');
+    expect(formatTradeContexts([tc], 'losing')).toContain('## Per-trade context (losing trades)');
+    // explicit winning → winning trades header
+    expect(formatTradeContexts([tc], 'winning')).toContain('## Per-trade context (winning trades)');
+    expect(formatTradeContexts([tc], 'winning')).not.toContain('(losing trades)');
+  });
 });

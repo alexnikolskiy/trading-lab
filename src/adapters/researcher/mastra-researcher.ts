@@ -126,15 +126,14 @@ export function buildPrompt(input: ResearcherInput): string {
     activeOverlayRulesText(input),
   ];
 
-  const tradeBlock = input.tradeContexts && input.tradeContexts.length > 0
-    ? [formatTradeContexts(input.tradeContexts)] : [];
-
   if (input.focus === 'profit_improvement') {
+    const winnerBlock = input.tradeContexts && input.tradeContexts.length > 0
+      ? [formatTradeContexts(input.tradeContexts, 'winning')] : [];
     return [
       ...head,
       ...(botPerf ? [botPerf] : []),
       RESEARCHER_PROFIT_FRAMING,
-      ...tradeBlock,
+      ...winnerBlock,
       `Produce at most ${input.maxHypotheses} profit-improvement hypotheses.`,
     ].join('\n');
   }
@@ -143,12 +142,14 @@ export function buildPrompt(input: ResearcherInput): string {
   const similar = input.similarHypotheses.length > 0
     ? input.similarHypotheses.map((s) => `- [${s.status}] ${s.thesis}`).join('\n')
     : '(none)';
+  const loserBlock = input.tradeContexts && input.tradeContexts.length > 0
+    ? [formatTradeContexts(input.tradeContexts)] : [];
   return [
     ...head,
     `Similar past hypotheses (advisory, avoid duplicating):\n${similar}`,
     ...(botPerf ? [botPerf] : []),
     ...forensicBundleText(input.tradeEvidence),
-    ...tradeBlock,
+    ...loserBlock,
     `Produce at most ${input.maxHypotheses} loss-reduction hypotheses.`,
   ].join('\n');
 }
