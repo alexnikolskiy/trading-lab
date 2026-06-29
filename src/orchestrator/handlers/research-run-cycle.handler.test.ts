@@ -602,4 +602,16 @@ describe('researchRunCycleHandler per-trade context', () => {
     expect(Number.isNaN(ctxs?.[0]?.realizedPnl)).toBe(false);
     expect(ctxs?.[0]?.realizedPnl).toBe(0);
   });
+
+  it('extends the per-trade getRows window by the post-exit tail (default 60m)', async () => {
+    const cap = capturingResearcher({ hypotheses: [draft('thesis tail')], researchSummary: 's' });
+    const toMsSeen: number[] = [];
+    const marketHistory: MarketHistoryReadPort = {
+      async getRows(q) { toMsSeen.push(q.toMs); return historyRows(); },
+    };
+    const services = makeServices({ researcher: cap.port, botResults: losingBotResults(), tradeEvidence: { async getTradeEvidence() { return []; } }, marketHistory });
+    await seedProfile(services);
+    await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
+    expect(toMsSeen).toContain(240 * MIN + 60 * MIN); // per-trade window = closedAtMs + 60min tail
+  });
 });
