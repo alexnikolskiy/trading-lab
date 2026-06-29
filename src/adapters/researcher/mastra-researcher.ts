@@ -124,7 +124,6 @@ export function buildPrompt(input: ResearcherInput): string {
       : `Market context features: ${JSON.stringify(input.marketContext.features)}`,
     RESEARCHER_PROFILE_CRITICAL_FRAMING,
     activeOverlayRulesText(input),
-    ...(botPerf ? [botPerf] : []),
   ];
 
   const tradeBlock = input.tradeContexts && input.tradeContexts.length > 0
@@ -133,6 +132,7 @@ export function buildPrompt(input: ResearcherInput): string {
   if (input.focus === 'profit_improvement') {
     return [
       ...head,
+      ...(botPerf ? [botPerf] : []),
       RESEARCHER_PROFIT_FRAMING,
       ...tradeBlock,
       `Produce at most ${input.maxHypotheses} profit-improvement hypotheses.`,
@@ -146,6 +146,7 @@ export function buildPrompt(input: ResearcherInput): string {
   return [
     ...head,
     `Similar past hypotheses (advisory, avoid duplicating):\n${similar}`,
+    ...(botPerf ? [botPerf] : []),
     ...forensicBundleText(input.tradeEvidence),
     ...tradeBlock,
     `Produce at most ${input.maxHypotheses} loss-reduction hypotheses.`,
