@@ -195,7 +195,6 @@ export function buildMarketContextMath(input: MarketContextMathInput, nowMs: num
 
   if (!overall.hasTaker) notes.push('Taker flow absent in this source → CVD/Pressure shown as n/a.');
   if (!overall.hasOhlc) notes.push('OHLC high/low absent → ATR/Stochastic/ADX/Fibonacci/Squeeze/Pivots shown as n/a.');
-  if (!overall.hasTaker && overall.hasOhlc) notes.push('Squeeze/Pivots computed from OHLC data.');
 
   return {
     symbol: input.symbol, generatedAtMs: nowMs, window: input.window,

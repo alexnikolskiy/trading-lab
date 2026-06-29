@@ -68,6 +68,5 @@ describe('buildMarketContextMath Phase E indicators', () => {
     expect(long.indicators.pivots).not.toBeNull();
     expect(long.indicators.squeeze).not.toBeNull();
     expect(math.notes.some((n) => /Pressure/i.test(n))).toBe(true);
-    expect(math.notes.some((n) => /Squeeze|Pivots/i.test(n))).toBe(true);
   });
 });
