@@ -37,7 +37,8 @@ const detail: BotRunResultDetail = {
       realizedPnl: '9',
       pnlPct: '0.9',
       isWin: true,
-      closeReason: 'take_profit',
+      closeReason: 'take_profit_final',
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     },
     {
       tradeId: 'loss_fast',
@@ -50,6 +51,7 @@ const detail: BotRunResultDetail = {
       pnlPct: '-0.5',
       isWin: false,
       closeReason: 'stop_loss',
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     },
     {
       tradeId: 'loss_slow',
@@ -62,6 +64,7 @@ const detail: BotRunResultDetail = {
       pnlPct: '-1.5',
       isWin: false,
       closeReason: 'stop_loss',
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     },
   ],
 };

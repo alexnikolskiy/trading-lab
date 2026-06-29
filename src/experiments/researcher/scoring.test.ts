@@ -51,9 +51,10 @@ const evalContext = {
       realizedPnl: '-10',
       pnlPct: '-1',
       isWin: false,
-      closeReason: 'hard_stop',
+      closeReason: 'stop_loss',
       openedAtMs: 1,
       closedAtMs: 2,
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     }, {
       tradeId: 'trade-2',
       runId: 'run-1',
@@ -65,6 +66,7 @@ const evalContext = {
       closeReason: 'time_exit',
       openedAtMs: 3,
       closedAtMs: 4,
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     }],
   }],
   tradeEvidence: [{

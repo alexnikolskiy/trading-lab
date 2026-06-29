@@ -3,10 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { WorkflowHandler } from '../workflow-router.ts';
 import { validateWithSchema } from '../../validation/validator.ts';
-import type { BotRunResultDetail } from '../../ports/bot-results-read.port.ts';
+import type { BotRunResultDetail, CloseReason } from '../../ports/bot-results-read.port.ts';
 import type { ClosedTrade } from '../../ports/bot-results-read.port.ts';
 import type { TradeEvidenceBundle } from '../../ports/trade-evidence-read.port.ts';
-import type { CanonicalRowV2 } from '@trading-platform/sdk/historical';
+import type { CanonicalRowV2 } from '../../ports/market-history-read.port.ts';
 import { validateHypothesis } from '../../validation/hypothesis-validator.ts';
 import { LAB_FEATURE_CATALOG, normalizeFeature } from '../../domain/hypothesis-rules.ts';
 import {
@@ -62,6 +62,12 @@ export const CANONICAL_CLOSE_REASONS = [
   'take_profit_final', 'take_profit_partial', 'stop_loss', 'breakeven',
   'trailing_stop', 'signal_exit', 'time_exit', 'liquidation', 'manual', 'other',
 ] as const;
+
+// Compile-time drift guard: CANONICAL_CLOSE_REASONS must equal the SDK CloseReason union exactly.
+type _CanonReason = (typeof CANONICAL_CLOSE_REASONS)[number];
+const _closeReasonConformance: ([_CanonReason] extends [CloseReason] ? true : never)
+  & ([CloseReason] extends [_CanonReason] ? true : never) = true;
+void _closeReasonConformance;
 
 /** True once closeReason carries a recognized canonical member (i.e. the SDK enum has shipped). */
 export function isTypedCloseReason(reason: string | null): boolean {

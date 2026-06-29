@@ -19,7 +19,8 @@ const RUN: BotRunRecord = {
 const TRADE: ClosedTrade = {
   tradeId: 'mock_trade_001', runId: 'mock_run_001', symbol: 'ESPORTSUSDT', side: 'long',
   openedAtMs: 1_700_000_100_000, closedAtMs: 1_700_000_200_000,
-  realizedPnl: '12.50', pnlPct: '1.25', isWin: true, closeReason: 'take_profit',
+  realizedPnl: '12.50', pnlPct: '1.25', isWin: true, closeReason: 'take_profit_final',
+  entryPrice: null, exitPrice: null, closeReasonRaw: null,
 };
 const SUMMARY: RunSummary = {
   runId: 'mock_run_001', excludesReconcile: true, asOf: 1_700_000_600_000,

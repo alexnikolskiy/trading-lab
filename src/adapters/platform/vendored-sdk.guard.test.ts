@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 // Machine guarantee that lab consumes the /ops-read-bearing SDK from the published GitHub Release
 // (not a sibling path / npm range / stale version without /ops-read).
-const EXPECTED_OPS_VERSION = 'ops.3';
+const EXPECTED_OPS_VERSION = 'ops.5';
 const SPEC_RE = /^https:\/\/github\.com\/alexnikolskiy\/trading-platform-sdk\/releases\/download\/sdk-v\d+\.\d+\.\d+\/trading-platform-sdk-\d+\.\d+\.\d+\.tgz$/;
 
 interface PkgJson { dependencies?: Record<string, string> }
@@ -29,7 +29,7 @@ describe('vendored SDK guard', () => {
     expect(checkSpecifier({ dependencies: {} }).length).toBeGreaterThan(0);
   });
 
-  it('the released SDK exposes /ops-read at contract version ops.3', async () => {
+  it('the released SDK exposes /ops-read at contract version ops.5', async () => {
     const mod = await import('@trading-platform/sdk/ops-read');
     expect(mod.OPS_READ_CONTRACT_VERSION).toBe(EXPECTED_OPS_VERSION);
   });

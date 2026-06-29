@@ -84,9 +84,10 @@ const input: ResearcherEvalInput = {
       realizedPnl: '-10',
       pnlPct: '-1',
       isWin: false,
-      closeReason: 'be_stop',
+      closeReason: 'stop_loss',
       openedAtMs: 1,
       closedAtMs: 2,
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
     }],
   }],
   tradeEvidence: [{

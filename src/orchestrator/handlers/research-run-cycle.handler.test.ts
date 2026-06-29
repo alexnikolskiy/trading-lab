@@ -321,9 +321,9 @@ describe('researchRunCycleHandler', () => {
       },
       async getClosedTrades() {
         return [
-          { tradeId: 't-win', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 2, realizedPnl: '5', pnlPct: '0.5', isWin: true, closeReason: 'take_profit' },
-          { tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 4, realizedPnl: '-15', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss' },
-          { tradeId: 't-loss-2', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 3, realizedPnl: '-8', pnlPct: '-0.8', isWin: false, closeReason: 'stop_loss' },
+          { tradeId: 't-win', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 2, realizedPnl: '5', pnlPct: '0.5', isWin: true, closeReason: 'take_profit_final', entryPrice: null, exitPrice: null, closeReasonRaw: null },
+          { tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 4, realizedPnl: '-15', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss', entryPrice: null, exitPrice: null, closeReasonRaw: null },
+          { tradeId: 't-loss-2', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 3, realizedPnl: '-8', pnlPct: '-0.8', isWin: false, closeReason: 'stop_loss', entryPrice: null, exitPrice: null, closeReasonRaw: null },
         ];
       },
       async getOperationalEvents() {
@@ -523,7 +523,7 @@ describe('researchRunCycleHandler per-trade context', () => {
         return { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 1, wins: 0, losses: 1, breakeven: 0, winratePct: 0, pnlUsd: '-15', avgPnl: '-15', exitReasons: { stop_loss: 1 } };
       },
       async getClosedTrades() {
-        return [{ tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 200 * MIN, closedAtMs: 240 * MIN, realizedPnl: '-15', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss' }];
+        return [{ tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 200 * MIN, closedAtMs: 240 * MIN, realizedPnl: '-15', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss', entryPrice: null, exitPrice: null, closeReasonRaw: null }];
       },
       async getOperationalEvents() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
       async getDecisionLog() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
@@ -547,7 +547,7 @@ describe('researchRunCycleHandler per-trade context', () => {
       },
       async getClosedTrades() {
         // -Infinity passes the < 0 filter but !isFinite → guard normalises to 0
-        return [{ tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 200 * MIN, closedAtMs: 240 * MIN, realizedPnl: '-Infinity', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss' }];
+        return [{ tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 200 * MIN, closedAtMs: 240 * MIN, realizedPnl: '-Infinity', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss', entryPrice: null, exitPrice: null, closeReasonRaw: null }];
       },
       async getOperationalEvents() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
       async getDecisionLog() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
@@ -630,6 +630,9 @@ describe('winner selection', () => {
       openedAtMs: 1_000_000, closedAtMs: 2_000_000,
       realizedPnl: '1', pnlPct: '1', isWin: true, closeReason: 'take_profit_final',
       ...over,
+      entryPrice: over.entryPrice ?? null,
+      exitPrice: over.exitPrice ?? null,
+      closeReasonRaw: over.closeReasonRaw ?? null,
     };
   }
 
