@@ -41,3 +41,20 @@ describe('formatMarketContextMath', () => {
       .toEqual(formatMarketContextMath(buildMarketContextMath({ ...base, rows }, 0)));
   });
 });
+
+describe('formatMarketContextMath Phase E summary parts', () => {
+  it('renders Squeeze, Pivots and Pressure in the summary when data supports them', () => {
+    const md = formatMarketContextMath(buildMarketContextMath({ ...base, rows: series(120, 60_000, true) }, 0));
+    expect(md).toMatch(/Squeeze (ON|OFF)/);
+    expect(md).toContain('Pivots PP=');
+    expect(md).toMatch(/Pressure [+-]?\d/);
+    expect(md).toContain('% buy)');
+  });
+
+  it('renders Pressure n/a (no taker) while still showing Squeeze/Pivots', () => {
+    const md = formatMarketContextMath(buildMarketContextMath({ ...base, rows: series(60, 3_600_000, false) }, 0));
+    expect(md).toContain('Pressure n/a');
+    expect(md).toMatch(/Squeeze (ON|OFF)/);
+    expect(md).toContain('Pivots PP=');
+  });
+});
