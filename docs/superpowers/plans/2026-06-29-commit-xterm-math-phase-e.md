@@ -473,7 +473,10 @@ describe('buildMarketContextMath Phase E indicators', () => {
     expect(long.indicators.pivots).not.toBeNull();
     expect(long.indicators.squeeze).not.toBeNull();
     expect(math.notes.some((n) => /Pressure/i.test(n))).toBe(true);
-    expect(math.notes.some((n) => /Squeeze|Pivots/i.test(n))).toBe(true);
+    // NOTE: no `/Squeeze|Pivots/` notes assertion — with OHLC present (always true for these
+    // fixtures) squeeze/pivots are COMPUTED, not n/a, so no coverage note about them exists;
+    // their presence is already proven by the not.toBeNull() assertions above. The
+    // "…Squeeze/Pivots…" wording lives only in the defensive !hasOhlc note (§4.4).
   });
 });
 ```
