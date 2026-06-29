@@ -409,7 +409,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 | `TRADING_BACKTESTER_PATH` | `../trading-backtester` | Путь к склонированному trading-backtester |
 | `MOCK_OPS_TOKEN` | `demo-ops-token` | Bearer-токен для запросов к mock-platform |
 | `MOCK_OPS_TOKENS` | `6dd4bdc5…` | SHA256-хеш (hex) `MOCK_OPS_TOKEN` — генерировать: `echo -n "$TOKEN" \| sha256sum` |
-| `MOCK_SNAPSHOT_REF` | `fixtures/2026-06-18-real-all` | Имя снапшота с тестовыми данными |
+| `MOCK_SNAPSHOT_REF` | `fixtures/2026-06-16-to-18-extended` | Имя снапшота с тестовыми данными |
 | `BACKTESTER_AUTH_TOKEN` | `demo-backtester-token` | Bearer-токен для backtester |
 | `LAB_AGENTS_ADAPTER` | `fake` (default) / `mastra` | Семейный default для всех агентов; per-agent `<AGENT>_ADAPTER` может переопределять |
 | `TRADING_LAB_TASK_TOKEN` | `demo-task-token` | Bearer-токен для POST /tasks (e2e) |
@@ -418,9 +418,11 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml --env-file .env.
 #### Снапшот для mock-platform
 
 `MOCK_SNAPSHOT_REF` задаёт директорию с тестовыми данными внутри образа (по умолчанию
-`fixtures/2026-06-18-real-all`). Демо по умолчанию использует реальный срез за один день taker-эры
-(2026-06-18): 11 символов, 22 сделки, 9 убыточных (winrate ~59%), с полным поминутным
-taker_buy/sell + funding. Прежний срез из 5 символов (73 сделки, winrate ~79%) остаётся доступен как
+`fixtures/2026-06-16-to-18-extended`). Демо по умолчанию использует расширенный реальный срез
+taker-эры за 2026-06-16…18 (~72 часовых бакета) — трёхдневного окна хватает, чтобы для
+commitXTermMath отрисовался и часовой (Long, 1h) терм, а не только младшие; с полным поминутным
+taker_buy/sell + funding. Прежний односуточный срез за 2026-06-18 остаётся доступен как
+`fixtures/2026-06-18-real-all`, а срез из 5 символов (winrate ~79%) — как
 `fixtures/2026-06-12-real-top5`. Также доступен `fixtures/2026-06-16-synthetic` — синтетический снапшот, бандлится в образ, никаких дополнительных
 действий не требует). Для работы с реальными данными (срезы с июня 2026 из postgres/parquet
 с VPS) монтируй директорию снапшота и задай `MOCK_SNAPSHOT_REF`:
