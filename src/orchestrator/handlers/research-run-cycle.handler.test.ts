@@ -530,6 +530,22 @@ describe('researchRunCycleHandler per-trade context', () => {
       lifecycleEvents: [], minuteContext: [],
     };
   }
+  function malformedBotResults(): BotResultsReadPort {
+    return {
+      async listBotRuns() {
+        return [{ runId: 'r1', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] }];
+      },
+      async getRunSummary() {
+        return { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 1, wins: 0, losses: 1, breakeven: 0, winratePct: 0, pnlUsd: '-Inf', avgPnl: '-Inf', exitReasons: { stop_loss: 1 } };
+      },
+      async getClosedTrades() {
+        // -Infinity passes the < 0 filter but !isFinite → guard normalises to 0
+        return [{ tradeId: 't-loss-1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 200 * MIN, closedAtMs: 240 * MIN, realizedPnl: '-Infinity', pnlPct: '-1.5', isWin: false, closeReason: 'stop_loss' }];
+      },
+      async getOperationalEvents() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
+      async getDecisionLog() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
+    };
+  }
   function historyRows(): CanonicalRowV2[] {
     return Array.from({ length: 260 }, (_, i) => ({
       schema_version: 2 as const, minute_ts: i * MIN, symbol: 'BTCUSDT',
@@ -540,9 +556,9 @@ describe('researchRunCycleHandler per-trade context', () => {
     }));
   }
 
-  it('attaches per-trade contexts built from the fetched losing bundles', async () => {
+  it('builds per-trade contexts from the selected losing ClosedTrades even when trade-evidence is empty', async () => {
     const cap = capturingResearcher({ hypotheses: [draft('thesis ptc')], researchSummary: 's' });
-    const tradeEvidence: TradeEvidenceReadPort = { async getTradeEvidence() { return [losingBundle()]; } };
+    const tradeEvidence: TradeEvidenceReadPort = { async getTradeEvidence() { return []; } }; // mirrors the real stub
     const marketHistory: MarketHistoryReadPort = { async getRows() { return historyRows(); } };
     const services = makeServices({ researcher: cap.port, botResults: losingBotResults(), tradeEvidence, marketHistory });
     await seedProfile(services);
@@ -575,10 +591,10 @@ describe('researchRunCycleHandler per-trade context', () => {
 
   it('guards malformed realizedPnl: a non-finite parse falls back to 0 (not NaN)', async () => {
     const cap = capturingResearcher({ hypotheses: [draft('thesis malformed-pnl')], researchSummary: 's' });
-    const malformedBundle = { ...losingBundle(), realizedPnl: 'not-a-number' };
-    const tradeEvidence: TradeEvidenceReadPort = { async getTradeEvidence() { return [malformedBundle]; } };
+    // Source is now the ClosedTrade; -Infinity passes the < 0 filter and triggers the isFinite guard → 0
+    const tradeEvidence: TradeEvidenceReadPort = { async getTradeEvidence() { return []; } };
     const marketHistory: MarketHistoryReadPort = { async getRows() { return historyRows(); } };
-    const services = makeServices({ researcher: cap.port, botResults: losingBotResults(), tradeEvidence, marketHistory });
+    const services = makeServices({ researcher: cap.port, botResults: malformedBotResults(), tradeEvidence, marketHistory });
     await seedProfile(services);
     await researchRunCycleHandler(task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' }), services);
     const ctxs = cap.captured()?.tradeContexts;
