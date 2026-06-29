@@ -11,8 +11,9 @@ import { validateHypothesis } from '../../validation/hypothesis-validator.ts';
 import { LAB_FEATURE_CATALOG, normalizeFeature } from '../../domain/hypothesis-rules.ts';
 import {
   ResearcherOutputSchema, hypothesisFingerprint,
-  HYPOTHESIS_PROPOSAL_CONTRACT_VERSION, type HypothesisProposal, type ResearcherOutput,
+  HYPOTHESIS_PROPOSAL_CONTRACT_VERSION, type HypothesisProposal, type HypothesisProposalDraft,
 } from '../../domain/hypothesis.ts';
+import type { ResearcherFocus, ActiveOverlayRuleSummary, ResearcherInput } from '../../ports/researcher.port.ts';
 import { makeOnUsage } from '../make-on-usage.ts';
 import { buildMarketContextMath } from '../../research-math/market-context-math.ts';
 import { formatMarketContextMath } from '../../research-math/format-market-context-math.ts';
@@ -21,6 +22,9 @@ import { buildTradeContextMath, type TradeContextMath } from '../../research-mat
 export const RESEARCH_DEFAULT_SYMBOL = 'BTCUSDT';
 export const BOT_RESULTS_MAX = 10;
 export const TRADE_EVIDENCE_MAX = 5;
+
+const RESEARCHER_MAX_PER_PASS_DEFAULT = 5;
+const TRADE_CONTEXT_WINNERS_MAX_DEFAULT = 5;
 
 export const ResearchRunCyclePayloadSchema = z.object({
   strategyProfileId: z.string().min(1),
@@ -222,6 +226,55 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
     }
   }
 
+  // --- Winning-trade context (profit-improvement pass) ---
+  const parsedWinnersMax = Number(process.env.TRADE_CONTEXT_WINNERS_MAX ?? String(TRADE_CONTEXT_WINNERS_MAX_DEFAULT));
+  const winnersMax = Number.isFinite(parsedWinnersMax) && parsedWinnersMax > 0 ? Math.floor(parsedWinnersMax) : TRADE_CONTEXT_WINNERS_MAX_DEFAULT;
+  const winnerContexts: TradeContextMath[] = [];
+  {
+    const allWinners = selectWinningTrades(botResults).filter((t) => t.closedAtMs != null);
+    const typed = allWinners.length > 0 && allWinners.every((t) => isTypedCloseReason(t.closeReason));
+    const parsedWarmup2 = Number(process.env.TRADE_CONTEXT_WARMUP_MIN ?? '150');
+    const warmupMin2 = Number.isFinite(parsedWarmup2) && parsedWarmup2 > 0 ? parsedWarmup2 : 150;
+    const parsedTail2 = Number(process.env.TRADE_CONTEXT_TAIL_MIN ?? '60');
+    const tailMin2 = Number.isFinite(parsedTail2) && parsedTail2 > 0 ? parsedTail2 : 60;
+
+    // Fetch rows once per candidate (bounded pool), reused for both ranking and context.
+    const pool = typed ? rankWinnersTyped(allWinners, winnersMax) : allWinners.slice(0, winnersMax * 2);
+    const rowsByTradeId = new Map<string, readonly CanonicalRowV2[]>();
+    for (const t of pool) {
+      if (t.closedAtMs == null) continue;
+      try {
+        const fromMs = t.openedAtMs - warmupMin2 * 60_000;
+        const rows = await services.marketHistory.getRows({ symbol: t.symbol, fromMs, toMs: t.closedAtMs + tailMin2 * 60_000 });
+        rowsByTradeId.set(t.tradeId, rows);
+      } catch (err) {
+        await services.events.append(event(task.id, 'researcher.trade_context_unavailable', { tradeId: t.tradeId, error: errMsg(err) }));
+      }
+    }
+    const selectedWinners = typed ? pool : rankWinnersByHeadroom(pool, rowsByTradeId, winnersMax);
+    for (const t of selectedWinners) {
+      const rows = rowsByTradeId.get(t.tradeId);
+      if (t.closedAtMs == null || !rows || rows.length === 0) continue;
+      const pnlPctNum = Number(t.pnlPct);
+      const realizedPnlNum = Number(t.realizedPnl);
+      winnerContexts.push(buildTradeContextMath({
+        tradeId: t.tradeId, symbol: t.symbol, rows,
+        entryMs: t.openedAtMs, exitMs: t.closedAtMs,
+        realizedPnl: Number.isFinite(realizedPnlNum) ? realizedPnlNum : 0, pnlPct: Number.isFinite(pnlPctNum) ? pnlPctNum : null,
+        closeReason: t.closeReason ?? null,
+        direction: profile.direction, regime: marketRegime, requiredFeatures: profile.requiredMarketFeatures,
+      }, Date.now()));
+    }
+  }
+
+  // Active overlay rules for both passes' critical framing.
+  let activeOverlayRules: ActiveOverlayRuleSummary[] = [];
+  try {
+    const validatedProposals = (await services.hypotheses.listByStrategyProfile(profile.id))
+      .filter((p) => p.status === 'validated');
+    activeOverlayRules = validatedProposals.map((p) => ({ thesis: p.thesis, ruleAction: p.ruleAction, status: p.status }));
+  } catch { activeOverlayRules = []; }
+
   let marketContextMath;
   try {
     const parsedLookback = Number(process.env.MARKET_HISTORY_LOOKBACK_DAYS ?? '7');
@@ -258,30 +311,52 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
     } catch { /* best-effort: never fail the cycle on artifact commit */ }
   }
 
+  const parsedPerPass = Number(process.env.RESEARCHER_MAX_PER_PASS ?? String(RESEARCHER_MAX_PER_PASS_DEFAULT));
+  const rawPerPass = Number.isFinite(parsedPerPass) && parsedPerPass > 0 ? Math.floor(parsedPerPass) : RESEARCHER_MAX_PER_PASS_DEFAULT;
+  const maxPerPass = Math.min(rawPerPass, effectiveMax);
+
   await services.events.append(event(task.id, 'researcher.started', { strategyProfileId: profile.id }));
-  let output: ResearcherOutput;
-  try {
-    output = await services.researcher.propose({
-      profile, marketContext, marketRegime, similarHypotheses, botResults, tradeEvidence, maxHypotheses: effectiveMax,
-      focus: 'loss_reduction',
+
+  const runPass = async (
+    focus: ResearcherFocus,
+    extra: Partial<ResearcherInput>,
+  ): Promise<{ draft: HypothesisProposalDraft; origin: ResearcherFocus }[]> => {
+    const input: ResearcherInput = {
+      profile, marketContext, marketRegime, similarHypotheses: focus === 'loss_reduction' ? similarHypotheses : [],
+      botResults, maxHypotheses: maxPerPass, focus, activeOverlayRules,
       ...(marketContextMath && marketContextMath.terms.length > 0 ? { marketContextMath } : {}),
-      ...(tradeContexts.length > 0 ? { tradeContexts } : {}),
-    }, {
+      ...extra,
+    };
+    const out = await services.researcher.propose(input, {
       ...makeOnUsage(task, services),
       ...(marketContextArtifactId ? { tracingMetadata: { research_market_context_artifact_id: marketContextArtifactId } } : {}),
     });
+    const parsedPass = validateWithSchema(ResearcherOutputSchema, out);
+    if (parsedPass.status === 'invalid') {
+      throw new Error(`researcher returned invalid output (${focus}): ${JSON.stringify(parsedPass.issues)}`);
+    }
+    const passDrafts = parsedPass.data.hypotheses.slice(0, maxPerPass);
+    await services.events.append(event(task.id, 'researcher.pass_completed', { focus, count: passDrafts.length }));
+    return passDrafts.map((draft) => ({ draft, origin: focus }));
+  };
+
+  let taggedDrafts: { draft: HypothesisProposalDraft; origin: ResearcherFocus }[] = [];
+  try {
+    taggedDrafts = await runPass('loss_reduction', {
+      tradeEvidence,
+      ...(tradeContexts.length > 0 ? { tradeContexts } : {}),
+    });
+    if (winnerContexts.length > 0) {
+      const profitDrafts = await runPass('profit_improvement', { tradeContexts: winnerContexts });
+      taggedDrafts = [...taggedDrafts, ...profitDrafts];
+    }
   } catch (err) {
     await services.events.append(event(task.id, 'researcher.failed', { error: errMsg(err) }));
     throw err;
   }
-  await services.events.append(event(task.id, 'researcher.completed', { count: output.hypotheses.length }));
+  await services.events.append(event(task.id, 'researcher.completed', { count: taggedDrafts.length }));
 
-  const outParsed = validateWithSchema(ResearcherOutputSchema, output);
-  if (outParsed.status === 'invalid') {
-    throw new Error(`researcher returned invalid output: ${JSON.stringify(outParsed.issues)}`);
-  }
-
-  const drafts = outParsed.data.hypotheses.slice(0, effectiveMax);
+  const drafts = taggedDrafts;
   const allowedFeatures = new Set<string>([
     ...profile.requiredMarketFeatures.map(normalizeFeature),
     ...LAB_FEATURE_CATALOG,
@@ -293,7 +368,7 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   let deduped = 0;
   let criticReviews = 0;
 
-  for (const draft of drafts) {
+  for (const { draft, origin } of drafts) {
     const fingerprint = hypothesisFingerprint(draft.thesis, draft.ruleAction);
     if (seen.has(fingerprint)) {
       await services.events.append(event(task.id, 'hypothesis.deduped', { fingerprint }));
@@ -321,6 +396,7 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
       proposal: draft,
       issues: result.issues,
       contractVersion: HYPOTHESIS_PROPOSAL_CONTRACT_VERSION,
+      origin,
       createdAt: now,
       updatedAt: now,
     };
@@ -373,6 +449,6 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   }
 
   await services.events.append(event(task.id, 'research.run_cycle.completed', {
-    proposed: drafts.length, validated, rejected, deduped, criticReviews,
+    proposed: taggedDrafts.length, validated, rejected, deduped, criticReviews,
   }));
 };

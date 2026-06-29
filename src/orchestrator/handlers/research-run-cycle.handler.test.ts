@@ -681,3 +681,103 @@ describe('winner selection', () => {
     expect(rankWinnersByHeadroom([small, big], map, 1).map((t) => t.tradeId)).toEqual(['big']);
   });
 });
+
+describe('two-pass research', () => {
+  const MIN = 60_000;
+
+  function loserTrade(over: { tradeId: string }): import('../../ports/bot-results-read.port.ts').ClosedTrade {
+    return {
+      tradeId: over.tradeId, runId: 'r1', symbol: 'BTCUSDT', side: 'long',
+      openedAtMs: 200 * MIN, closedAtMs: 240 * MIN,
+      realizedPnl: '-5', pnlPct: '-0.5', isWin: false, closeReason: 'stop_loss',
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
+    };
+  }
+
+  function winnerTrade(over: { tradeId: string }): import('../../ports/bot-results-read.port.ts').ClosedTrade {
+    return {
+      tradeId: over.tradeId, runId: 'r1', symbol: 'BTCUSDT', side: 'long',
+      openedAtMs: 200 * MIN, closedAtMs: 240 * MIN,
+      realizedPnl: '5', pnlPct: '0.5', isWin: true, closeReason: 'take_profit_partial',
+      entryPrice: null, exitPrice: null, closeReasonRaw: null,
+    };
+  }
+
+  function twoPassBotResults(trades: import('../../ports/bot-results-read.port.ts').ClosedTrade[]): BotResultsReadPort {
+    return {
+      async listBotRuns() {
+        return [{ runId: 'r1', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] }];
+      },
+      async getRunSummary() {
+        return { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: trades.length, wins: 0, losses: 0, breakeven: 0, winratePct: 0, pnlUsd: '0', avgPnl: '0', exitReasons: {} };
+      },
+      async getClosedTrades() { return trades; },
+      async getOperationalEvents() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
+      async getDecisionLog() { return { items: [], nextCursor: null, asOf: 2, window: {}, freshness: 'fresh' }; },
+    };
+  }
+
+  function twoPassHistory(): MarketHistoryReadPort {
+    return {
+      async getRows() {
+        return Array.from({ length: 260 }, (_, i) => ({
+          schema_version: 2 as const, minute_ts: i * MIN, symbol: 'BTCUSDT',
+          open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+          oi_total_usd: 1000 + i, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+          taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+          has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+        }));
+      },
+    };
+  }
+
+  function runCycleTask(): ResearchTask {
+    return task({ strategyProfileId: 'p1', symbol: 'BTCUSDT' });
+  }
+
+  it('runs loss then profit when winners exist, skips profit with none, merges drafts', async () => {
+    const calls: string[] = [];
+    const researcher: ResearcherPort = {
+      adapter: 'fake' as const, model: 'fake',
+      async propose(input: ResearcherInput) {
+        calls.push(input.focus);
+        return {
+          hypotheses: [{
+            thesis: `t-${input.focus}`, targetBehavior: 'b',
+            ruleAction: { appliesTo: 'long', rules: [{ when: 'x', action: 'skip_entry', params: {} }] },
+            requiredFeatures: ['oi'], validationPlan: 'p',
+            expectedEffect: { metric: 'win_rate', direction: 'increase' }, invalidationCriteria: ['none'], confidence: 0.5,
+          }],
+          researchSummary: 's',
+        };
+      },
+    };
+
+    const services = makeServices({
+      researcher,
+      botResults: twoPassBotResults([loserTrade({ tradeId: 'L1' }), winnerTrade({ tradeId: 'W1' })]),
+      marketHistory: twoPassHistory(),
+    });
+    await seedProfile(services);
+    await researchRunCycleHandler(runCycleTask(), services);
+    expect(calls).toEqual(['loss_reduction', 'profit_improvement']);
+
+    // no winners -> profit skipped
+    const calls2: string[] = [];
+    const researcher2: ResearcherPort = {
+      adapter: 'fake' as const, model: 'fake',
+      async propose(input: ResearcherInput) {
+        calls2.push(input.focus);
+        return { hypotheses: [], researchSummary: 's' };
+      },
+    };
+    const services2 = makeServices({
+      researcher: researcher2,
+      botResults: twoPassBotResults([loserTrade({ tradeId: 'L2' })]),
+      marketHistory: twoPassHistory(),
+    });
+    await seedProfile(services2);
+    await researchRunCycleHandler(runCycleTask(), services2);
+    expect(calls2).toEqual(['loss_reduction']);
+  });
+});
