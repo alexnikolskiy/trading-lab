@@ -42,6 +42,21 @@ describe('formatTradeContextMath', () => {
   });
 });
 
+describe('formatTradeContextMath post-exit tail', () => {
+  it('renders @post summaries with the exit-offset label and marks the exit row', () => {
+    const tc = buildTradeContextMath({ ...base, rows: series(260, true), entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
+    const md = formatTradeContextMath(tc);
+    expect(md).toMatch(/@post \(exit\+19m\) Micro \(1m\):/); // 259 − 240 = 19 min after exit
+    expect(md).toContain(' ← exit'); // the exit row is marked in the micro table
+  });
+
+  it('renders @post n/a when there is no post-exit tail', () => {
+    const tc = buildTradeContextMath({ ...base, rows: series(241, true), entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
+    const md = formatTradeContextMath(tc);
+    expect(md).toContain('@post n/a');
+  });
+});
+
 describe('formatTradeContexts', () => {
   it('returns empty string for no contexts and a header for ≥1', () => {
     expect(formatTradeContexts([])).toBe('');
