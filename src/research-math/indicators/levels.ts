@@ -82,3 +82,20 @@ export function pivots(high: number, low: number, close: number): PivotLevels {
     s3: low - 2 * (high - pp),
   };
 }
+
+export interface TakerPressure { bias: number | null; buyShare: number | null; }
+
+export function takerPressure(
+  buys: readonly (number | null)[], sells: readonly (number | null)[], window: number,
+): TakerPressure {
+  const n = buys.length;
+  const start = window > 0 ? Math.max(0, n - window) : 0;
+  let sumBuy = 0, sumSell = 0, any = false;
+  for (let i = start; i < n; i++) {
+    const b = buys[i], s = sells[i];
+    if (b != null && s != null) { sumBuy += b; sumSell += s; any = true; }
+  }
+  const total = sumBuy + sumSell;
+  if (!any || total === 0) return { bias: null, buyShare: null };
+  return { bias: (sumBuy - sumSell) / total, buyShare: sumBuy / total };
+}

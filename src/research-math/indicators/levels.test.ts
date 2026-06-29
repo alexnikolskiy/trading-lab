@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swingHighLow, fibonacci, cvd, oiDelta, pctChangeOverWindow, liquidationAggregates, pivots } from './levels.ts';
+import { swingHighLow, fibonacci, cvd, oiDelta, pctChangeOverWindow, liquidationAggregates, pivots, takerPressure } from './levels.ts';
 
 describe('fibonacci', () => {
   it('places 0 at the high, 1 at the low, 0.5 at the midpoint', () => {
@@ -63,5 +63,41 @@ describe('pivots', () => {
     const p = pivots(100, 100, 100);
     for (const v of Object.values(p)) expect(Number.isFinite(v)).toBe(true);
     expect(p.pp).toBe(100);
+  });
+});
+
+describe('takerPressure', () => {
+  it('is +1 / buyShare 1 for an all-buy window', () => {
+    const tp = takerPressure([10, 10, 10], [0, 0, 0], 3);
+    expect(tp.bias).toBeCloseTo(1, 9);
+    expect(tp.buyShare).toBeCloseTo(1, 9);
+  });
+
+  it('is −1 / buyShare 0 for an all-sell window', () => {
+    const tp = takerPressure([0, 0, 0], [10, 10, 10], 3);
+    expect(tp.bias).toBeCloseTo(-1, 9);
+    expect(tp.buyShare).toBeCloseTo(0, 9);
+  });
+
+  it('is ~0 / buyShare 0.5 for a balanced window', () => {
+    const tp = takerPressure([5, 5], [5, 5], 2);
+    expect(tp.bias).toBeCloseTo(0, 9);
+    expect(tp.buyShare).toBeCloseTo(0.5, 9);
+  });
+
+  it('only sums the trailing `window` bars', () => {
+    // last 2 bars: buys 1+1, sells 9+9 → strongly negative; earlier bars ignored
+    const tp = takerPressure([100, 100, 1, 1], [0, 0, 9, 9], 2);
+    expect(tp.bias).toBeCloseTo((2 - 18) / 20, 9);
+  });
+
+  it('skips null/gap bars and returns nulls when no usable data', () => {
+    expect(takerPressure([null, null], [null, null], 2)).toEqual({ bias: null, buyShare: null });
+    const tp = takerPressure([null, 6], [null, 4], 2);
+    expect(tp.bias).toBeCloseTo(0.2, 9);
+  });
+
+  it('returns nulls (no divide-by-zero) when totals are zero', () => {
+    expect(takerPressure([0, 0], [0, 0], 2)).toEqual({ bias: null, buyShare: null });
   });
 });
