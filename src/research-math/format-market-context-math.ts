@@ -24,6 +24,15 @@ function summaryLine(t: TermMath): string {
     `CVD ${i.cvdNet == null ? 'n/a' : num(i.cvdNet) + ' (' + i.cvdTrend + ')'}`,
     `liq L/S ${num(i.liqLongTotal)}/${num(i.liqShortTotal)} (imb ${num(i.liqImbalance)})`,
     `funding ${i.funding == null ? 'n/a' : i.funding}`,
+    i.squeeze
+      ? `Squeeze ${i.squeeze.on ? 'ON' : 'OFF'} (mom ${i.squeeze.momentum == null ? 'n/a' : num(i.squeeze.momentum) + ' ' + i.squeeze.momentumState})`
+      : 'Squeeze n/a',
+    i.pivots
+      ? `Pivots PP=${num(i.pivots.pp)} R1/2/3=${num(i.pivots.r1)}/${num(i.pivots.r2)}/${num(i.pivots.r3)} S1/2/3=${num(i.pivots.s1)}/${num(i.pivots.s2)}/${num(i.pivots.s3)}`
+      : 'Pivots n/a',
+    i.pressure
+      ? `Pressure ${i.pressure.bias >= 0 ? '+' : ''}${num(i.pressure.bias)} (${i.pressure.state} ${(i.pressure.buyShare * 100).toFixed(0)}% buy)`
+      : 'Pressure n/a',
   ];
   return parts.join(' · ');
 }
