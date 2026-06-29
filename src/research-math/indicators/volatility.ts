@@ -66,3 +66,68 @@ export function bollinger(values: readonly number[], period: number, k: number):
   }
   return out;
 }
+
+export function linregEndpoint(values: readonly (number | null)[], period: number): (number | null)[] {
+  const n = values.length;
+  const out: (number | null)[] = new Array(n).fill(null);
+  if (period <= 0) return out;
+  let sumX = 0, sumXX = 0;
+  for (let x = 0; x < period; x++) { sumX += x; sumXX += x * x; }
+  const denom = period * sumXX - sumX * sumX;
+  for (let i = period - 1; i < n; i++) {
+    let sumY = 0, sumXY = 0, ok = true;
+    for (let j = 0; j < period; j++) {
+      const v = values[i - period + 1 + j];
+      if (v == null) { ok = false; break; }
+      sumY += v; sumXY += j * v;
+    }
+    if (!ok) continue;
+    if (denom === 0) { out[i] = sumY / period; continue; }
+    const slope = (period * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / period;
+    out[i] = intercept + slope * (period - 1);
+  }
+  return out;
+}
+
+export interface SqueezePoint { on: boolean; momentum: number | null; }
+
+export function squeeze(
+  highs: readonly number[], lows: readonly number[], closes: readonly number[],
+  period: number, bbK: number, kcMult: number,
+): (SqueezePoint | null)[] {
+  const n = closes.length;
+  const out: (SqueezePoint | null)[] = new Array(n).fill(null);
+  if (period <= 0) return out;
+  const mid = sma(closes, period);
+  const atrArr = atr(highs, lows, closes, period);
+  // rolling population stddev of closes (matches bollinger: sumSq/period − m²)
+  let sum = 0, sumSq = 0;
+  const sd: (number | null)[] = new Array(n).fill(null);
+  for (let i = 0; i < n; i++) {
+    sum += closes[i]!; sumSq += closes[i]! * closes[i]!;
+    if (i >= period) { sum -= closes[i - period]!; sumSq -= closes[i - period]! * closes[i - period]!; }
+    if (i >= period - 1) {
+      const m = sum / period;
+      sd[i] = Math.sqrt(Math.max(sumSq / period - m * m, 0));
+    }
+  }
+  // TTM momentum input series d[i] = close − ½·(½·(HH+LL) + SMA)
+  const d: (number | null)[] = new Array(n).fill(null);
+  for (let i = period - 1; i < n; i++) {
+    let hh = -Infinity, ll = Infinity;
+    for (let j = i - period + 1; j <= i; j++) { if (highs[j]! > hh) hh = highs[j]!; if (lows[j]! < ll) ll = lows[j]!; }
+    const m = mid[i];
+    if (m == null) continue;
+    d[i] = closes[i]! - 0.5 * (0.5 * (hh + ll) + m);
+  }
+  const mom = linregEndpoint(d, period);
+  for (let i = 0; i < n; i++) {
+    const m = mid[i], s = sd[i], a = atrArr[i];
+    if (m == null || s == null || a == null) continue; // on needs BB + ATR
+    const bbUpper = m + bbK * s, bbLower = m - bbK * s;
+    const kcUpper = m + kcMult * a, kcLower = m - kcMult * a;
+    out[i] = { on: bbUpper < kcUpper && bbLower > kcLower, momentum: mom[i] ?? null };
+  }
+  return out;
+}
