@@ -66,3 +66,19 @@ export function liquidationAggregates(
   const imbalance = longTotal != null && shortTotal != null && lt + st !== 0 ? (lt - st) / (lt + st) : null;
   return { longTotal, shortTotal, imbalance };
 }
+
+export interface PivotLevels { pp: number; r1: number; r2: number; r3: number; s1: number; s2: number; s3: number; }
+
+export function pivots(high: number, low: number, close: number): PivotLevels {
+  const pp = (high + low + close) / 3;
+  const range = high - low;
+  return {
+    pp,
+    r1: 2 * pp - low,
+    s1: 2 * pp - high,
+    r2: pp + range,
+    s2: pp - range,
+    r3: high + 2 * (pp - low),
+    s3: low - 2 * (high - pp),
+  };
+}

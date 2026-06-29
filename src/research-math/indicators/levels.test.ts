@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { swingHighLow, fibonacci, cvd, oiDelta, pctChangeOverWindow, liquidationAggregates } from './levels.ts';
+import { swingHighLow, fibonacci, cvd, oiDelta, pctChangeOverWindow, liquidationAggregates, pivots } from './levels.ts';
 
 describe('fibonacci', () => {
   it('places 0 at the high, 1 at the low, 0.5 at the midpoint', () => {
@@ -34,5 +34,34 @@ describe('oiDelta + pctChangeOverWindow', () => {
 describe('liquidationAggregates', () => {
   it('sums sides and computes imbalance', () => {
     expect(liquidationAggregates([50, null], [30, 20])).toEqual({ longTotal: 50, shortTotal: 50, imbalance: 0 });
+  });
+});
+
+describe('pivots', () => {
+  it('computes classic floor pivots from a known H/L/C', () => {
+    const p = pivots(110, 90, 105);
+    expect(p.pp).toBeCloseTo(101.6667, 4);
+    expect(p.r1).toBeCloseTo(113.3333, 4);
+    expect(p.s1).toBeCloseTo(93.3333, 4);
+    expect(p.r2).toBeCloseTo(121.6667, 4);
+    expect(p.s2).toBeCloseTo(81.6667, 4);
+    expect(p.r3).toBeCloseTo(133.3333, 4);
+    expect(p.s3).toBeCloseTo(73.3333, 4);
+  });
+
+  it('orders levels S3<S2<S1<PP<R1<R2<R3 for a normal bar', () => {
+    const p = pivots(110, 90, 105);
+    expect(p.s3).toBeLessThan(p.s2);
+    expect(p.s2).toBeLessThan(p.s1);
+    expect(p.s1).toBeLessThan(p.pp);
+    expect(p.pp).toBeLessThan(p.r1);
+    expect(p.r1).toBeLessThan(p.r2);
+    expect(p.r2).toBeLessThan(p.r3);
+  });
+
+  it('produces finite values on a degenerate H==L==C bar', () => {
+    const p = pivots(100, 100, 100);
+    for (const v of Object.values(p)) expect(Number.isFinite(v)).toBe(true);
+    expect(p.pp).toBe(100);
   });
 });
