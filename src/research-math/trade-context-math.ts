@@ -14,6 +14,8 @@ export interface TradeContextMath {
   readonly realizedPnl: number; readonly pnlPct: number | null; readonly closeReason: string | null;
   readonly atEntry: readonly TermMath[];
   readonly atExit: readonly TermMath[];
+  readonly atPostExit: readonly TermMath[];
+  readonly postExitMs: number | null;
   readonly microRows: readonly TermMathRow[];
   readonly notes: readonly string[];
 }
@@ -25,47 +27,48 @@ export interface TradeContextMathInput {
   readonly realizedPnl: number; readonly pnlPct: number | null; readonly closeReason: string | null;
   readonly direction: Direction; readonly regime: MarketRegime;
   readonly requiredFeatures: readonly string[];
-  readonly microTableRows?: number;
 }
 
 export function buildTradeContextMath(input: TradeContextMathInput, nowMs: number): TradeContextMath {
   const { rows } = input;
-  const microTableRows = input.microTableRows ?? 10;
   const head = {
     tradeId: input.tradeId, symbol: input.symbol, entryMs: input.entryMs, exitMs: input.exitMs,
     realizedPnl: input.realizedPnl, pnlPct: input.pnlPct, closeReason: input.closeReason,
   };
 
   if (rows.length === 0) {
-    return { ...head, atEntry: [], atExit: [], microRows: [], notes: ['No market history rows for this trade window.'] };
+    return { ...head, atEntry: [], atExit: [], atPostExit: [], postExitMs: null, microRows: [], notes: ['No market history rows for this trade window.'] };
   }
 
   const fromMs = rows[0]!.minute_ts;
+  const postExitMs = rows[rows.length - 1]!.minute_ts;
+  // Retain enough micro bars (local to this call) for the [exit−10m, postExitMs] table window.
+  const terms = TRADE_TERM_CONFIGS.map((c) =>
+    c.key === 'micro' ? { ...c, maxRows: Math.max(c.maxRows, rows.length) } : c);
   const baseInput = {
     symbol: input.symbol, direction: input.direction, regime: input.regime,
-    requiredFeatures: input.requiredFeatures, terms: TRADE_TERM_CONFIGS,
+    requiredFeatures: input.requiredFeatures, terms,
   };
 
-  // Slice rows to the snapshot bar (ascending minute_ts); fallback to first row.
-  // The engine does NOT filter by window.toMs — caller must pre-slice.
   let entryIdx = 0;
   for (let i = 0; i < rows.length; i++) { if (rows[i]!.minute_ts <= input.entryMs) entryIdx = i; else break; }
   let exitIdx = 0;
   for (let i = 0; i < rows.length; i++) { if (rows[i]!.minute_ts <= input.exitMs) exitIdx = i; else break; }
 
-  const atEntryMath = buildMarketContextMath(
-    { ...baseInput, rows: rows.slice(0, entryIdx + 1), window: { fromMs, toMs: input.entryMs } }, nowMs);
-  const atExitMath = buildMarketContextMath(
-    { ...baseInput, rows: rows.slice(0, exitIdx + 1), window: { fromMs, toMs: input.exitMs } }, nowMs);
+  const atEntryMath = buildMarketContextMath({ ...baseInput, rows: rows.slice(0, entryIdx + 1), window: { fromMs, toMs: input.entryMs } }, nowMs);
+  const atExitMath = buildMarketContextMath({ ...baseInput, rows: rows.slice(0, exitIdx + 1), window: { fromMs, toMs: input.exitMs } }, nowMs);
+  const atPostExitMath = buildMarketContextMath({ ...baseInput, rows, window: { fromMs, toMs: postExitMs } }, nowMs);
 
-  const microExit = atExitMath.terms.find((t) => t.config.key === 'micro');
-  const microRows = microExit ? microExit.rows.slice(-microTableRows) : [];
+  const preMs = 10 * 60_000;
+  const microPost = atPostExitMath.terms.find((t) => t.config.key === 'micro');
+  const microRows = microPost ? microPost.rows.filter((r) => r.tsMs >= input.exitMs - preMs && r.tsMs <= postExitMs) : [];
 
   const entryKeys = new Set(atEntryMath.terms.map((t) => t.config.key));
   const warmupNotes = atExitMath.terms
     .filter((t) => !entryKeys.has(t.config.key))
     .map((t) => `Term ${t.config.label} unavailable at entry: insufficient warmup before the trade.`);
-  const notes = Array.from(new Set([...atEntryMath.notes, ...atExitMath.notes, ...warmupNotes]));
+  const postNotes = postExitMs <= input.exitMs ? ['No post-exit market data: tail window empty.'] : [];
+  const notes = Array.from(new Set([...atEntryMath.notes, ...atExitMath.notes, ...atPostExitMath.notes, ...warmupNotes, ...postNotes]));
 
-  return { ...head, atEntry: atEntryMath.terms, atExit: atExitMath.terms, microRows, notes };
+  return { ...head, atEntry: atEntryMath.terms, atExit: atExitMath.terms, atPostExit: atPostExitMath.terms, postExitMs, microRows, notes };
 }

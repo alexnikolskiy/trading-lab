@@ -122,11 +122,13 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   {
     const parsedWarmup = Number(process.env.TRADE_CONTEXT_WARMUP_MIN ?? '150');
     const warmupMin = Number.isFinite(parsedWarmup) && parsedWarmup > 0 ? parsedWarmup : 150;
+    const parsedTail = Number(process.env.TRADE_CONTEXT_TAIL_MIN ?? '60');
+    const tailMin = Number.isFinite(parsedTail) && parsedTail > 0 ? parsedTail : 60;
     for (const t of suspicious) {
       if (t.closedAtMs == null) continue;
       try {
         const fromMs = t.openedAtMs - warmupMin * 60_000;
-        const rows = await services.marketHistory.getRows({ symbol: t.symbol, fromMs, toMs: t.closedAtMs });
+        const rows = await services.marketHistory.getRows({ symbol: t.symbol, fromMs, toMs: t.closedAtMs + tailMin * 60_000 });
         const pnlPctNum = Number(t.pnlPct);
         const realizedPnlNum = Number(t.realizedPnl);
         tradeContexts.push(buildTradeContextMath({
