@@ -44,7 +44,7 @@ function event(taskId: string, type: string, payload: Record<string, unknown>) {
   return { id: randomUUID(), taskId, type, payload, createdAt: new Date().toISOString() };
 }
 
-function selectSuspiciousTradeIds(botResults: readonly BotRunResultDetail[], limit = TRADE_EVIDENCE_MAX): string[] {
+function selectSuspiciousTrades(botResults: readonly BotRunResultDetail[], limit = TRADE_EVIDENCE_MAX): ClosedTrade[] {
   return botResults
     .flatMap((detail) => detail.trades)
     .filter((trade) => Number(trade.realizedPnl) < 0)
@@ -53,8 +53,7 @@ function selectSuspiciousTradeIds(botResults: readonly BotRunResultDetail[], lim
       Number(a.realizedPnl) - Number(b.realizedPnl)
       || ((b.closedAtMs ?? 0) - b.openedAtMs) - ((a.closedAtMs ?? 0) - a.openedAtMs)
       || a.tradeId.localeCompare(b.tradeId))
-    .slice(0, limit)
-    .map((trade) => trade.tradeId);
+    .slice(0, limit);
 }
 
 export const researchRunCycleHandler: WorkflowHandler = async (task, services) => {
@@ -103,12 +102,13 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
     await services.events.append(event(task.id, 'researcher.bot_results_unavailable', { error: errMsg(err) }));
   }
 
+  const suspicious = selectSuspiciousTrades(botResults);
+
   let tradeEvidence: readonly TradeEvidenceBundle[] = [];
   try {
-    const tradeIds = selectSuspiciousTradeIds(botResults);
-    if (tradeIds.length > 0) {
+    if (suspicious.length > 0) {
       tradeEvidence = await services.tradeEvidence.getTradeEvidence({
-        tradeIds,
+        tradeIds: suspicious.map((t) => t.tradeId),
         minuteWindowBefore: 20,
         minuteWindowAfter: 180,
       });
@@ -122,22 +122,22 @@ export const researchRunCycleHandler: WorkflowHandler = async (task, services) =
   {
     const parsedWarmup = Number(process.env.TRADE_CONTEXT_WARMUP_MIN ?? '150');
     const warmupMin = Number.isFinite(parsedWarmup) && parsedWarmup > 0 ? parsedWarmup : 150;
-    for (const b of tradeEvidence) {
-      if (b.closedAtMs == null) continue;
+    for (const t of suspicious) {
+      if (t.closedAtMs == null) continue;
       try {
-        const fromMs = b.enteredAtMs - warmupMin * 60_000;
-        const rows = await services.marketHistory.getRows({ symbol: b.symbol, fromMs, toMs: b.closedAtMs });
-        const pnlPctNum = Number(b.pnlPct);
-        const realizedPnlNum = Number(b.realizedPnl);
+        const fromMs = t.openedAtMs - warmupMin * 60_000;
+        const rows = await services.marketHistory.getRows({ symbol: t.symbol, fromMs, toMs: t.closedAtMs });
+        const pnlPctNum = Number(t.pnlPct);
+        const realizedPnlNum = Number(t.realizedPnl);
         tradeContexts.push(buildTradeContextMath({
-          tradeId: b.tradeId, symbol: b.symbol, rows,
-          entryMs: b.enteredAtMs, exitMs: b.closedAtMs,
+          tradeId: t.tradeId, symbol: t.symbol, rows,
+          entryMs: t.openedAtMs, exitMs: t.closedAtMs,
           realizedPnl: Number.isFinite(realizedPnlNum) ? realizedPnlNum : 0, pnlPct: Number.isFinite(pnlPctNum) ? pnlPctNum : null,
-          closeReason: b.closeReason,
+          closeReason: t.closeReason ?? null,
           direction: profile.direction, regime: marketRegime, requiredFeatures: profile.requiredMarketFeatures,
         }, Date.now()));
       } catch (err) {
-        await services.events.append(event(task.id, 'researcher.trade_context_unavailable', { tradeId: b.tradeId, error: errMsg(err) }));
+        await services.events.append(event(task.id, 'researcher.trade_context_unavailable', { tradeId: t.tradeId, error: errMsg(err) }));
       }
     }
   }
