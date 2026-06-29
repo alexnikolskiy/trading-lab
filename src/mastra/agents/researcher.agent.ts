@@ -1,10 +1,11 @@
 import { Agent } from '@mastra/core/agent';
 import type { ProviderModel } from '../../adapters/llm/model-provider.ts';
 import { OVERLAY_ACTIONS, LAB_FEATURE_CATALOG } from '../../domain/hypothesis-rules.ts';
+import { RESEARCHER_CAPABILITIES } from './researcher-capabilities.ts';
 
 export const RESEARCHER_AGENT_ID = 'researcher';
 
-const INSTRUCTIONS = [
+const BASE_INSTRUCTIONS = [
   'You are a quantitative trading researcher.',
   'Given a strategy profile and market context, propose FALSIFIABLE hypotheses as overlay intents.',
   'Each hypothesis must change a specific behavior of the base strategy and be testable by backtest.',
@@ -16,6 +17,8 @@ const INSTRUCTIONS = [
   'Respect the requested maximum number of hypotheses.',
 ].join(' ');
 
+export const RESEARCHER_INSTRUCTIONS = `${BASE_INSTRUCTIONS}\n\n${RESEARCHER_CAPABILITIES}`;
+
 export function createResearcherAgent(model: ProviderModel): Agent {
-  return new Agent({ id: RESEARCHER_AGENT_ID, name: 'Researcher', instructions: INSTRUCTIONS, model });
+  return new Agent({ id: RESEARCHER_AGENT_ID, name: 'Researcher', instructions: RESEARCHER_INSTRUCTIONS, model });
 }
