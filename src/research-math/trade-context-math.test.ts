@@ -39,11 +39,31 @@ describe('buildTradeContextMath', () => {
     expect(exMicro.indicators.close).toBeCloseTo(rows[240]!.close, 9);   // snapshot AS OF exit bar
   });
 
-  it('returns the last micro rows through exit as microRows (default 10)', () => {
+  it('re-anchors microRows to [exit−10m, exit+tail] (spans the exit through the tail)', () => {
+    const rows = series(260, true); // 1m, ts 0..259*MIN; exit 240 → tail rows 241..259
+    const tc = buildTradeContextMath({ ...base, rows, entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
+    expect(tc.microRows.length).toBe(30);                 // [230*MIN .. 259*MIN] inclusive
+    expect(tc.microRows[0]!.tsMs).toBe(230 * MIN);        // exit − 10m
+    expect(tc.microRows.at(-1)!.tsMs).toBe(259 * MIN);    // last bar = exit + tail
+    expect(tc.microRows.some((r) => r.tsMs === 240 * MIN)).toBe(true); // exit bar present
+  });
+
+  it('adds a post-exit snapshot distinct from the exit snapshot on a trending tail', () => {
     const rows = series(260, true);
     const tc = buildTradeContextMath({ ...base, rows, entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
-    expect(tc.microRows.length).toBe(10);
-    expect(tc.microRows.at(-1)!.tsMs).toBe(240 * MIN); // last bar at/through exit
+    expect(tc.postExitMs).toBe(259 * MIN);
+    const postMicro = tc.atPostExit.find((t) => t.config.key === 'micro')!;
+    const exitMicro = tc.atExit.find((t) => t.config.key === 'micro')!;
+    expect(postMicro).toBeDefined();
+    expect(postMicro.indicators.close).toBeCloseTo(rows[259]!.close, 9); // snapshot at exit+tail bar
+    expect(postMicro.indicators.close).not.toBeCloseTo(exitMicro.indicators.close, 9); // ≠ exit snapshot
+  });
+
+  it('marks no post-exit data when the window ends at the exit bar', () => {
+    const rows = series(241, true); // ts 0..240*MIN; exit at 240 → last bar IS exit, no tail
+    const tc = buildTradeContextMath({ ...base, rows, entryMs: 200 * MIN, exitMs: 240 * MIN }, 0);
+    expect(tc.postExitMs).toBe(240 * MIN);
+    expect(tc.notes.some((n) => /no post-exit/i.test(n))).toBe(true);
   });
 
   it('drops a term unavailable at entry for insufficient warmup, with a note', () => {
@@ -67,6 +87,8 @@ describe('buildTradeContextMath', () => {
     const tc = buildTradeContextMath({ ...base, rows: [], entryMs: 0, exitMs: MIN }, 0);
     expect(tc.atEntry).toEqual([]);
     expect(tc.atExit).toEqual([]);
+    expect(tc.atPostExit).toEqual([]);
+    expect(tc.postExitMs).toBeNull();
     expect(tc.microRows).toEqual([]);
     expect(tc.notes.length).toBeGreaterThan(0);
   });
