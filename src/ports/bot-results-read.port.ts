@@ -2,6 +2,7 @@ import type {
   BotRunRecord,
   ClosedTrade,
   ClosedTradesAggregate,
+  CloseReason,
   RunSummary,
   BotMode,
   BotRunStatus,
@@ -15,7 +16,7 @@ import type {
 // Re-export the SDK /ops-read DTOs through the port so adapters depend on lab-local port types,
 // not the SDK directly (enforced by sdk-import-boundary.guard.test.ts).
 export type {
-  BotRunRecord, ClosedTrade, ClosedTradesAggregate, RunSummary,
+  BotRunRecord, ClosedTrade, ClosedTradesAggregate, CloseReason, RunSummary,
   BotMode, BotRunStatus, TradeSide, BotRunStrategyRef,
   OpsSeverity, OperationalEvent, DecisionLogEntry,
 };

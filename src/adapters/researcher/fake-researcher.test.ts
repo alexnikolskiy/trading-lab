@@ -23,6 +23,7 @@ function input(maxHypotheses: number): ResearcherInput {
     marketRegime: 'ranging',
     similarHypotheses: [],
     maxHypotheses,
+    focus: 'loss_reduction',
   };
 }
 
@@ -59,6 +60,7 @@ const inputWithBotResults = (botResults?: readonly BotRunResultDetail[]): Resear
   similarHypotheses: [],
   ...(botResults ? { botResults } : {}),
   maxHypotheses: 2,
+  focus: 'loss_reduction',
 });
 
 describe('FakeResearcher botResults reflection', () => {
@@ -69,5 +71,16 @@ describe('FakeResearcher botResults reflection', () => {
     expect(out0.researchSummary).toContain('botResults: 0');
     expect(out2.researchSummary).toContain('botResults: 2');
     expect(out0.hypotheses.length).toBe(out2.hypotheses.length); // count not branched on botResults
+  });
+});
+
+describe('FakeResearcher focus', () => {
+  it('tags its summary with the focus and varies profit theses', async () => {
+    const r = new FakeResearcher();
+    const loss = await r.propose({ ...input(2), focus: 'loss_reduction' });
+    const profit = await r.propose({ ...input(2), focus: 'profit_improvement' });
+    expect(loss.researchSummary).toMatch(/loss_reduction/);
+    expect(profit.researchSummary).toMatch(/profit_improvement/);
+    expect(profit.hypotheses[0]?.thesis ?? '').toMatch(/exit|profit/i);
   });
 });

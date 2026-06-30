@@ -61,3 +61,13 @@ describe('hypothesisFingerprint', () => {
     expect(a).toBe(b);
   });
 });
+
+describe('HypothesisProposal.origin', () => {
+  it('accepts an optional researcher-focus origin', () => {
+    const p = { origin: 'profit_improvement' } as Pick<
+      import('./hypothesis.ts').HypothesisProposal,
+      'origin'
+    >;
+    expect(p.origin).toBe('profit_improvement');
+  });
+});

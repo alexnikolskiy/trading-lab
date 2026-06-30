@@ -31,13 +31,14 @@ const baseInput: ResearcherInput = {
   marketRegime: 'ranging',
   similarHypotheses: [],
   maxHypotheses: 2,
+  focus: 'loss_reduction',
 };
 
 const detail: BotRunResultDetail = {
   run: { runId: 'r1', mode: 'paper', status: 'finished', strategy: { name: 's', version: '1' }, startedAtMs: 1, finishedAtMs: 2, lastSeenMs: 2, symbols: ['BTCUSDT'] },
   summary: { runId: 'r1', excludesReconcile: true, asOf: 2, closedTrades: 2, wins: 1, losses: 1, breakeven: 0, winratePct: 50, pnlUsd: '7.5', avgPnl: '3.75', exitReasons: { tp: 1, stop_loss: 1 } },
   trades: [
-    { tradeId: 't1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 60_001, realizedPnl: '-5', pnlPct: '-0.5', isWin: false, closeReason: 'stop_loss' },
+    { tradeId: 't1', runId: 'r1', symbol: 'BTCUSDT', side: 'long', openedAtMs: 1, closedAtMs: 60_001, realizedPnl: '-5', pnlPct: '-0.5', isWin: false, closeReason: 'stop_loss', entryPrice: null, exitPrice: null, closeReasonRaw: null },
   ],
 };
 
@@ -172,6 +173,7 @@ describe('MastraResearcher.propose – tracingOptions forwarding', () => {
     const input: ResearcherInput = {
       profile, marketContext: { symbol: 'BTCUSDT', ts: '2026-01-01T00:00:00Z', features: { oi: 1 } },
       marketRegime: 'capitulation', similarHypotheses: [], maxHypotheses: 2,
+      focus: 'loss_reduction',
     };
     const out = await new MastraResearcher(createResearcherAgent(model), label).propose(input);
     expect(ResearcherOutputSchema.safeParse(out).success).toBe(true);
@@ -206,5 +208,67 @@ describe('buildPrompt per-trade context', () => {
   it('omits per-trade sections when tradeContexts is absent', () => {
     const prompt = buildPrompt(baseInput);
     expect(prompt).not.toContain('## Per-trade context');
+  });
+});
+
+describe('buildPrompt focus branching', () => {
+  it('loss_reduction renders similar hypotheses + forensic; profit_improvement omits them', () => {
+    const loss = buildPrompt({ ...baseInput, focus: 'loss_reduction',
+      similarHypotheses: [{ hypothesisId: 'h', thesis: 'old idea', status: 'validated', score: 1 }] });
+    expect(loss).toMatch(/Similar past hypotheses/);
+
+    const profit = buildPrompt({ ...baseInput, focus: 'profit_improvement',
+      similarHypotheses: [{ hypothesisId: 'h', thesis: 'old idea', status: 'validated', score: 1 }] });
+    expect(profit).not.toMatch(/Similar past hypotheses/);
+    expect(profit).toMatch(/PROFIT IMPROVEMENT/);
+    expect(profit).toMatch(/trail/i);
+  });
+
+  it('both passes carry the profile-critical framing and render active overlay rules', () => {
+    const rules = [{ thesis: 'skip when oi flat', ruleAction: { appliesTo: 'long' as const,
+      rules: [{ when: 'oi flat', action: 'skip_entry' as const, params: {} }] }, status: 'validated' as const }];
+    for (const focus of ['loss_reduction', 'profit_improvement'] as const) {
+      const p = buildPrompt({ ...baseInput, focus, activeOverlayRules: rules });
+      expect(p).toMatch(/BE CRITICAL OF THE PROFILE/);
+      expect(p).toMatch(/Active overlay rules/);
+      expect(p).toMatch(/skip when oi flat/);
+    }
+  });
+
+  it('degrades to no active overlay rules', () => {
+    const p = buildPrompt({ ...baseInput, focus: 'loss_reduction', activeOverlayRules: [] });
+    expect(p).toMatch(/no active overlay rules yet/i);
+  });
+});
+
+describe('buildPrompt trade-context header by focus', () => {
+  const MIN = 60_000;
+  function rows(): CanonicalRowV2[] {
+    return Array.from({ length: 260 }, (_, i) => ({
+      schema_version: 2, minute_ts: i * MIN, symbol: 'BTCUSDT',
+      open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i, volume: 10, turnover: (100 + i) * 10,
+      oi_total_usd: 1000 + i, funding_rate: 0.0001, liq_long_usd: 1, liq_short_usd: 2,
+      taker_buy_volume_usd: 6, taker_sell_volume_usd: 4,
+      has_oi: true, has_funding: true, has_liquidations: true, has_taker_flow: true,
+    } as CanonicalRowV2));
+  }
+  function tc() {
+    return buildTradeContextMath({
+      tradeId: 'tr1', symbol: 'BTCUSDT', rows: rows(), entryMs: 200 * MIN, exitMs: 240 * MIN,
+      realizedPnl: -12, pnlPct: -1.5, closeReason: 'stop_loss',
+      direction: 'long', regime: 'ranging', requiredFeatures: ['oi'],
+    }, 0);
+  }
+
+  it('loss_reduction renders "(losing trades)" header for per-trade context', () => {
+    const prompt = buildPrompt({ ...baseInput, focus: 'loss_reduction', tradeContexts: [tc()] });
+    expect(prompt).toContain('## Per-trade context (losing trades)');
+    expect(prompt).not.toContain('(winning trades)');
+  });
+
+  it('profit_improvement renders "(winning trades)" header for per-trade context', () => {
+    const prompt = buildPrompt({ ...baseInput, focus: 'profit_improvement', tradeContexts: [tc()] });
+    expect(prompt).toContain('## Per-trade context (winning trades)');
+    expect(prompt).not.toContain('(losing trades)');
   });
 });

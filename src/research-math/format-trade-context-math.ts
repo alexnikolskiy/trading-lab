@@ -34,8 +34,8 @@ export function formatTradeContextMath(tc: TradeContextMath): string {
   return lines.join('\n');
 }
 
-export function formatTradeContexts(tcs: readonly TradeContextMath[]): string {
+export function formatTradeContexts(tcs: readonly TradeContextMath[], kind: 'losing' | 'winning' = 'losing'): string {
   if (tcs.length === 0) return '';
-  return ['## Per-trade context (losing trades)', '', ...tcs.map((tc) => formatTradeContextMath(tc) + '\n')]
+  return [`## Per-trade context (${kind} trades)`, '', ...tcs.map((tc) => formatTradeContextMath(tc) + '\n')]
     .join('\n').trimEnd() + '\n';
 }
