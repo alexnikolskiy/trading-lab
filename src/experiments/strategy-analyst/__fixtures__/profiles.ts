@@ -79,9 +79,6 @@ export const RU_PROFILE: AnalystProfileOutput = {
   positionManagementSummary: 'Усреднение (DCA) до двух доливок; перенос стопа в безубыток после TP1.',
 };
 
-// TODO(task5/6): remove once researcher/fixtures.ts + strategy-critic/eval-harness.test.ts move to CODE_LONG_OI_PROFILE
-export const GOOD_LONG_OI_PROFILE = CLEAN_LONG_OI_BASE;
-
 /** A strong short-after-pump profile that should PASS scoreCompleteness for expectedDirection 'short'. */
 export const GOOD_SHORT_PUMP_PROFILE: AnalystProfileOutput = {
   direction: 'short',
