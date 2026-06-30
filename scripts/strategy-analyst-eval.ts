@@ -98,7 +98,7 @@ async function main(): Promise<number> {
   }
 
   const result = await runEval(
-    { models: args.models, fixtureId: fixture.id, fixtureText, fixtureFingerprint: fingerprintSource(fixtureText), threshold: args.threshold, repeat: args.repeat, direction: fixture.direction },
+    { models: args.models, fixtureId: fixture.id, fixtureText, fixtureFingerprint: fingerprintSource(fixtureText), threshold: args.threshold, repeat: args.repeat, direction: fixture.direction, sourceKind: inputKind },
     {
       analystFor: buildRealAnalystFor(env),
       providerOf: (m) => { const r = parseRoleModel(env, m); return { provider: r.provider, modelId: r.modelId }; },
