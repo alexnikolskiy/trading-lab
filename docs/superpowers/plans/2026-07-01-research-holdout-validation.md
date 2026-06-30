@@ -1926,7 +1926,7 @@ Keep the single-backtest `runPlatformBacktest(...)` call for the non-initial bra
 - Spec §3.4 `experiment_key` idempotency → Task 11 + Task 12. ✓
 - Spec §4.2 resolver (all edge cases) → Task 7. ✓
 - Spec §4.3 `RunTradesPort` + manifest-based ref lookup → Task 8. ✓
-- Spec §5 flow + resumability (skip-by-role) → Task 12; §5.0 BacktestRun persistence via executor → Task 12b. ✓
+- Spec §5 flow (terminal single-pass; completed-experiment idempotency; pending→INCONCLUSIVE; async/per-role resume deferred) → Task 12; §5.0 BacktestRun persistence via executor (submit→createSubmitted→poll→mark) → Task 12b. ✓
 - Spec §6.1 composite evaluator + §6.3 sanity-as-gate + §6.4 low-confidence-not-paper → Task 10 + Task 12. ✓
 - Spec §6.5 half-open encoding + `period.to` verify → Task 0.1 + Task 9. ✓
 - Spec §7 read API → Task 5. ✓
