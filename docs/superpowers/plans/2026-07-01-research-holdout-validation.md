@@ -33,13 +33,14 @@ No production code. Record findings in a scratch note and in this plan's relevan
 
 - [ ] **0.3 — `runOverlayBacktest` signature + new-strategy call site.** In **trading-lab**: (a) read `src/research/run-backtest.ts` and record the exact signature + return type of `runOverlayBacktest` and `pollOverlayRun`, and the `PlatformRunOutcome` union (`completed | pending | rejected`) with the fields available on the `completed` branch (`runId`, `summary`/`comparison`). (b) Read `src/orchestrator/handlers/hypothesis-build.handler.ts` and identify the discriminator that distinguishes an **initial new-strategy validation** build from a hypothesis-retry / Cycle-2 build (e.g. `attempt === 1`, absence of a prior hypothesis, a `taskType`/payload field). Record the exact field used; it drives Task 13's reroute. Record the exact `backtests` repository method names/signatures (`createSubmitted`, `markCompleted`, `markEvaluated`, `findById`) from `src/ports/backtest-run.repository.ts`.
 
-- [ ] **0.4 — Commit the investigation note.**
+- [ ] **0.4 — Commit the investigation note.** First write the findings, then stage, then commit:
 ```bash
 mkdir -p docs/superpowers/notes
+# 1) Write 0.1–0.3 findings into docs/superpowers/notes/2026-07-01-holdout-investigation.md
+# 2) then:
 git add docs/superpowers/notes/2026-07-01-holdout-investigation.md
 git commit -m "docs(research): record holdout-flow investigation findings (period.to, SDK paging, call site)"
 ```
-Write the three findings into `docs/superpowers/notes/2026-07-01-holdout-investigation.md`.
 
 ---
 
@@ -1202,7 +1203,7 @@ export function encodeHoldoutPeriod(t: string, to: string): { from: string; to: 
 - Test: `src/validation/experiment-evaluator.test.ts`
 
 **Interfaces:**
-- Consumes: the typed `ComparisonSummary` from `src/ports/platform-gateway.port.ts` (read it for the exact `BacktestMetricBlock` fields: `netPnlUsd, totalTrades, winRate, profitFactor, maxDrawdownPct, sharpe, topTradeContributionPct`, plus `deltas`); `evaluateBacktest` + `DEFAULT_EVALUATOR_THRESHOLDS` + `EvaluationDecision` from `src/validation/evaluator.ts`; `HoldoutBoundary`, `ExperimentFlags`, `ExperimentVerdict` from the domain.
+- Consumes: the typed `ComparisonSummary` from `src/ports/platform-gateway.port.ts` (`{ baseline, variant, sampleSize, platformContractVersion }` — there is **no `deltas` field**; the evaluator computes deltas inline from `variant − baseline`); `evaluateBacktest` + `DEFAULT_EVALUATOR_THRESHOLDS` + `EvaluatorThresholds` + `EvaluationDecision` from `src/validation/evaluator.ts`; `HoldoutBoundary`, `ExperimentFlags`, `ExperimentVerdict` from the domain.
 - Produces: `evaluateExperiment(input): ExperimentEvaluationResult`:
   - `input = { train: ComparisonSummary; holdout?: ComparisonSummary; boundary: HoldoutBoundary; thresholds?: EvaluatorThresholds }`
   - returns `{ verdict: ExperimentVerdict; verdictReason?: string; flags: ExperimentFlags; rawScores: Record<string, unknown> }`
@@ -1446,7 +1447,7 @@ Add a third test asserting key-order independence: `computeExperimentKey({ ...ba
 - Consumes: `ResearchExperimentRepository`, `RunTradesPort`, `resolveHoldoutBoundary`, `evaluateExperiment`, `computeExperimentKey`, `encodeTrainPeriod`/`encodeHoldoutPeriod`, and the new **`ExperimentRunExecutor`** port (production impl in Task 12b persists the `BacktestRun` rows per spec §5.0).
 - Produces: the `ExperimentRunExecutor` port + request/result types (`src/research/experiment-run-executor.ts`); `ExperimentService.runNewStrategyValidation(input): Promise<{ experimentId: string; verdict: ExperimentVerdict }>`.
 
-> **Run-execution boundary (resolves spec §5.0 + reviewer #1/#2).** `ExperimentService` never touches the platform/SDK or builds submit options. It delegates each run to an injected `ExperimentRunExecutor`, which (in production, Task 12b) builds `SubmitOverlayRunOptions`, calls `runOverlayBacktest`, **persists the `BacktestRun` via the `backtests` repository**, maps the comparison, and returns `{ status, runId (lab BacktestRun id), platformRunId, comparison?, totalTrades? }`. The executor needs the bundle + baselineRef + identity, so they ride on the request — this is why a bare `runRunner(args:{run,role})` was insufficient. In tests, a `FakeExecutor` returns canned results, isolating `ExperimentService` from the platform.
+> **Run-execution boundary (resolves spec §5.0 + reviewer #1/#2).** `ExperimentService` never touches the platform/SDK or builds submit options. It delegates each run to an injected `ExperimentRunExecutor`, which (in production, Task 12b) builds `SubmitOverlayRunOptions`, runs `submitOverlayRun` → **persists the `BacktestRun` via the `backtests` repository** → `pollOverlayRun` → marks terminal, maps the comparison, and returns `{ status, runId (lab BacktestRun id), platformRunId, comparison?, totalTrades? }`. The executor needs the bundle + baselineRef + identity, so they ride on the request — this is why a bare run-runner over `{run, role}` was insufficient. In tests, a `FakeExecutor` returns canned results, isolating `ExperimentService` from the platform.
 > **Trade fetch uses `platformRunId`, not the lab run id** — `RunTradesPort.getRunTrades` is run-scoped to the backtester (`getArtifactManifest(platformRunId)`). `experiment_run_member.backtestRunId` stores the **lab** `BacktestRun` id.
 
 - [ ] **Step 1: Executor port + types** (`src/research/experiment-run-executor.ts`)
@@ -1463,8 +1464,8 @@ export interface ExperimentRunRequest {
   bundle: ModuleBundle;
   baselineRef: Ref;
   strategyProfileId: string;
-  hypothesisId?: string;
-  buildId?: string;
+  hypothesisId: string;   // REQUIRED — the executor cannot build a BacktestRun without it
+  buildId: string;        // REQUIRED — persisted as BacktestRun.hypothesisBuildId
   run: PlatformRunConfig;            // includes the already-encoded period
   params: Record<string, unknown>;
 }
@@ -1510,8 +1511,8 @@ export interface ExperimentServiceDeps {
 
 export interface RunNewStrategyValidationInput {
   strategyProfileId: string;
-  hypothesisId?: string;
-  buildId?: string;
+  hypothesisId: string;   // REQUIRED for new-strategy validation (initial as-authored hypothesis)
+  buildId: string;        // REQUIRED (the assembled build)
   bundle: ModuleBundle;
   baselineRef: Ref;
   datasetScope: DatasetScope;
@@ -1577,7 +1578,7 @@ function svc(resultFor: (role: MemberRole) => ExperimentRunResult, tradesByRun: 
 }
 
 const input = {
-  strategyProfileId: 'p1', buildId: 'b1', bundle, baselineRef,
+  strategyProfileId: 'p1', hypothesisId: 'hyp1', buildId: 'b1', bundle, baselineRef,
   datasetScope: { datasetId: 'd', symbols: ['BTC'], timeframe: '1m', period: { from: '2026-01-01T00:00:00.000Z', to: '2026-04-01T00:00:00.000Z' } },
   runConfig: { datasetId: 'd', symbols: ['BTC'], timeframe: '1m', seed: 1 }, params: {},
 };
@@ -1661,7 +1662,8 @@ describe('ExperimentService.runNewStrategyValidation', () => {
 
     // --- SANITY (gate + trade-distribution source; never the edge verdict) ---
     const sanity = await this.runMember(experimentId, 'sanity', input, { ...input.runConfig, period: fullPeriod });
-    if (sanity.status !== 'completed') return fail('FAIL', 'sanity_failed');
+    if (sanity.status === 'pending') return fail('INCONCLUSIVE', 'run_pending'); // async/resume deferred — terminal INCONCLUSIVE
+    if (sanity.status === 'rejected') return fail('FAIL', 'sanity_failed');
     if ((sanity.totalTrades ?? 0) <= 0) return fail('FAIL', 'sanity_failed');
 
     // --- RESOLVE T (from REAL trades of the sanity run; uses platformRunId) ---
@@ -1673,11 +1675,13 @@ describe('ExperimentService.runNewStrategyValidation', () => {
     // --- TRAIN [from, T) ---
     const trainPeriod = encodeTrainPeriod(fullPeriod.from, boundary.t, input.runConfig.timeframe);
     const train = await this.runMember(experimentId, 'train', input, { ...input.runConfig, period: trainPeriod });
+    if (train.status === 'pending') return fail('INCONCLUSIVE', 'run_pending');
     if (train.status !== 'completed' || !train.comparison) return fail('INCONCLUSIVE', 'train_not_run');
 
     // --- HOLDOUT [T, to] (period.from = T = no-leakage) ---
     const holdoutPeriod = encodeHoldoutPeriod(boundary.t, fullPeriod.to);
     const holdout = await this.runMember(experimentId, 'holdout', input, { ...input.runConfig, period: holdoutPeriod });
+    if (holdout.status === 'pending') return fail('INCONCLUSIVE', 'run_pending');
     const holdoutComparison = holdout.status === 'completed' ? holdout.comparison : undefined;
 
     // --- EVALUATE (composite; sanity excluded) ---
@@ -1697,16 +1701,12 @@ describe('ExperimentService.runNewStrategyValidation', () => {
   }
 
   private async runMember(experimentId: string, role: MemberRole, input: RunNewStrategyValidationInput, run: PlatformRunConfig): Promise<ExperimentRunResult> {
-    // resume: skip if a member with this role already exists (avoid duplicate runs)
-    const existingMember = (await this.d.experiments.listMembers(experimentId)).find((m) => m.role === role);
-    const memberId = existingMember?.id ?? this.d.newId('mem');
-    if (!existingMember) {
-      const member: ExperimentRunMember = {
-        id: memberId, experimentId, role, periodFrom: run.period.from, periodTo: run.period.to,
-        symbols: [...run.symbols], paramsHash: '', bundleHash: input.bundle.bundleHash, createdAt: this.d.now(),
-      };
-      await this.d.experiments.addMember(member);
-    }
+    const memberId = this.d.newId('mem');
+    const member: ExperimentRunMember = {
+      id: memberId, experimentId, role, periodFrom: run.period.from, periodTo: run.period.to,
+      symbols: [...run.symbols], paramsHash: '', bundleHash: input.bundle.bundleHash, createdAt: this.d.now(),
+    };
+    await this.d.experiments.addMember(member);
     const outcome = await this.d.runExecutor.execute({
       experimentId, role, bundle: input.bundle, baselineRef: input.baselineRef,
       strategyProfileId: input.strategyProfileId, hypothesisId: input.hypothesisId, buildId: input.buildId,
@@ -1720,7 +1720,8 @@ describe('ExperimentService.runNewStrategyValidation', () => {
   }
 ```
 
-> `member.paramsHash` is left `''` (the executor computes/persists the real run identity on the `BacktestRun`). If a member-level hash is wanted later, compute it from `run` with the same util as `computeParamsHash`. Not required for correctness.
+> **Resume scope (this 🟢 block).** Idempotency is at the **completed-experiment** level only: `findByKey` returns a `completed` experiment without re-running. The flow runs to a terminal state in a single pass — a `pending` run (e.g. demo WSL2 async) finalizes the experiment as terminal `INCONCLUSIVE`/`run_pending` (no paper, collect data later), NOT a half-finished experiment. Per-role mid-flight resume + async webhook re-invoke are **deferred** (out of scope, matches spec §5 "full async robustness out of scope"); therefore `runMember` does not check for existing members — it is only reached on a fresh (non-completed) experiment pass.
+> `member.paramsHash` is left `''` (the executor computes/persists the real run identity on the `BacktestRun`). Not required for correctness here.
 
 - [ ] **Step 5: Run** — `pnpm test src/research/experiment-service.test.ts` → PASS; `pnpm typecheck` clean.
 - [ ] **Step 6: Commit** — `git add src/research/experiment-service* src/research/experiment-run-executor.ts && git commit -m "feat(research): ExperimentService two-phase train/holdout flow over run executor"`
@@ -1745,11 +1746,11 @@ import { randomUUID, createHash } from 'node:crypto';
 import type { ResearchPlatformPort, SubmitOverlayRunOptions } from '../ports/research-platform.port.ts';
 import type { BacktestRun, BacktestCompletion } from '../domain/backtest-run.ts';
 import type { BacktestRunRepository } from '../ports/backtest-run.repository.ts';
-import { runOverlayBacktest, type PollOptions } from './run-backtest.ts';
+import type { ComparisonSummary } from '../ports/platform-gateway.port.ts';
+import { pollOverlayRun, type PollOptions } from './run-backtest.ts';
 import { mapPlatformComparison } from '../domain/platform-comparison.ts';
 import { computeParamsHash } from '../orchestrator/handlers/backtest-support.ts'; // confirm export name/path in Step 1
-// Import SDK_CONTRACT_VERSION from the SAME module run-platform-backtest.ts imports it from (resolve the import in Step 1).
-import { SDK_CONTRACT_VERSION } from '../research/run-backtest.ts';
+import { SDK_CONTRACT_VERSION } from '../domain/module-bundle.ts';
 import type { ExperimentRunExecutor, ExperimentRunRequest, ExperimentRunResult } from './experiment-run-executor.ts';
 
 export interface BacktesterExperimentRunExecutorDeps {
@@ -1767,7 +1768,8 @@ export class BacktesterExperimentRunExecutor implements ExperimentRunExecutor {
   constructor(deps: BacktesterExperimentRunExecutorDeps) { this.d = deps; }
 
   async execute(req: ExperimentRunRequest): Promise<ExperimentRunResult> {
-    const paramsHash = computeParamsHash(req.params, req.run); // confirm arg order in Step 1
+    // computeParamsHash(params, { platformRun, baselineRef }) — confirm arg shape in Step 1.
+    const paramsHash = computeParamsHash(req.params, { platformRun: req.run, baselineRef: req.baselineRef });
     const resumeToken = createHash('sha256')
       .update(JSON.stringify({ v: 1, experimentId: req.experimentId, role: req.role, paramsHash, bundleHash: req.bundle.bundleHash }))
       .digest('hex');
@@ -1782,12 +1784,15 @@ export class BacktesterExperimentRunExecutor implements ExperimentRunExecutor {
       workflowId: req.experimentId,
       ...(this.d.callbackUrl !== undefined ? { callbackUrl: this.d.callbackUrl } : {}),
     };
-    const outcome = await runOverlayBacktest(this.d.platform, req.bundle, opts, this.d.poll);
 
+    // Mirror run-platform-backtest.ts order: 1) submit → 2) persist immediately (accepted run is
+    // never lost before the poll resolves) → 3) poll → 4) mark terminal. Do NOT use runOverlayBacktest
+    // (it submits+polls together, which would persist the BacktestRun only after the poll).
+    const handle = await this.d.platform.submitOverlayRun(req.bundle, opts);
     const labRunId = randomUUID();
     const run: BacktestRun = {
-      id: labRunId, hypothesisBuildId: req.buildId ?? null, hypothesisId: req.hypothesisId ?? null,
-      strategyProfileId: req.strategyProfileId, platformRunId: outcome.runId, correlationId: req.role,
+      id: labRunId, hypothesisBuildId: req.buildId, hypothesisId: req.hypothesisId,
+      strategyProfileId: req.strategyProfileId, platformRunId: handle.runId, correlationId: req.role,
       params: req.params, paramsHash, bundleHash: req.bundle.bundleHash, status: 'submitted',
       baselineModuleId: req.baselineRef.id, variantModuleId: req.bundle.manifest.moduleId,
       metrics: null, baselineMetrics: null, deltaNetPnlUsd: null, deltaMaxDrawdownPct: null, isFragile: null,
@@ -1797,29 +1802,36 @@ export class BacktesterExperimentRunExecutor implements ExperimentRunExecutor {
     };
     await this.d.backtests.createSubmitted(run);
 
+    const outcome = await pollOverlayRun(this.d.platform, handle.runId, this.d.poll);
     if (outcome.status === 'rejected') {
       await this.d.backtests.markRejected(labRunId);
-      return { status: 'rejected', runId: labRunId, platformRunId: outcome.runId };
+      return { status: 'rejected', runId: labRunId, platformRunId: handle.runId };
     }
     if (outcome.status === 'pending') {
-      return { status: 'pending', runId: labRunId, platformRunId: outcome.runId };
+      return { status: 'pending', runId: labRunId, platformRunId: handle.runId };
     }
 
-    const c = mapPlatformComparison(outcome.summary);
+    let c: ComparisonSummary;
+    try {
+      c = mapPlatformComparison(outcome.summary);
+    } catch {
+      await this.d.backtests.markFailed(labRunId);
+      return { status: 'rejected', runId: labRunId, platformRunId: handle.runId };
+    }
     const completion: BacktestCompletion = {
       metrics: c.variant, baselineMetrics: c.baseline,
       deltaNetPnlUsd: c.variant.netPnlUsd - c.baseline.netPnlUsd,
       deltaMaxDrawdownPct: c.variant.maxDrawdownPct - c.baseline.maxDrawdownPct,
       isFragile: c.variant.topTradeContributionPct >= this.d.fragilityTopTradePct,
-      artifactRefs: [], platformContractVersion: c.platformContractVersion, finishedAt: this.d.now(),
+      artifactRefs: [...outcome.artifactIds], platformContractVersion: c.platformContractVersion, finishedAt: this.d.now(),
     };
     await this.d.backtests.markCompleted(labRunId, completion);
-    return { status: 'completed', runId: labRunId, platformRunId: outcome.runId, comparison: c, totalTrades: c.variant.totalTrades };
+    return { status: 'completed', runId: labRunId, platformRunId: handle.runId, comparison: c, totalTrades: c.variant.totalTrades };
   }
 }
 ```
 
-> Notes: (1) the executor does **not** create an `Evaluation` row or call `markEvaluated` — the per-run single-backtest `Evaluation` belongs to the old flow; the experiment verdict is the separate `experiment_evaluation`. (2) `BacktestCompletion.artifactRefs` element type from Step 1 — pass `outcome.artifactIds` mapped to that shape if it is `ArtifactReference[]`, else `[]`. (3) `mapPlatformComparison` throws `MetricMappingError` on a malformed summary — wrap in try/catch and return `{ status: 'rejected', ... }` if you want a completed-but-unmappable run treated as rejected (mirror `applyPlatformTerminalOutcome`'s `markFailed` handling; confirm in Step 1).
+> Notes: (1) the executor does **not** create an `Evaluation` row or call `markEvaluated` — the per-run single-backtest `Evaluation` belongs to the old flow; the experiment verdict is the separate `experiment_evaluation`. (2) `BacktestRun.hypothesisBuildId`/`hypothesisId` are non-null `string` — that is why `ExperimentRunRequest` requires them (Task 12 Step 1). (3) `BacktestCompletion.artifactRefs` is `string[]` (the run-result `artifactIds`), so `[...outcome.artifactIds]` is correct — confirm the element type in Step 1. (4) Step 1 must confirm `computeParamsHash`'s exact second-arg shape (`{ platformRun, baselineRef }`) and that `SDK_CONTRACT_VERSION` lives in `src/domain/module-bundle.ts`.
 
 - [ ] **Step 3: Run** — `pnpm typecheck` clean. (Behavioural coverage is the Task 13 integration test against the composed/mock stack — a standalone unit test here would require a hand-built `RunResultSummary` fixture that `mapPlatformComparison` accepts; the integration test exercises the real mapping instead.)
 - [ ] **Step 4: Commit** — `git add src/research/backtester-experiment-run-executor.ts && git commit -m "feat(research): production experiment run executor (persists BacktestRun)"`

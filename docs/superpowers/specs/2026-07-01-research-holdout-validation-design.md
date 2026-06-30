@@ -241,7 +241,7 @@ The handler-level `runPlatformBacktest` returns `void` and mints the `backtestRu
 7. **Holdout** — backtest `[T, to]` (`period.from=T`) → `experiment_run_member{ role:'holdout', tradeCount }`.
 8. `evaluateExperiment(trainSummary, holdoutSummary, boundary, members)` → `experiment_evaluation` + verdict; `finalizeExperiment(...)`.
 
-**Resumability:** each phase first checks for an existing member by `role` (skip re-running). If a backtest comes back `pending` (e.g. demo WSL2 nested-docker), the flow emits `*.pending` and returns; the existing SP-7.3 webhook/resume re-invokes the flow, which resumes from the first incomplete phase. Happy path (synchronous completion / mock canned result) is primary; the resume seam exists for correctness, full async robustness beyond the existing mechanism is out of scope.
+**Run lifecycle (this 🟢 block).** The flow runs to a **terminal state in a single pass**. Idempotency is at the **completed-experiment** level: `findByKey` returns a `completed` experiment without re-running (no duplicate runs/members on a re-call). A backtest that comes back `pending` (e.g. demo WSL2 nested-docker) finalizes the experiment as terminal `INCONCLUSIVE`/`run_pending` (collect data later, never paper) — NOT a half-finished experiment. **Per-role mid-flight resume + async webhook re-invoke are deferred** (out of scope here): the executor's per-run `resumeToken` still gives the backtester idempotency, but lab does not reconstruct partial experiments. Happy path = synchronous completion / mock canned result.
 
 **No-leakage invariant:** the holdout run is configured with `period.from=T`, and `T` is fixed in step 5 before train/holdout run. Train metrics never include `[T, to]`.
 
