@@ -24,16 +24,40 @@ import { InMemoryQueueAdapter } from '../../src/adapters/queue/in-memory-queue.a
 import { NoopStrategyRetrievalIndexer } from '../../src/operator/noop-strategy-retrieval-indexer.ts';
 import { InMemoryTokenUsageRepository } from '../../src/adapters/repository/in-memory-token-usage.repository.ts';
 import { NullModelPricing } from '../../src/adapters/pricing/null-model-pricing.ts';
+import { InMemoryResearchExperimentRepository } from '../../src/adapters/repository/in-memory-research-experiment.repository.ts';
+import { MockRunTradesAdapter } from '../../src/adapters/platform/mock-run-trades.adapter.ts';
+import { ExperimentService } from '../../src/research/experiment-service.ts';
+import { comparisonSummary } from '../../src/validation/__fixtures__/comparison-summary.ts';
 
 export function makeServices(overrides: Partial<AppServices> = {}): AppServices {
   const hypotheses = new InMemoryHypothesisProposalRepository();
+  const experiments = new InMemoryResearchExperimentRepository();
+  const runTrades = new MockRunTradesAdapter();
+  const events = overrides.events ?? new InMemoryAgentEventRepository();
+  let _id = 0;
+  const experimentService = new ExperimentService({
+    experiments: overrides.experiments ?? experiments,
+    runTrades: overrides.runTrades ?? runTrades,
+    runExecutor: {
+      execute: async (req) => ({
+        status: 'completed' as const,
+        runId: `r-${req.role}`,
+        platformRunId: 'plat-fake',
+        totalTrades: 90,
+        comparison: comparisonSummary('strong'),
+      }),
+    },
+    newId: (p) => `${p}-${++_id}`,
+    now: () => new Date().toISOString(),
+    events,
+  });
   return {
     taskQueue: new InMemoryQueueAdapter(),
     researchTasks: new InMemoryResearchTaskRepository(),
     strategyProfiles: new InMemoryStrategyProfileRepository(),
     analyst: new FakeStrategyAnalyst(),
     artifacts: new InMemoryArtifactStore(),
-    events: new InMemoryAgentEventRepository(),
+    events,
     platform: new MockPlatformGatewayAdapter(),
     researchPlatform: new MockResearchPlatformAdapter(),
     researchIntegration: 'mock',
@@ -59,6 +83,9 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     chatPlans: new InMemoryChatPlanRepository(),
     actionProposals: new InMemoryActionProposalRepository(),
     strategyRetrievalIndexer: new NoopStrategyRetrievalIndexer(),
+    experiments,
+    runTrades,
+    experimentService,
     backtestBackend: 'research_platform',
     platformPoll: { maxPolls: 5, pollDelayMs: 0 },
     baselineVersion: 'v1',

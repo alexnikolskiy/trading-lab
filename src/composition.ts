@@ -20,6 +20,7 @@ import type { AppServices } from './orchestrator/app-services.ts';
 import type { StrategyAnalystPort } from './ports/strategy-analyst.port.ts';
 import { MockPlatformGatewayAdapter } from './adapters/platform/mock-platform-gateway.adapter.ts';
 import { selectResearchPlatform } from './adapters/platform/select-research-platform.ts';
+import { selectRunTrades } from './adapters/platform/select-run-trades.ts';
 import { selectBotResults } from './adapters/platform/select-bot-results.ts';
 import { selectMarketHistory } from './adapters/platform/select-market-history.ts';
 import { selectTradeEvidence } from './adapters/platform/select-trade-evidence.ts';
@@ -72,10 +73,15 @@ import { sql } from 'drizzle-orm';
 import { DrizzleHypothesisReadAdapter } from './adapters/read/drizzle-hypothesis-read.adapter.ts';
 import { DrizzleBacktestReadAdapter } from './adapters/read/drizzle-backtest-read.adapter.ts';
 import { DrizzleAgentEventReadAdapter } from './adapters/read/drizzle-agent-event-read.adapter.ts';
+import { DrizzleExperimentReadAdapter } from './adapters/read/drizzle-experiment-read.adapter.ts';
+import { DrizzleResearchExperimentRepository } from './adapters/repository/drizzle-research-experiment.repository.ts';
 import { AgentActivityProjection } from './read-api/projection.ts';
 import { PgNotifyAgentEventStream } from './adapters/read/pg-notify-agent-event-stream.ts';
 import type { ReadApiDeps } from './read-api/deps.ts';
 import { PhoenixTraceReader } from './read-api/phoenix/phoenix-trace-reader.ts';
+import { randomUUID } from 'node:crypto';
+import { BacktesterExperimentRunExecutor } from './research/backtester-experiment-run-executor.ts';
+import { ExperimentService } from './research/experiment-service.ts';
 
 function buildAnalyst(rt: MastraRuntime): StrategyAnalystPort {
   const e = rt.agents.analyst;
@@ -228,6 +234,33 @@ export function composeRuntime() {
   // Operator RAG (retrieval + fail-soft indexer), gated on OPERATOR_RAG_ENABLED.
   const operatorRag = buildOperatorRag(env, db, strategyProfiles, events);
 
+  const researchPlatform = selectResearchPlatform(env.TRADING_PLATFORM_INTEGRATION);
+  const researchIntegration = env.TRADING_PLATFORM_INTEGRATION;
+  const backtests = new DrizzleBacktestRunRepository(db);
+  const experiments = new DrizzleResearchExperimentRepository(db);
+  const runTrades = selectRunTrades(env.TRADING_PLATFORM_INTEGRATION);
+  const platformPoll = { maxPolls: env.PLATFORM_RUN_MAX_POLLS, pollDelayMs: env.PLATFORM_RUN_POLL_DELAY_MS };
+  const backtestCallbackUrl = buildBacktestCallbackUrl(env.TRADING_LAB_CALLBACK_PUBLIC_URL, env.TRADING_LAB_CALLBACK_TOKEN);
+  const now = () => new Date().toISOString();
+
+  const experimentRunExecutor = new BacktesterExperimentRunExecutor({
+    platform: researchPlatform,
+    backtests,
+    researchIntegration,
+    fragilityTopTradePct: env.evaluatorThresholds.fragilityTopTradePct,
+    poll: platformPoll,
+    ...(backtestCallbackUrl !== undefined ? { callbackUrl: backtestCallbackUrl } : {}),
+    now,
+  });
+  const experimentService = new ExperimentService({
+    experiments,
+    runTrades,
+    runExecutor: experimentRunExecutor,
+    newId: (p) => `${p}-${randomUUID()}`,
+    now,
+    events,
+  });
+
   const services: AppServices = {
     taskQueue: queue,
     researchTasks: new DrizzleResearchTaskRepository(db),
@@ -236,8 +269,8 @@ export function composeRuntime() {
     artifacts: new LocalFileArtifactStore(env.ARTIFACT_DIR),
     events,
     platform: new MockPlatformGatewayAdapter(),
-    researchPlatform: selectResearchPlatform(env.TRADING_PLATFORM_INTEGRATION),
-    researchIntegration: env.TRADING_PLATFORM_INTEGRATION,
+    researchPlatform,
+    researchIntegration,
     botResults: selectBotResults(process.env),
     marketHistory: selectMarketHistory(process.env),
     tradeEvidence: selectTradeEvidence(process.env),
@@ -253,7 +286,7 @@ export function composeRuntime() {
     researchTaskTokenBudget: env.RESEARCH_TASK_TOKEN_BUDGET,
     builder: buildBuilder(mastraRuntime),
     builds: new DrizzleHypothesisBuildRepository(db),
-    backtests: new DrizzleBacktestRunRepository(db),
+    backtests,
     evaluations: new DrizzleEvaluationRepository(db),
     evaluatorThresholds: env.evaluatorThresholds,
     chatSessions: new DrizzleChatSessionRepository(db),
@@ -261,11 +294,14 @@ export function composeRuntime() {
     actionProposals: new DrizzleActionProposalRepository(db),
     strategyRetrievalIndexer: operatorRag.indexer,
     backtestBackend: env.BACKTEST_BACKEND,
-    platformPoll: { maxPolls: env.PLATFORM_RUN_MAX_POLLS, pollDelayMs: env.PLATFORM_RUN_POLL_DELAY_MS },
-    backtestCallbackUrl: buildBacktestCallbackUrl(env.TRADING_LAB_CALLBACK_PUBLIC_URL, env.TRADING_LAB_CALLBACK_TOKEN),
+    platformPoll,
+    backtestCallbackUrl,
     baselineVersion: env.TRADING_PLATFORM_BASELINE_VERSION,
     defaultPlatformRun: { datasetId: 'ESPORTSUSDT:1h', symbols: ['ESPORTSUSDT'], timeframe: '1h', period: { from: '2026-06-12', to: '2026-06-19' }, seed: 42 },
     researchDefaultSymbol: 'ESPORTSUSDT',
+    experiments,
+    runTrades,
+    experimentService,
   };
 
   const router = new WorkflowRouter();
@@ -320,6 +356,7 @@ export function composeRuntime() {
       projectName: env.PHOENIX_PROJECT_NAME,
       apiKey: env.PHOENIX_API_KEY,
     }),
+    experiments: new DrizzleExperimentReadAdapter(db),
   };
 
   return { env, db, pool, queue, router, services, chat, read, mastraRuntime };

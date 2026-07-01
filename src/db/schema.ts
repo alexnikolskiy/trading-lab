@@ -12,6 +12,7 @@ import type { EvaluatorThresholds } from '../validation/evaluator.ts';
 import type { ActionProposalStatus, ProposedTaskSnapshot, OperatorAction } from '../domain/action-proposal.ts';
 import type { PendingOperatorInteraction } from '../ports/chat-session.repository.ts';
 import type { EvidenceRef, StrategyRetrievalMetadata } from '../domain/strategy-retrieval.ts';
+import type { ExperimentType, ExperimentStatus, MemberRole, ExperimentVerdict, DatasetScope, HoldoutPolicy, HoldoutBoundary, MemberResultSummary, ExperimentFlags } from '../domain/research-experiment.ts';
 
 // Postgres tsvector has no first-class Drizzle column type. This customType lets us
 // DECLARE the column so drizzle-kit tracks it; the GENERATED ALWAYS expression that
@@ -268,4 +269,63 @@ export const strategyRetrievalDocument = pgTable('strategy_retrieval_document', 
   searchVectorGin: index('strategy_retrieval_document_search_vector_gin').using('gin', t.searchVector),
   embeddingHnsw: index('strategy_retrieval_document_embedding_hnsw').using('hnsw', t.embedding.op('vector_cosine_ops')),
   versionModelIdx: index('strategy_retrieval_document_version_model_idx').on(t.indexVersion, t.embeddingModel),
+}));
+
+export const researchExperiment = pgTable('research_experiment', {
+  id: text('id').primaryKey(),
+  experimentKey: text('experiment_key').notNull(),
+  experimentType: text('experiment_type').notNull().$type<ExperimentType>(),
+  strategyProfileId: text('strategy_profile_id').notNull(),
+  hypothesisId: text('hypothesis_id'),
+  buildId: text('build_id'),
+  bundleHash: text('bundle_hash'),
+  objective: text('objective'),
+  datasetScope: jsonb('dataset_scope').notNull().$type<DatasetScope>(),
+  holdoutPolicy: jsonb('holdout_policy').notNull().$type<HoldoutPolicy>(),
+  holdoutBoundary: jsonb('holdout_boundary').$type<HoldoutBoundary>(),
+  parameterGrid: jsonb('parameter_grid'),
+  status: text('status').notNull().$type<ExperimentStatus>(),
+  verdict: text('verdict').$type<ExperimentVerdict>(),
+  verdictReason: text('verdict_reason'),
+  aggregateMetrics: jsonb('aggregate_metrics'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => ({
+  keyUq: uniqueIndex('research_experiment_key_uq').on(t.experimentKey),
+  profileIdx: index('research_experiment_profile_idx').on(t.strategyProfileId),
+  statusIdx: index('research_experiment_status_idx').on(t.status),
+}));
+
+export const experimentRunMember = pgTable('experiment_run_member', {
+  id: text('id').primaryKey(),
+  experimentId: text('experiment_id').notNull(),
+  backtestRunId: text('backtest_run_id'),
+  role: text('role').notNull().$type<MemberRole>(),
+  foldId: integer('fold_id'),
+  periodFrom: timestamp('period_from', { withTimezone: true }).notNull(),
+  periodTo: timestamp('period_to', { withTimezone: true }).notNull(),
+  symbols: jsonb('symbols').notNull().$type<string[]>(),
+  paramsHash: text('params_hash').notNull(),
+  bundleHash: text('bundle_hash').notNull(),
+  params: jsonb('params'),
+  oos: boolean('oos'),
+  tradeCount: integer('trade_count'),
+  resultSummary: jsonb('result_summary').$type<MemberResultSummary>(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  experimentIdx: index('experiment_run_member_experiment_idx').on(t.experimentId),
+}));
+
+export const experimentEvaluation = pgTable('experiment_evaluation', {
+  id: text('id').primaryKey(),
+  experimentId: text('experiment_id').notNull(),
+  evaluatorVersion: text('evaluator_version').notNull(),
+  rawScores: jsonb('raw_scores').notNull(),
+  flags: jsonb('flags').notNull().$type<ExperimentFlags>(),
+  verdict: text('verdict').notNull().$type<ExperimentVerdict>(),
+  verdictReason: text('verdict_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  experimentIdx: index('experiment_evaluation_experiment_idx').on(t.experimentId),
 }));
