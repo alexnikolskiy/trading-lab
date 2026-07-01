@@ -15,7 +15,7 @@ export type PlatformRunOutcome =
 
 const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-export async function pollOverlayRun(
+export async function pollResearchRun(
   platform: ResearchPlatformPort,
   runId: string,
   poll: PollOptions,
@@ -30,11 +30,25 @@ export async function pollOverlayRun(
   if (!terminal) return { status: 'pending', runId };
 
   const res = await platform.getRunResult(runId);
-  if (res.kind === 'summary' && res.summary.status === 'completed' && res.summary.comparison !== undefined) {
+  if (res.kind === 'summary' && res.summary.status === 'completed') {
     return { status: 'completed', runId, summary: res.summary, artifactIds: res.summary.artifactRefs.map((r) => r.artifactId) };
   }
   const terminalCode = res.kind === 'status' ? res.view.terminalCode : undefined;
   return { status: 'rejected', runId, ...(terminalCode !== undefined ? { terminalCode } : {}) };
+}
+
+export async function pollOverlayRun(
+  platform: ResearchPlatformPort,
+  runId: string,
+  poll: PollOptions,
+): Promise<PlatformRunOutcome> {
+  const outcome = await pollResearchRun(platform, runId, poll);
+  if (outcome.status === 'completed' && outcome.summary.comparison === undefined) {
+    // overlay requires a comparison — preserve prior behaviour (no terminalCode: prior code
+    // only surfaced terminalCode from a `status`-kind result, never from a completed summary)
+    return { status: 'rejected', runId };
+  }
+  return outcome;
 }
 
 export async function runOverlayBacktest(

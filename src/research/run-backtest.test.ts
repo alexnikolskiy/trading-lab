@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runOverlayBacktest, pollOverlayRun } from './run-backtest.ts';
+import { runOverlayBacktest, pollOverlayRun, pollResearchRun } from './run-backtest.ts';
 import type { ResearchPlatformPort, RunStatusView, RunResultView, RunJobHandle, SubmitOverlayRunOptions } from '../ports/research-platform.port.ts';
 import type { ModuleBundle } from '../domain/module-bundle.ts';
 
@@ -62,5 +62,26 @@ describe('pollOverlayRun', () => {
     const outcome = await pollOverlayRun(port, 'r1', { maxPolls: 3, pollDelayMs: 0 });
     expect(outcome.status).toBe('pending');
     expect(calls).toBe(3);
+  });
+});
+
+const platformWith = (summary: any) => ({
+  getRunStatus: async () => ({ status: 'completed' }),
+  getRunResult: async () => ({ kind: 'summary', summary }),
+} as any);
+const poll = { maxPolls: 1, pollDelayMs: 0, sleep: async () => {} };
+
+describe('poll boundary', () => {
+  it('pollResearchRun returns completed for a comparison-less summary', async () => {
+    const out = await pollResearchRun(platformWith({ status: 'completed', artifactRefs: [] }), 'r1', poll);
+    expect(out.status).toBe('completed');
+  });
+  it('pollOverlayRun still rejects a comparison-less summary (overlay unchanged)', async () => {
+    const out = await pollOverlayRun(platformWith({ status: 'completed', artifactRefs: [] }), 'r1', poll);
+    expect(out.status).toBe('rejected');
+  });
+  it('pollOverlayRun completes when comparison is present', async () => {
+    const out = await pollOverlayRun(platformWith({ status: 'completed', comparison: {}, artifactRefs: [] }), 'r1', poll);
+    expect(out.status).toBe('completed');
   });
 });
