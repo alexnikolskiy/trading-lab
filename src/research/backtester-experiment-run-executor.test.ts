@@ -61,6 +61,7 @@ function makeFakePlatformRejected(order: string[]): ResearchPlatformPort {
       order.push('submit');
       return jobHandle;
     },
+    submitStrategyResearchRun: async () => { throw new Error('not implemented'); },
     getRunStatus: async (_runId: string) => {
       order.push('poll');
       return terminalStatusView;
@@ -80,6 +81,7 @@ function makeFakePlatformPending(order: string[]): ResearchPlatformPort {
       order.push('submit');
       return jobHandle;
     },
+    submitStrategyResearchRun: async () => { throw new Error('not implemented'); },
     getRunStatus: async (_runId: string) => {
       order.push('poll');
       return nonTerminalStatusView;
@@ -128,6 +130,7 @@ function makeFakePlatformCompleted(order: string[]): ResearchPlatformPort {
       order.push('submit');
       return jobHandle; // runId: 'plat-1'
     },
+    submitStrategyResearchRun: async () => { throw new Error('not implemented'); },
     getRunStatus: async (_runId: string) => {
       order.push('poll');
       return completedStatusView;

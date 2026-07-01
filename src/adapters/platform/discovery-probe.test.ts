@@ -30,6 +30,7 @@ describe('runDiscoveryProbe', () => {
       async listDatasets() { return { datasets: [] }; },
       async validateModule() { return { status: 'accepted', issues: [], executed: false }; },
       async submitOverlayRun() { throw new Error('not implemented'); },
+      async submitStrategyResearchRun() { throw new Error('not implemented'); },
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };

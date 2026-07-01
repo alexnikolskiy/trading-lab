@@ -13,6 +13,7 @@ import type {
 } from './research-run-lifecycle.ts';
 import { isTerminal } from './research-run-lifecycle.ts';
 import type { ModuleBundle } from '../domain/module-bundle.ts';
+import type { AssembledStrategyBundle } from '../domain/strategy-bundle.ts';
 
 export type {
   ResearchCapabilityDescriptor, ListDatasetsFilter, ListDatasetsResult,
@@ -56,6 +57,24 @@ export interface ValidateModuleOptions {
 }
 
 /**
+ * Options for submitting a standalone (metrics-producing, non-comparison) `engine:'strategy'` run —
+ * used by the strategy-baseline lane to get a real, pollable backtest of a strategy bundle by
+ * itself (no overlay/preset target). Distinct from `BacktesterStrategyPort.submitStrategyRun`, which
+ * is a golden-hash equivalence PROBE (signed/equivalent/divergent) — this returns a `RunJobHandle`
+ * that flows through the normal getRunStatus/getRunResult poll lifecycle.
+ */
+export interface SubmitStrategyResearchRunOptions {
+  readonly run: PlatformRunConfig;
+  readonly correlationId: string;
+  /** Non-empty subset of the overlay metric catalog; threaded from the caller. */
+  readonly metrics: readonly string[];
+  readonly resumeToken?: string;
+  readonly workflowId?: string;
+  /** When set, backtester/platform POST a CompletionEvent here on terminal transition. */
+  readonly callbackUrl?: string;
+}
+
+/**
  * Research-platform lifecycle as seen by trading-lab research orchestration.
  * Separate from PlatformGatewayPort (market-context + the mock backtest path).
  * Grows in SP-7.2+ with submit / status / result / artifacts / cancel.
@@ -65,6 +84,7 @@ export interface ResearchPlatformPort {
   listDatasets(filter?: ListDatasetsFilter): Promise<ListDatasetsResult>;
   validateModule(bundle: ModuleBundle, options?: ValidateModuleOptions): Promise<ValidationReport>;
   submitOverlayRun(bundle: ModuleBundle, opts: SubmitOverlayRunOptions): Promise<RunJobHandle>;
+  submitStrategyResearchRun(bundle: AssembledStrategyBundle, opts: SubmitStrategyResearchRunOptions): Promise<RunJobHandle>;
   getRunStatus(runId: string): Promise<RunStatusView>;
   getRunResult(runId: string): Promise<RunResultView>;
 }

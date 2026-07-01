@@ -8,14 +8,20 @@ import type {
   ValidationReport,
   ValidateModuleOptions,
   SubmitOverlayRunOptions,
+  SubmitStrategyResearchRunOptions,
   RunJobHandle,
   RunStatusView,
   RunResultView,
   RunResultSummary,
 } from '../../ports/research-platform.port.ts';
 import type { ModuleBundle } from '../../domain/module-bundle.ts';
+import type { AssembledStrategyBundle } from '../../domain/strategy-bundle.ts';
 
 export class MockResearchPlatformAdapter implements ResearchPlatformPort {
+  // Runs submitted via submitStrategyResearchRun — resolved with a metrics-only (no comparison)
+  // summary by getRunResult, distinct from the overlay lane's baseline-vs-variant canned summary.
+  private readonly strategyRunIds = new Set<string>();
+
   async discover(): Promise<ResearchCapabilityDescriptor> {
     return {
       contractVersion: CONTRACT_VERSION,
@@ -62,9 +68,27 @@ export class MockResearchPlatformAdapter implements ResearchPlatformPort {
     } as RunResultSummary;
   }
 
+  private cannedStrategySummary(runId: string): RunResultSummary {
+    const metrics = { pnl: 1500, sharpe: 1.6, max_drawdown: 0.14, win_rate: 0.58, total_trades: 42, profit_factor: 2.1, top_trade_contribution_pct: 28 };
+    return {
+      runId, status: 'completed', runKind: 'baseline-only', validationIssues: [],
+      metrics,
+      coverage: [], artifactRefs: [], evidence: { seed: 0, contractVersion: CONTRACT_VERSION, moduleVersions: [] },
+    } as RunResultSummary;
+  }
+
   async submitOverlayRun(_bundle: ModuleBundle, opts: SubmitOverlayRunOptions): Promise<RunJobHandle> {
     const runId = randomUUID();
     return { jobId: randomUUID(), runId, status: 'accepted', effectiveSeed: opts.run.seed, requestFingerprint: 'mock', idempotentReplay: false };
+  }
+
+  async submitStrategyResearchRun(_bundle: AssembledStrategyBundle, opts: SubmitStrategyResearchRunOptions): Promise<RunJobHandle> {
+    const runId = randomUUID();
+    this.strategyRunIds.add(runId);
+    return {
+      jobId: randomUUID(), runId, status: 'accepted', effectiveSeed: opts.run.seed,
+      requestFingerprint: 'mock', idempotentReplay: false, correlationId: opts.correlationId,
+    };
   }
 
   async getRunStatus(runId: string): Promise<RunStatusView> {
@@ -72,6 +96,7 @@ export class MockResearchPlatformAdapter implements ResearchPlatformPort {
   }
 
   async getRunResult(runId: string): Promise<RunResultView> {
-    return { ok: true, kind: 'summary', summary: this.cannedSummary(runId) };
+    const summary = this.strategyRunIds.has(runId) ? this.cannedStrategySummary(runId) : this.cannedSummary(runId);
+    return { ok: true, kind: 'summary', summary };
   }
 }
