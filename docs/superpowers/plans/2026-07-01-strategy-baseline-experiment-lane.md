@@ -1087,7 +1087,7 @@ git commit -m "docs(research): strategy-baseline real-engine runbook + captured 
 
 ## Self-Review
 
-**Spec coverage:** §2 persistence Approach 2 → Tasks 1-4. §5 submit → Task 6. §6 map/eval → Tasks 7, 11. §7 executor + §7.2 hash + §7.3 poll → Tasks 5, 8, 10. §8 service → Task 12. §9 trades verify → Task 9. §10 wiring/seed/trigger/runbook → Tasks 13-16. §3.1 events → emitted in Task 12 (faithful to the 3 event types the overlay lane actually emits — the spec's larger list is trimmed to the real pattern; note this in review). §4.2 XOR → Tasks 4, 12. §11 data-reality (INCONCLUSIVE) → Tasks 12, 16. §12 testing/§13 build order → task structure.
+**Spec coverage:** §2 persistence Approach 2 → Tasks 1-4. §5 submit → Task 6. §6 map/eval → Tasks 7, 11. §7 executor + §7.2 hash + §7.3 poll → Tasks 5, 8, 10. §8 service → Task 12. §9 trades verify → Task 9. §10 wiring/seed/trigger/runbook → Tasks 13-16. §3.1 events → emitted in Task 12 (`experiment.started` / `experiment.member.completed` / `experiment.completed` — spec §3.1 was synced to this exact 3-event contract). §4.2 XOR → Tasks 4, 12. §11 data-reality (INCONCLUSIVE) → Tasks 12, 16. §12 testing/§13 build order → task structure.
 
 **Placeholder scan:** the deliberately-descriptive steps (drizzle adapter Task 3 Step 6, mock adapter Task 6 Step 4, `mapStrategyMetrics` Task 7 Step 3, service body Task 12 Step 3, both scripts, runbook) point at an **exact sibling to mirror** + the concrete field/column list — actionable, not "TODO". The executing worker reads the named sibling; that is the intended pattern for mirror-tasks. No `TBD`/`implement later`.
 

@@ -76,12 +76,12 @@ Each run leg is delegated to the injected **`StrategyExperimentRunExecutor`** (s
 
 ### 3.1 Audit events (explicit)
 
-The baseline lane emits, mirroring PR #119's per-phase convention, each carrying `experimentType:'strategy_baseline_validation'` + `experimentId`:
-- `experiment.started` (on create), `experiment.completed` / `experiment.failed` (terminal, with `verdict` + `verdictReason`).
-- Per member: `experiment.member.started`, `experiment.member.completed` (with `role`, `platformRunId`, `totalTrades`, `metrics`), `experiment.member.failed`.
-- `experiment.boundary.resolved` (mode, `T`, train/holdout trade counts, `lowConfidence`).
+The baseline lane emits the **same three event types** the overlay lane (`runNewStrategyValidation`) actually emits — no more, no less — each payload carrying `experimentId` + `experimentType:'strategy_baseline_validation'`:
+- **`experiment.started`** — on experiment create (`{ experimentId, strategyProfileId }`).
+- **`experiment.member.completed`** — once per member run (sanity/train/holdout) from `runStrategyMember` (`{ experimentId, role, status, tradeCount, strategyBacktestRunId }`).
+- **`experiment.completed`** — the single terminal event for **both** success and every `fail(...)` branch (`{ experimentId, verdict, verdictReason }`); there is no separate `experiment.failed` in the overlay lane, so the strategy lane matches it.
 
-These are asserted in tests (PR #119 caught this regression class — events must not silently drop).
+These are asserted in the flow tests (PR #119 caught this regression class — events must not silently drop). Richer events (`experiment.member.started`, `experiment.boundary.resolved`, `experiment.member.failed`) are **not** part of this lane — they would be a separate cross-cutting change to both lanes, out of scope here.
 
 ## 4. Data model
 
