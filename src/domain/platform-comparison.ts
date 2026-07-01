@@ -57,7 +57,7 @@ const noLoss = (m: Record<string, number>): boolean =>
  *  4. A side is provably no-loss (total_trades>0 && win_rate===1) but has no profit_factor →
  *     PF is undefined/+inf (not ambiguous); map to NO_LOSS_PROFIT_FACTOR (mirrors case 2 variant path).
  *  Any remaining case (trades present, win_rate<1, profit_factor absent) is genuinely ambiguous → throw. */
-function resolveProfitFactors(
+export function resolveProfitFactors(
   baseline: Record<string, number>,
   variant: Record<string, number>,
   topMetrics: Record<string, number>,
