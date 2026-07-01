@@ -46,16 +46,20 @@ describe('resolveHoldoutBoundary', () => {
     expect(b.reason).toBe('insufficient_history');
   });
 
-  it('ties at boundary counted from chosen T (holdoutTrades may exceed minimum)', () => {
-    // 59 unique-day trades + 2 extra sharing the 30-from-end entryTs
+  it('ties straddling the boundary counted from chosen T (holdoutTrades exceeds the index count)', () => {
     const base = trades(90);
-    const tIndex = 60; // 61st
-    base[tIndex + 1] = { ...base[tIndex + 1]!, entryTs: base[tIndex]!.entryTs };
+    // Move a trade from BELOW the boundary (index 59) onto the boundary value (index 60's entryTs).
+    // After sort, two trades tie at T, so the tie-recount yields 31 holdout trades while a naive
+    // `holdoutTrades = h` (no recount) would report 30 — this asserts the recount is actually active.
+    base[59] = { ...base[59]!, entryTs: base[60]!.entryTs };
     const b = resolveHoldoutBoundary(base, period, DEFAULT_HOLDOUT_POLICY);
     const T = Date.parse(b.t!);
     const holdout = base.filter((t) => t.entryTs >= T).length;
-    expect(b.holdoutTrades).toBe(holdout); // recomputed from T, not the index
-    expect(holdout).toBeGreaterThanOrEqual(30);
+    expect(b.mode).toBe('trade_based');
+    expect(holdout).toBe(31);           // 2 tied at T + 29 strictly after
+    expect(b.holdoutTrades).toBe(31);   // recount, NOT the naive index count 30
+    expect(b.trainTrades).toBe(59);
+    expect(b.lowConfidence).toBe(false);
   });
 
   it('n=0 → none', () => {
