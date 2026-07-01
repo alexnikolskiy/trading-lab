@@ -141,7 +141,7 @@ describe('new-strategy holdout reroute (cycleDepth === 0)', () => {
   it('cycleDepth=0 routes to ExperimentService, sanity+train+holdout created, PAPER_CANDIDATE', async () => {
     const { svc, experiments } = buildSvc(ok, { 'plat-sanity': trades(90) });
     const s = await seeded({ experiments, experimentService: svc });
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 0 }), s);
 
     expect(svc.captured).toHaveLength(1);
     const { experimentId, verdict } = svc.captured[0]!;
@@ -157,7 +157,7 @@ describe('new-strategy holdout reroute (cycleDepth === 0)', () => {
       { 'plat-sanity': trades(90) },
     );
     const s = await seeded({ experiments, experimentService: svc });
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 0 }), s);
 
     expect(svc.captured).toHaveLength(1);
     expect(svc.captured[0]!.verdict).toBe('FAIL');
@@ -207,5 +207,16 @@ describe('new-strategy holdout reroute (cycleDepth === 0)', () => {
     const body = (await res.json()) as { data: Array<{ role: string }> };
     expect(body.data).toHaveLength(3);
     expect(body.data.map((r) => r.role)).toEqual(['sanity', 'train', 'holdout']);
+  });
+
+  it('omitted cycleDepth → schema .default(0) still routes to the holdout flow', async () => {
+    // no cycleDepth → schema .default(0) must still route to the holdout flow
+    const { svc, experiments } = buildSvc(ok, { 'plat-sanity': trades(90) });
+    const s = await seeded({ experiments, experimentService: svc });
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+
+    expect(svc.captured).toHaveLength(1);
+    const members = await experiments.listMembers(svc.captured[0]!.experimentId);
+    expect(members).toHaveLength(3);
   });
 });

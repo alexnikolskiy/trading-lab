@@ -27,6 +27,7 @@ import { NullModelPricing } from '../../src/adapters/pricing/null-model-pricing.
 import { InMemoryResearchExperimentRepository } from '../../src/adapters/repository/in-memory-research-experiment.repository.ts';
 import { MockRunTradesAdapter } from '../../src/adapters/platform/mock-run-trades.adapter.ts';
 import { ExperimentService } from '../../src/research/experiment-service.ts';
+import { comparisonSummary } from '../../src/validation/__fixtures__/comparison-summary.ts';
 
 export function makeServices(overrides: Partial<AppServices> = {}): AppServices {
   const hypotheses = new InMemoryHypothesisProposalRepository();
@@ -42,6 +43,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
         runId: `r-${req.role}`,
         platformRunId: 'plat-fake',
         totalTrades: 90,
+        comparison: comparisonSummary('strong'),
       }),
     },
     newId: (p) => `${p}-${++_id}`,
