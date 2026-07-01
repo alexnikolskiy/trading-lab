@@ -33,15 +33,18 @@ function svc(resultFor: (role: MemberRole) => ExperimentRunResult, tradesByRun: 
   const experiments = new InMemoryResearchExperimentRepository();
   const executor = new FakeExecutor(resultFor);
   let i = 0;
+  const emittedEvents: Array<{ id: string; taskId: string; type: string; payload: Record<string, unknown>; createdAt: string }> = [];
   const service = new ExperimentService({
     experiments, runTrades: new FakeRunTradesAdapter(tradesByRun), runExecutor: executor,
     newId: (p) => `${p}-${++i}`, now: () => '2026-01-01T00:00:00.000Z',
+    events: { append: async (e) => { emittedEvents.push(e); }, listByTask: async () => [] },
   });
-  return { service, experiments, executor };
+  return { service, experiments, executor, emittedEvents };
 }
 
 const input = {
   strategyProfileId: 'p1', hypothesisId: 'hyp1', buildId: 'b1', bundle, baselineRef,
+  taskId: 'task-1',
   datasetScope: { datasetId: 'd', symbols: ['BTC'], timeframe: '1m', period: { from: '2026-01-01T00:00:00.000Z', to: '2026-04-01T00:00:00.000Z' } },
   runConfig: { datasetId: 'd', symbols: ['BTC'], timeframe: '1m', seed: 1 }, params: {},
 };
@@ -66,7 +69,7 @@ describe('ExperimentService.runNewStrategyValidation', () => {
   });
 
   it('train pass + holdout fail → FAIL/holdout_failed, not paper, member backtestRunId is the lab id', async () => {
-    const { service, experiments } = svc((role) => ok(role, role === 'holdout' ? 'fail' : 'strong', role === 'holdout' ? 30 : 90), { 'plat-sanity': trades(90) });
+    const { service, experiments, executor, emittedEvents } = svc((role) => ok(role, role === 'holdout' ? 'fail' : 'strong', role === 'holdout' ? 30 : 90), { 'plat-sanity': trades(90) });
     const res = await service.runNewStrategyValidation(input);
     expect(res.verdict).toBe('FAIL');
     const exp = await experiments.findById(res.experimentId);
@@ -74,6 +77,19 @@ describe('ExperimentService.runNewStrategyValidation', () => {
     const members = await experiments.listMembers(res.experimentId);
     expect(members.map((m) => m.role)).toEqual(['sanity', 'train', 'holdout']);
     expect(members.find((m) => m.role === 'train')?.backtestRunId).toBe('lab-train');
+
+    // --- no-leakage period wiring assertions (Finding 2) ---
+    // With 90 trades (one per day), DEFAULT_HOLDOUT_POLICY picks 30 holdout trades.
+    // T = the 61st trade's entryTs (sorted[90-30] = sorted[60])
+    const fullPeriod = input.datasetScope.period;
+    const T = new Date(START + 60 * DAY).toISOString();
+    expect(executor.calls.find((c) => c.role === 'sanity')?.run.period).toEqual(fullPeriod);
+    expect(executor.calls.find((c) => c.role === 'train')?.run.period).toEqual({ from: fullPeriod.from, to: T });
+    expect(executor.calls.find((c) => c.role === 'holdout')?.run.period).toEqual({ from: T, to: fullPeriod.to });
+
+    // --- event stream assertions ---
+    expect(emittedEvents.find((e) => e.type === 'experiment.started')?.payload.experimentId).toBe(res.experimentId);
+    expect(emittedEvents.find((e) => e.type === 'experiment.completed')?.payload.verdict).toBe('FAIL');
   });
 
   it('holdout pass → PAPER_CANDIDATE', async () => {

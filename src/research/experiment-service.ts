@@ -8,6 +8,7 @@ import { DEFAULT_HOLDOUT_POLICY } from '../domain/research-experiment.ts';
 import type { ResearchExperimentRepository } from '../ports/research-experiment.repository.ts';
 import type { RunTradesPort } from '../ports/run-trades.port.ts';
 import type { ExperimentRunExecutor, ExperimentRunResult } from './experiment-run-executor.ts';
+import type { AgentEventRepository } from '../ports/agent-event.repository.ts';
 import { resolveHoldoutBoundary } from './holdout-boundary-resolver.ts';
 import { evaluateExperiment, EXPERIMENT_EVALUATOR_VERSION } from '../validation/experiment-evaluator.ts';
 import { computeExperimentKey } from './experiment-identity.ts';
@@ -19,6 +20,7 @@ export interface ExperimentServiceDeps {
   runExecutor: ExperimentRunExecutor;
   newId: (prefix: string) => string;
   now: () => string; // ISO
+  events: AgentEventRepository;
 }
 
 export interface RunNewStrategyValidationInput {
@@ -32,6 +34,7 @@ export interface RunNewStrategyValidationInput {
   objective?: string;
   runConfig: Omit<PlatformRunConfig, 'period'>; // datasetId, symbols, timeframe, seed
   params: Record<string, unknown>;              // request.params overlay ({} if none)
+  taskId: string;
 }
 
 export class ExperimentService {
@@ -58,6 +61,11 @@ export class ExperimentService {
         createdAt: now, updatedAt: now,
       };
       await this.d.experiments.createExperiment(exp);
+      await this.d.events.append({
+        id: this.d.newId('evt'), taskId: input.taskId, type: 'experiment.started',
+        payload: { experimentId, strategyProfileId: input.strategyProfileId },
+        createdAt: this.d.now(),
+      });
     }
 
     const fullPeriod = input.datasetScope.period;
@@ -65,6 +73,11 @@ export class ExperimentService {
       await this.d.experiments.updateExperiment(experimentId, {
         status: 'completed', verdict, verdictReason: reason,
         completedAt: this.d.now(), updatedAt: this.d.now(),
+      });
+      await this.d.events.append({
+        id: this.d.newId('evt'), taskId: input.taskId, type: 'experiment.completed',
+        payload: { experimentId, verdict, verdictReason: reason },
+        createdAt: this.d.now(),
       });
       return { experimentId, verdict };
     };
@@ -107,6 +120,11 @@ export class ExperimentService {
       aggregateMetrics: { trainTrades: boundary.trainTrades, holdoutTrades: boundary.holdoutTrades, flags: result.flags },
       completedAt: this.d.now(), updatedAt: this.d.now(),
     });
+    await this.d.events.append({
+      id: this.d.newId('evt'), taskId: input.taskId, type: 'experiment.completed',
+      payload: { experimentId, verdict: result.verdict, verdictReason: result.verdictReason },
+      createdAt: this.d.now(),
+    });
     return { experimentId, verdict: result.verdict };
   }
 
@@ -125,6 +143,11 @@ export class ExperimentService {
     await this.d.experiments.updateMember(memberId, {
       backtestRunId: outcome.runId, tradeCount: outcome.totalTrades,
       resultSummary: { totalTrades: outcome.totalTrades },
+    });
+    await this.d.events.append({
+      id: this.d.newId('evt'), taskId: input.taskId, type: 'experiment.member.completed',
+      payload: { experimentId, role, status: outcome.status, tradeCount: outcome.totalTrades, backtestRunId: outcome.runId },
+      createdAt: this.d.now(),
     });
     return outcome;
   }

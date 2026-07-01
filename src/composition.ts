@@ -258,6 +258,7 @@ export function composeRuntime() {
     runExecutor: experimentRunExecutor,
     newId: (p) => `${p}-${randomUUID()}`,
     now,
+    events,
   });
 
   const services: AppServices = {

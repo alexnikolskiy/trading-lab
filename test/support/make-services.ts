@@ -33,6 +33,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
   const hypotheses = new InMemoryHypothesisProposalRepository();
   const experiments = new InMemoryResearchExperimentRepository();
   const runTrades = new MockRunTradesAdapter();
+  const events = overrides.events ?? new InMemoryAgentEventRepository();
   let _id = 0;
   const experimentService = new ExperimentService({
     experiments: overrides.experiments ?? experiments,
@@ -48,6 +49,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     },
     newId: (p) => `${p}-${++_id}`,
     now: () => new Date().toISOString(),
+    events,
   });
   return {
     taskQueue: new InMemoryQueueAdapter(),
@@ -55,7 +57,7 @@ export function makeServices(overrides: Partial<AppServices> = {}): AppServices 
     strategyProfiles: new InMemoryStrategyProfileRepository(),
     analyst: new FakeStrategyAnalyst(),
     artifacts: new InMemoryArtifactStore(),
-    events: new InMemoryAgentEventRepository(),
+    events,
     platform: new MockPlatformGatewayAdapter(),
     researchPlatform: new MockResearchPlatformAdapter(),
     researchIntegration: 'mock',

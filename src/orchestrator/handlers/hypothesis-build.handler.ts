@@ -120,6 +120,7 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
       buildId,
       bundle,
       baselineRef,
+      taskId: task.id,
       datasetScope: {
         datasetId: payload.platformRun!.datasetId,
         symbols: [...payload.platformRun!.symbols],
