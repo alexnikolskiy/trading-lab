@@ -28,6 +28,7 @@ import type { TokenUsageRepository } from '../ports/token-usage.repository.ts';
 import type { ModelPricingPort } from '../ports/model-pricing.port.ts';
 import type { ResearchExperimentRepository } from '../ports/research-experiment.repository.ts';
 import type { RunTradesPort } from '../ports/run-trades.port.ts';
+import type { ExperimentService } from '../research/experiment-service.ts';
 
 /**
  * Fail-soft retrieval indexer seam. The concrete StrategyRetrievalIndexer satisfies it;
@@ -84,4 +85,5 @@ export interface AppServices {
   researchDefaultSymbol?: string;
   experiments: ResearchExperimentRepository;
   runTrades: RunTradesPort;
+  experimentService: ExperimentService;
 }

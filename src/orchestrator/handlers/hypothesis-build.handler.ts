@@ -113,10 +113,33 @@ export const hypothesisBuildHandler: WorkflowHandler = async (task, services) =>
     await services.events.append(event(task.id, 'build_failed', { buildId, codes: ['datasets_unavailable'] }));
     return;
   }
-  const resumeToken = sha256(stableStringify({ v: 1, hypothesisId: hypothesis.id, paramsHash, bundleHash: bundle.bundleHash }));
-  await runPlatformBacktest({
-    services, task, buildId, bundle, profile, hypothesisId: hypothesis.id,
-    params, platformRun: payload.platformRun!, paramsHash, baselineRef, resumeToken,
-    cycleDepth: payload.cycleDepth,
-  });
+  if (payload.cycleDepth === 0) {
+    await services.experimentService.runNewStrategyValidation({
+      strategyProfileId: profile.id,
+      hypothesisId: hypothesis.id,
+      buildId,
+      bundle,
+      baselineRef,
+      datasetScope: {
+        datasetId: payload.platformRun!.datasetId,
+        symbols: [...payload.platformRun!.symbols],
+        timeframe: payload.platformRun!.timeframe,
+        period: payload.platformRun!.period,
+      },
+      runConfig: {
+        datasetId: payload.platformRun!.datasetId,
+        symbols: [...payload.platformRun!.symbols],
+        timeframe: payload.platformRun!.timeframe,
+        seed: payload.platformRun!.seed,
+      },
+      params,
+    });
+  } else {
+    const resumeToken = sha256(stableStringify({ v: 1, hypothesisId: hypothesis.id, paramsHash, bundleHash: bundle.bundleHash }));
+    await runPlatformBacktest({
+      services, task, buildId, bundle, profile, hypothesisId: hypothesis.id,
+      params, platformRun: payload.platformRun!, paramsHash, baselineRef, resumeToken,
+      cycleDepth: payload.cycleDepth,
+    });
+  }
 };

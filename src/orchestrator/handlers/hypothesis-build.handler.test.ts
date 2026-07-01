@@ -46,7 +46,7 @@ async function seeded(over: Partial<AppServices> = {}): Promise<AppServices> {
 describe('hypothesisBuildHandler', () => {
   it('happy path persists build(candidate→submitted), backtest_run(evaluated), evaluation + full event trail', async () => {
     const s = await seeded();
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 1 }), s);
 
     const builds = await s.builds.listByHypothesis('h1');
     expect(builds[0]?.status).toBe('submitted');
@@ -88,8 +88,8 @@ describe('hypothesisBuildHandler', () => {
       },
     };
     const s = await seeded({ researchPlatform });
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s); // identical inputs → reuse, no second submit
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 1 }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 1 }), s); // identical inputs → reuse, no second submit
     expect(submitCount).toBe(1);
     expect(await s.backtests.listByHypothesis('h1')).toHaveLength(1);
     const evTypes = (await s.events.listByTask('t1')).map((e) => e.type);

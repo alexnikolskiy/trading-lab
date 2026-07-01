@@ -38,7 +38,7 @@ async function seeded(over: Partial<AppServices> = {}): Promise<AppServices> {
 describe('hypothesisBuildHandler — research_platform backend', () => {
   it('KEY CHECK: payload override research_platform completes → backtest_run evaluated + evaluation', async () => {
     const s = await seeded({ researchPlatform: new MockResearchPlatformAdapter() });
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', backtestBackend: 'research_platform', platformRun: PLATFORM_RUN }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', backtestBackend: 'research_platform', platformRun: PLATFORM_RUN, cycleDepth: 1 }), s);
 
     const runs = await s.backtests.listByHypothesis('h1');
     expect(runs[0]?.status).toBe('evaluated');
@@ -50,7 +50,7 @@ describe('hypothesisBuildHandler — research_platform backend', () => {
 
   it('env-default research_platform also takes the platform path', async () => {
     const s = await seeded({ researchPlatform: new MockResearchPlatformAdapter(), backtestBackend: 'research_platform' });
-    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN }), s);
+    await hypothesisBuildHandler(task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 1 }), s);
     expect((await s.backtests.listByHypothesis('h1'))[0]?.backend).toBe('research_platform');
   });
 
@@ -79,7 +79,7 @@ describe('hypothesisBuildHandler — research_platform backend', () => {
       getRunResult: async () => { throw new Error('should not be called'); },
     } as unknown as ResearchPlatformPort;
     const s = await seeded({ researchPlatform: stub, backtestBackend: 'research_platform', platformPoll: { maxPolls: 2, pollDelayMs: 0 } });
-    const t = task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN });
+    const t = task({ hypothesisId: 'h1', platformRun: PLATFORM_RUN, cycleDepth: 1 });
     await hypothesisBuildHandler(t, s); // run 1: pending, persisted submitted
     await hypothesisBuildHandler(t, s); // run 2: identity hit → reused
 

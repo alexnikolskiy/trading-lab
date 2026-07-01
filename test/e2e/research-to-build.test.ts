@@ -26,7 +26,7 @@ function cycleTask(overrides: Partial<ResearchTask> = {}): ResearchTask {
   return {
     id: 'cycle-1', taskType: 'research.run_cycle', source: 'operator',
     correlationId: 'c1', status: 'running',
-    payload: { strategyProfileId: 'p1' },
+    payload: { strategyProfileId: 'p1', cycleDepth: 1 },
     createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,
   };

@@ -18,7 +18,7 @@ function hypothesis(over: Partial<HypothesisProposal> = {}): HypothesisProposal 
 function task(): ResearchTask {
   const now = '2026-01-01T00:00:00Z';
   const platformRun = { datasetId: 'ds', symbols: ['BTCUSDT'], timeframe: '1h', period: { from: '2023-01-01', to: '2023-06-30' }, seed: 7 };
-  return { id: 't1', taskType: 'hypothesis.build', source: 'operator', correlationId: 'c1', status: 'running', payload: { hypothesisId: 'h1', platformRun }, createdAt: now, updatedAt: now };
+  return { id: 't1', taskType: 'hypothesis.build', source: 'operator', correlationId: 'c1', status: 'running', payload: { hypothesisId: 'h1', platformRun, cycleDepth: 1 }, createdAt: now, updatedAt: now };
 }
 
 describe('e2e hypothesis.build', () => {
