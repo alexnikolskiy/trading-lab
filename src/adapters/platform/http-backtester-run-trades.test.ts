@@ -15,8 +15,7 @@ function fakeClient() {
         { entryTs: 5, exitTs: 6, side: 'long', realizedPnl: 2 },
       ];
       const offset = opts?.offset ?? 0;
-      const limit = opts?.limit ?? 2;
-      return { page: all.slice(offset, offset + limit), total: all.length, offset };
+      return { page: all.slice(offset, offset + 2), total: all.length, offset }; // fixed page size 2 → forces multi-page
     },
   } as never;
 }
@@ -35,5 +34,13 @@ describe('HttpBacktesterRunTradesAdapter', () => {
       readArtifact: async () => ({ page: [], total: 0, offset: 0 }),
     } as never;
     expect(await new HttpBacktesterRunTradesAdapter(client).getRunTrades('r')).toEqual([]);
+  });
+
+  it('rejects a trades row missing entryTs/exitTs', async () => {
+    const client = {
+      getArtifactManifest: async () => ({ descriptors: [{ artifactType: 'trades', contentHash: 'h1', availability: 'available', approxItemCount: 1 }] }),
+      readArtifact: async () => ({ page: [{ side: 'long', realizedPnl: 0 }], total: 1, offset: 0 }),
+    } as never;
+    await expect(new HttpBacktesterRunTradesAdapter(client).getRunTrades('r')).rejects.toThrow(/entryTs/);
   });
 });
