@@ -1,6 +1,6 @@
 import type { RunResultSummary } from '../ports/research-platform.port.ts';
 import type { BacktestMetricBlock } from '../ports/platform-gateway.port.ts';
-import { INITIAL_EQUITY, resolveProfitFactors } from './platform-comparison.ts';
+import { INITIAL_EQUITY, resolveProfitFactors, MetricMappingError } from './platform-comparison.ts';
 
 /**
  * Maps a strategy-engine `RunResultSummary` (variant-only `metrics`, NO `comparison`) into the
@@ -16,7 +16,7 @@ import { INITIAL_EQUITY, resolveProfitFactors } from './platform-comparison.ts';
 export function mapStrategyMetrics(summary: RunResultSummary): BacktestMetricBlock {
   const metrics = summary.metrics as Record<string, number> | undefined;
   if (metrics === undefined) {
-    throw new Error('strategy run summary has no metrics');
+    throw new MetricMappingError('missing_metric', 'missing_metric: strategy run summary has no metrics');
   }
   const { variantPf } = resolveProfitFactors(metrics, metrics, metrics);
   const netPnlUsd = metrics['pnl'] ?? 0;

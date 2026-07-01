@@ -30,4 +30,18 @@ describe('InMemoryStrategyBacktestRunRepository', () => {
     expect(r?.status).toBe('completed');
     expect(r?.metrics?.totalTrades).toBe(3);
   });
+  it('markRejected / markFailed set status + stamp finishedAt', async () => {
+    const repo = new InMemoryStrategyBacktestRunRepository();
+    await repo.createSubmitted(base());
+    await repo.markRejected('sbr_1');
+    const rejected = await repo.findById('sbr_1');
+    expect(rejected?.status).toBe('rejected');
+    expect(rejected?.finishedAt).toBeTruthy();
+
+    await repo.createSubmitted(base({ id: 'sbr_2', platformRunId: 'run_2' }));
+    await repo.markFailed('sbr_2');
+    const failed = await repo.findById('sbr_2');
+    expect(failed?.status).toBe('failed');
+    expect(failed?.finishedAt).toBeTruthy();
+  });
 });

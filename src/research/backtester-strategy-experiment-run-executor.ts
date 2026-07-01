@@ -5,6 +5,7 @@ import type { StrategyBacktestRun } from '../domain/strategy-backtest-run.ts';
 import { STRATEGY_RUN_KIND } from '../domain/strategy-backtest-run.ts';
 import { pollResearchRun, type PollOptions } from './run-backtest.ts';
 import { mapStrategyMetrics } from '../domain/strategy-metrics.ts';
+import { MetricMappingError } from '../domain/platform-comparison.ts';
 import { computeStrategyParamsHash } from './strategy-run-identity.ts';
 import { SDK_CONTRACT_VERSION } from '../domain/module-bundle.ts';
 import type {
@@ -93,9 +94,12 @@ export class BacktesterStrategyExperimentRunExecutor implements StrategyExperime
     let metrics;
     try {
       metrics = mapStrategyMetrics(outcome.summary);
-    } catch {
-      await this.d.strategyBacktests.markFailed(labRunId);
-      return { status: 'rejected', runId: labRunId, platformRunId: handle.runId };
+    } catch (err) {
+      if (err instanceof MetricMappingError) {
+        await this.d.strategyBacktests.markFailed(labRunId);
+        return { status: 'rejected', runId: labRunId, platformRunId: handle.runId };
+      }
+      throw err;
     }
 
     await this.d.strategyBacktests.markCompleted(labRunId, {

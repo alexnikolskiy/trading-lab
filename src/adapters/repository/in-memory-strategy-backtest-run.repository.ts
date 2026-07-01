@@ -9,8 +9,14 @@ export class InMemoryStrategyBacktestRunRepository implements StrategyBacktestRu
     this.rows.set(id, { ...r, status: 'completed', metrics: c.metrics, artifactRefs: [...c.artifactRefs],
       platformContractVersion: c.platformContractVersion, finishedAt: c.finishedAt, updatedAt: c.finishedAt });
   }
-  async markRejected(id: string): Promise<void> { const r = this.rows.get(id); if (r) this.rows.set(id, { ...r, status: 'rejected' }); }
-  async markFailed(id: string): Promise<void> { const r = this.rows.get(id); if (r) this.rows.set(id, { ...r, status: 'failed' }); }
+  async markRejected(id: string): Promise<void> {
+    const r = this.rows.get(id);
+    if (r) this.rows.set(id, { ...r, status: 'rejected', finishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
+  async markFailed(id: string): Promise<void> {
+    const r = this.rows.get(id);
+    if (r) this.rows.set(id, { ...r, status: 'failed', finishedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
   async findById(id: string): Promise<StrategyBacktestRun | null> { return this.rows.get(id) ?? null; }
   async findByPlatformRunId(pid: string): Promise<StrategyBacktestRun | null> {
     for (const r of this.rows.values()) if (r.platformRunId === pid) return r; return null;

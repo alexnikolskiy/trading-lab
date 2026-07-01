@@ -42,8 +42,8 @@ export class DrizzleStrategyBacktestRunRepository implements StrategyBacktestRun
     }).where(eq(strategyBacktestRun.id, id));
   }
 
-  async markRejected(id: string): Promise<void> { await this.db.update(strategyBacktestRun).set({ status: 'rejected', updatedAt: new Date() }).where(eq(strategyBacktestRun.id, id)); }
-  async markFailed(id: string): Promise<void> { await this.db.update(strategyBacktestRun).set({ status: 'failed', updatedAt: new Date() }).where(eq(strategyBacktestRun.id, id)); }
+  async markRejected(id: string): Promise<void> { await this.db.update(strategyBacktestRun).set({ status: 'rejected', finishedAt: new Date(), updatedAt: new Date() }).where(eq(strategyBacktestRun.id, id)); }
+  async markFailed(id: string): Promise<void> { await this.db.update(strategyBacktestRun).set({ status: 'failed', finishedAt: new Date(), updatedAt: new Date() }).where(eq(strategyBacktestRun.id, id)); }
 
   async findById(id: string): Promise<StrategyBacktestRun | null> {
     const rows = await this.db.select().from(strategyBacktestRun).where(eq(strategyBacktestRun.id, id)).limit(1);
