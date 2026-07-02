@@ -63,3 +63,32 @@ export const ResultInterpretOutputSchema = z.object({
   extendHint: z.string().optional(),
 });
 export type ResultInterpretOutput = z.infer<typeof ResultInterpretOutputSchema>;
+
+export type SweepGridValidation = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Guards a SweepDesigner-produced grid before it reaches expandGrid/ParamGridRunner: the
+ * Mastra SweepDesigner output is only schema-validated ({ grid, rationale }), so nothing
+ * upstream confirms its keys are actual tunable params of the profile, nor that a 0-trade
+ * exploratory sweep stayed restricted to entry-affecting params. The Fake designer used in
+ * tests happens to respect both constraints; a real LLM is not guaranteed to.
+ */
+export function validateSweepGrid(
+  grid: Record<string, unknown[]>,
+  opts: { tunableParamNames: readonly string[]; restrictToEntryParams: boolean; entryAffecting: readonly string[] },
+): SweepGridValidation {
+  const keys = Object.keys(grid);
+  if (keys.length === 0) return { ok: false, reason: 'empty_grid' };
+  for (const key of keys) {
+    if (!opts.tunableParamNames.includes(key)) {
+      return { ok: false, reason: `non_tunable_param:${key}` };
+    }
+    if (opts.restrictToEntryParams && !opts.entryAffecting.includes(key)) {
+      return { ok: false, reason: `non_entry_param_in_exploratory:${key}` };
+    }
+    if ((grid[key]?.length ?? 0) === 0) {
+      return { ok: false, reason: `empty_values:${key}` };
+    }
+  }
+  return { ok: true };
+}

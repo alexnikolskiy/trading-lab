@@ -19,7 +19,7 @@ import { computeExperimentKey } from './experiment-identity.ts';
 import { computeStrategyExperimentKey, computeStrategyParamsHash } from './strategy-run-identity.ts';
 import { computeWfoExperimentKey } from './wfo-experiment-identity.ts';
 import { encodeTrainPeriod, encodeHoldoutPeriod } from './period-encoding.ts';
-import { classifyEntryAffectingParams } from '../domain/wfo.ts';
+import { classifyEntryAffectingParams, validateSweepGrid } from '../domain/wfo.ts';
 import type { Gate1DecisionPort, SweepDesignerPort, ResultInterpreterPort } from '../ports/wfo-agents.port.ts';
 import type { ParamGridRunner } from './param-grid-runner.ts';
 import type { StrategyBacktestRunRepository } from '../ports/strategy-backtest-run.repository.ts';
@@ -427,11 +427,16 @@ export class ExperimentService {
 
     for (let r = 1; r <= budget.maxRounds; r += 1) {
       const tunableParams = input.profile.profile.parameters.filter((p) => p.tunable);
+      const restrictToEntryParams = gate1Decision.decision === 'allow_exploratory_sweep';
       const sweep = await this.d.sweepDesigner.design({
         profile: input.profile, baselineTrainSummary: baselineMetrics, tunableParams,
-        restrictToEntryParams: gate1Decision.decision === 'allow_exploratory_sweep',
-        periodTo: T, maxPoints: budget.maxPointsPerRound,
+        restrictToEntryParams, periodTo: T, maxPoints: budget.maxPointsPerRound,
       });
+
+      const gridValidation = validateSweepGrid(sweep.grid, {
+        tunableParamNames: tunableParams.map((p) => p.name), restrictToEntryParams, entryAffecting,
+      });
+      if (!gridValidation.ok) return finalize('INCONCLUSIVE', 'grid_invalid');
 
       unionGrid = mergeGrids(unionGrid, sweep.grid);
       await this.d.experiments.updateExperiment(experimentId, { parameterGrid: unionGrid, updatedAt: this.d.now() });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyEntryAffectingParams } from './wfo.ts';
+import { classifyEntryAffectingParams, validateSweepGrid } from './wfo.ts';
 
 describe('classifyEntryAffectingParams', () => {
   it('classifies entry-affecting vs exit/risk params', () => {
@@ -54,5 +54,47 @@ describe('classifyEntryAffectingParams', () => {
     ] as any);
     expect(r.entryAffecting).toEqual([]);
     expect(r.exitRisk).toEqual(['tpLadder.tp1Pct']);
+  });
+});
+
+describe('validateSweepGrid', () => {
+  const tunableParamNames = ['entry.fastBouncePct', 'tpLadder.tp1Pct'];
+  const entryAffecting = ['entry.fastBouncePct'];
+
+  it('a valid grid restricted to tunable params → ok', () => {
+    const r = validateSweepGrid(
+      { 'entry.fastBouncePct': [1, 2], 'tpLadder.tp1Pct': [3, 4] },
+      { tunableParamNames, restrictToEntryParams: false, entryAffecting },
+    );
+    expect(r).toEqual({ ok: true });
+  });
+
+  it('a key that is not a tunable param of the profile → non_tunable_param', () => {
+    const r = validateSweepGrid(
+      { 'entry.fastBouncePct': [1, 2], 'unknown.param': [1] },
+      { tunableParamNames, restrictToEntryParams: false, entryAffecting },
+    );
+    expect(r).toEqual({ ok: false, reason: 'non_tunable_param:unknown.param' });
+  });
+
+  it('an exit-only key under restrictToEntryParams:true → non_entry_param_in_exploratory', () => {
+    const r = validateSweepGrid(
+      { 'tpLadder.tp1Pct': [1, 2] },
+      { tunableParamNames, restrictToEntryParams: true, entryAffecting },
+    );
+    expect(r).toEqual({ ok: false, reason: 'non_entry_param_in_exploratory:tpLadder.tp1Pct' });
+  });
+
+  it('a key whose value array is empty → empty_values', () => {
+    const r = validateSweepGrid(
+      { 'entry.fastBouncePct': [] },
+      { tunableParamNames, restrictToEntryParams: false, entryAffecting },
+    );
+    expect(r).toEqual({ ok: false, reason: 'empty_values:entry.fastBouncePct' });
+  });
+
+  it('an empty grid (no keys) → empty_grid', () => {
+    const r = validateSweepGrid({}, { tunableParamNames, restrictToEntryParams: false, entryAffecting });
+    expect(r).toEqual({ ok: false, reason: 'empty_grid' });
   });
 });

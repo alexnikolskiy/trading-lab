@@ -8,8 +8,8 @@ import { BacktesterStrategyExperimentRunExecutor } from './backtester-strategy-e
 import { FakeGate1 } from '../adapters/wfo/fake-gate1.ts';
 import { FakeSweepDesigner } from '../adapters/wfo/fake-sweep-designer.ts';
 import { FakeResultInterpreter } from '../adapters/wfo/fake-result-interpreter.ts';
-import type { ResultInterpreterPort, InterpretInput } from '../ports/wfo-agents.port.ts';
-import type { ResultInterpretOutput } from '../domain/wfo.ts';
+import type { ResultInterpreterPort, InterpretInput, SweepDesignerPort, SweepInput } from '../ports/wfo-agents.port.ts';
+import type { ResultInterpretOutput, SweepDesignOutput } from '../domain/wfo.ts';
 import { InMemoryResearchExperimentRepository } from '../adapters/repository/in-memory-research-experiment.repository.ts';
 import { InMemoryStrategyBacktestRunRepository } from '../adapters/repository/in-memory-strategy-backtest-run.repository.ts';
 import { FakeRunTradesAdapter } from '../adapters/platform/fake-run-trades.adapter.ts';
@@ -138,6 +138,17 @@ class FixedHashInterpreter implements ResultInterpreterPort {
   }
 }
 
+/** SweepDesignerPort fake that returns a caller-supplied (possibly invalid) grid verbatim. */
+class BadSweepDesigner implements SweepDesignerPort {
+  readonly adapter = 'fake' as const;
+  readonly model = 'fake';
+  private readonly grid: Record<string, unknown[]>;
+  constructor(grid: Record<string, unknown[]>) { this.grid = grid; }
+  async design(_input: SweepInput): Promise<SweepDesignOutput> {
+    return { grid: this.grid, rationale: 'bad designer — returns whatever grid it was given' };
+  }
+}
+
 async function seedBaseline(opts: {
   experiments: InMemoryResearchExperimentRepository;
   strategyBacktests: InMemoryStrategyBacktestRunRepository;
@@ -176,6 +187,7 @@ async function seedBaseline(opts: {
 function buildSvc(opts: {
   resultFor: ResultForFn;
   resultInterpreter?: ResultInterpreterPort;
+  sweepDesigner?: SweepDesignerPort;
   wfoBudget?: Partial<WfoBudget>;
 }): { svc: ExperimentService; experiments: InMemoryResearchExperimentRepository; strategyBacktests: InMemoryStrategyBacktestRunRepository } {
   const experiments = new InMemoryResearchExperimentRepository();
@@ -195,7 +207,7 @@ function buildSvc(opts: {
     now: () => NOW,
     events: { append: async () => {}, listByTask: async () => [] },
     gate1: new FakeGate1(),
-    sweepDesigner: new FakeSweepDesigner(),
+    sweepDesigner: opts.sweepDesigner ?? new FakeSweepDesigner(),
     resultInterpreter: opts.resultInterpreter ?? new FakeResultInterpreter(),
     paramGridRunner,
     strategyBacktests,
@@ -353,5 +365,49 @@ describe('runWalkForwardOptimization', () => {
 
     expect(verdict).toBe('INCONCLUSIVE');
     expect(terminalReason).toBe('round_limit_reached');
+  });
+
+  it('SweepDesigner returns a key that is not a tunable param of the profile → grid_invalid, no train members, no oos member', async () => {
+    const { svc, experiments, strategyBacktests } = buildSvc({
+      resultFor: () => ({ totalTrades: 5 }),
+      sweepDesigner: new BadSweepDesigner({ 'unknown.param': [1, 2] }),
+    });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 5,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(baselineExperimentId, [ENTRY_PARAM]);
+
+    const { experimentId, verdict, terminalReason } = await svc.runWalkForwardOptimization(input);
+    const members = await experiments.listMembers(experimentId);
+
+    expect(verdict).toBe('INCONCLUSIVE');
+    expect(terminalReason).toBe('grid_invalid');
+    expect(members.filter((m) => m.role === 'train' && m.oos === false).length).toBe(0);
+    expect(members.filter((m) => m.oos === true).length).toBe(0);
+  });
+
+  it('SweepDesigner returns an exit-only key while GATE1 restricts the exploratory sweep to entry-affecting params → grid_invalid', async () => {
+    const { svc, experiments, strategyBacktests } = buildSvc({
+      resultFor: () => ({ totalTrades: 5 }),
+      sweepDesigner: new BadSweepDesigner({ 'risk.hardStopPct': [1, 2] }),
+    });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 0,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(
+      baselineExperimentId,
+      [ENTRY_PARAM, ...EXIT_ONLY_PARAMS],
+      { entrySignalEvidence: true },
+    );
+
+    const { experimentId, verdict, terminalReason } = await svc.runWalkForwardOptimization(input);
+    const members = await experiments.listMembers(experimentId);
+
+    expect(verdict).toBe('INCONCLUSIVE');
+    expect(terminalReason).toBe('grid_invalid');
+    expect(members.filter((m) => m.role === 'train' && m.oos === false).length).toBe(0);
+    expect(members.filter((m) => m.oos === true).length).toBe(0);
   });
 });
