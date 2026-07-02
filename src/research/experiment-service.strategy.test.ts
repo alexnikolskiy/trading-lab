@@ -15,6 +15,7 @@ import { FakeGate1 } from '../adapters/wfo/fake-gate1.ts';
 import { FakeSweepDesigner } from '../adapters/wfo/fake-sweep-designer.ts';
 import { FakeResultInterpreter } from '../adapters/wfo/fake-result-interpreter.ts';
 import { InMemoryStrategyBacktestRunRepository } from '../adapters/repository/in-memory-strategy-backtest-run.repository.ts';
+import type { ArtifactRef } from '../domain/types.ts';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -71,6 +72,14 @@ class NeverOverlayExecutor implements ExperimentRunExecutor {
   async execute(_req: ExperimentRunRequest): Promise<ExperimentRunResult> {
     throw new Error('overlay runExecutor must not be called from runStrategyBaselineValidation');
   }
+}
+
+function testArtifactRef(): ArtifactRef {
+  return {
+    artifact_id: 'art-1', uri: 'file:///tmp/a.json', content_hash: 'sha256:aa',
+    kind: 'strategy_bundle', size_bytes: 10, mime_type: 'application/json',
+    created_at: '2026-07-03T00:00:00.000Z', producer: 'test', metadata: {},
+  };
 }
 
 function viableHoldoutMetrics() {
@@ -134,6 +143,22 @@ describe('runStrategyBaselineValidation', () => {
     expect(exp?.hypothesisId).toBeUndefined();
     expect(exp?.buildId).toBeUndefined();
     expect(exp?.bundleHash).toBe('sha256:bundle');
+  });
+
+  it('persists bundleArtifactRef on the baseline experiment row', async () => {
+    const { svc, experiments } = buildSvc(
+      () => ({ status: 'completed', runId: 'r-sanity', platformRunId: 'plat-sanity', totalTrades: 4 }),
+      { 'plat-sanity': trades(4) },
+    );
+    const ref = testArtifactRef();
+    const input = baseInput({
+      datasetScope: { datasetId: 'ds', symbols: ['BTCUSDT'], timeframe: '1h', period: { from: '2023-01-01', to: '2023-01-07' } },
+      bundleArtifactRef: ref,
+    });
+
+    const { experimentId } = await svc.runStrategyBaselineValidation(input);
+
+    expect((await experiments.findById(experimentId))?.bundleArtifactRef).toEqual(ref);
   });
 
   it('synthetic ≥30-trade path with a surviving holdout → PAPER_CANDIDATE', async () => {
