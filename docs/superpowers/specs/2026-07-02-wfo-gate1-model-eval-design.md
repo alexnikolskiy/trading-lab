@@ -64,12 +64,14 @@ recorded sources (local DB / mock-platform / VPS snapshot)
 - Returns `{ label, confidence: 'obvious' } | { needsTeacher: true }`. The genuinely subjective call — a baseline WITH trades that is `improve` vs `stop_not_worth` (is it already good enough?) — is marked `needsTeacher` (the oracle does not guess it).
 
 ### 4.3 Teacher labeler — `teacher.ts`
-- For `needsTeacher` cases, calls a **frontier** model (the teacher, configurable, distinct-by-default from the eval candidate to avoid self-agreement) to produce `{ label, rationale }`. Records `labelSource:'teacher'`, `teacherModel`.
+- For `needsTeacher` cases, calls a **frontier** model (the teacher, configurable) to produce `{ label, rationale }`. Records `labelSource:'teacher'`, `teacherModel`.
+- **Teacher is distinct-by-default from the eval candidate** (avoids self-agreement). Candidate == teacher IS allowed (e.g. the first smoke run, where only one frontier model is on hand) — but it is NOT silently OK: whenever the eval's candidate model id equals the snapshot's `teacherModel`, the run is flagged **`teacher-circular`** and every report + the run manifest carry that warning, and the teacher-labeled accuracy is called out as non-independent (see §4.5/§4.6).
 - Paid — runs only under an explicit `--label` step, never during a plain eval.
 
 ### 4.4 Frozen dataset — `dataset.ts`
 - `FrozenCase = { id, input: Gate1Input, label: Gate1Decision, labelSource: 'oracle'|'teacher', teacherModel?: string, rationale?: string, createdAt: string }`.
-- `FrozenDataset = { snapshotId, createdAt, gitSha, sourceRef, cases: FrozenCase[] }`, persisted as a snapshot artifact (`.artifacts/experiments/wfo-gate1/datasets/<snapshotId>.json`), with a stable `snapshotId` (content hash of cases+labels).
+- `FrozenDataset = { snapshotId, createdAt, gitSha, sourceRef, cases: FrozenCase[] }`, persisted as a snapshot artifact (`.artifacts/experiments/wfo-gate1/datasets/<snapshotId>.json`).
+- **`snapshotId` is content-addressed over the CANONICAL, volatile-free projection of each case** — `stableStringify` over the ordered list of `{ id, input, label, labelSource, teacherModel, rationale }` per case — **explicitly EXCLUDING** the volatile provenance fields (`createdAt`, `gitSha`, dataset-level timestamps). Those provenance fields still live in the snapshot file, but they do NOT enter the id. This makes the test invariant hold: a second `--label` of identical content (same cases + same labels) yields the **same** `snapshotId`. Provenance changes alone (a re-run at a later time) never mint a new id.
 - The eval consumes a **pinned** `snapshotId`; it NEVER re-labels. `--label` (separate command) builds/refreshes a snapshot and prints its id; `--snapshot <id>` selects it for eval. A curated snapshot MAY later be committed under `docs/fixtures/` if a stable public golden set is wanted.
 
 ### 4.5 Eval harness — `eval-harness.ts` + `scoring.ts`
@@ -79,7 +81,8 @@ recorded sources (local DB / mock-platform / VPS snapshot)
 
 ### 4.6 Aggregate + report — `aggregate.ts` + `report.ts`
 - `aggregateRuns`/`rankAggregates` (mean/std), `recommendEnv` reporting **frontier baseline PASS/FAIL** vs the incumbent `WFO_GATE1_MODEL` (not a cheapest-passing pick this slice).
-- `planDryRun` (paid-call math `models × repeat × caseCount` + `missingKeys` per provider), `writeRunArtifacts` (JSON + manifest `{timestamp, gitSha, harnessVersion, contractVersion, snapshotId, mode}`), `renderReport` (markdown table: model, accuracy overall / oracle / teacher, passRate, meanLatency, PASS/FAIL).
+- `planDryRun` (paid-call math `models × repeat × caseCount` + `missingKeys` per provider), `writeRunArtifacts` (JSON + manifest `{timestamp, gitSha, harnessVersion, contractVersion, snapshotId, teacherModel, teacherCircular: boolean, mode}`), `renderReport` (markdown table: model, accuracy overall / oracle / teacher, passRate, meanLatency, PASS/FAIL).
+- When `teacherCircular` is true (candidate id == snapshot `teacherModel`), the report prints a prominent **`⚠ teacher-circular`** banner and marks the teacher-labeled-accuracy column as non-independent, so a smoke run's headline number is never mistaken for an unbiased score.
 
 ### 4.7 CLI — `scripts/wfo-gate1-eval.ts`
 - `HARNESS_VERSION='wfo-gate1-eval-v1'`, `CONTRACT_VERSION='wfo-gate1-v0'`.
