@@ -94,14 +94,15 @@ pnpm tsx scripts/run-strategy-baseline.mts
 
 ## 6. Captured run
 
-**Status: PENDING** — not yet executed on this box (docker unavailable in the WSL2 shell, §1). Fill in after the first successful run:
+**Status: CHAIN PROVEN** — executed 2026-07-02 on the WSL2 dev box (Docker Desktop WSL integration enabled; `node:24-alpine` pulled). The full chain runs end-to-end and the strategy `strategy_backtest_run` reaches `completed` with real, engine-produced metrics. `tradeCount` is 0 (see below) — a strategy-fit / data-granularity outcome, not a chain defect.
 
-- Date / host:
-- `strategyProfileId`:
-- strategy `bundleHash`:
-- `experimentId`:
-- `verdict`: (expected `INCONCLUSIVE` on the 6-day slice)
-- sanity `tradeCount`: (acceptance: > 0)
-- sanity `metrics` (pnl / sharpe / profit_factor / …):
-- `engine:'strategy'` flag needed? (the §2 open item):
+- Date / host: 2026-07-02, WSL2 dev box (host `trading-backtester` on :8080, BIND-mode sandbox; infra via `docker compose … up postgres redis mock-platform`)
+- `strategyProfileId`: `b76fd88d-b5b5-428d-86fb-77e5f1796ab6` (real `strategy.onboard`, analyst `openrouter/openai/gpt-5.5`, 7 files / 57 563 bytes, fingerprint `sha256:513eefd5…`)
+- strategy `bundleHash` (lab, non-deterministic per LLM build): `sha256:607abc0d…` (builder `openrouter/anthropic/claude-sonnet-4.6`; backtester-internal materialized bundleHash `sha256:440341cd…`)
+- `experimentId`: `exp-93308e7e-fd9d-430b-a33a-0f79ec3e47dd`
+- `verdict`: **FAIL** — the evaluator's `minTrades≥1` gate fires on 0 trades. (INCONCLUSIVE was the *expected* verdict IF the sanity run produced trades and the holdout then degraded to `mode:'none'`; with 0 sanity trades it never reaches the holdout split.)
+- sanity `tradeCount`: **0** — `strategy_backtest_run` id `defcad6b-…` status `completed` (~11 s real docker-sandbox run), platform run `08712929-…`
+- sanity `metrics`: all zero (`pnl/sharpe/max_drawdown/win_rate/total_trades/profit_factor/top_trade_contribution_pct = 0`)
+- **Why 0 trades (diagnosed from the `decision-records` artifact, 161 records over the ~6-day 1h slice):** the strategy DID execute against real data and evaluated every bar — ~26 bars emitted `baseDecision {kind:'annotate', tags:['dump_detected','high_to_low'], triggerPct≈36}` — but **never a `kind:'enter'`**. The LLM-built `long_oi_dump_reversal_v1` detects the OI-dump but never converts a detection into an entry on this coarse `ESPORTSUSDT:1h` window. This is builder-faithfulness / data-granularity (long_oi's real signal is a 1m + taker/OI construct — see [[trading-lab-commitxtermmath-design]] / [[no-shortcuts-extend-data-model]]), NOT a plumbing gap. A tradeCount>0 acceptance needs either a finer/richer dataset (VPS ≥30-day 1m) or a builder that ports the full entry path.
+- **`engine:'strategy'` flag needed? (the §2 open item — ANSWERED):** No separate enable flag beyond `BACKTESTER_ENABLE_OVERLAY_ENGINE=true` (the strategy path shares the overlay sandbox router). **BUT** the run request MUST carry `riskProfileRef` + `executionProfileRef` — the strategy engine rejects any position-capable config without them (`runner.ts::runBacktest` → `missing_risk_profile` / `executionProfileRef не привязан`), terminal `validation_error` *before* the sandbox. The lab's `submitStrategyResearchRun` omitted both, so every real strategy submit was rejected in ~0.6 s. **Fixed** on branch `fix/strategy-baseline-risk-exec-profile-ref`: resolve the sole run preset and reuse its `riskProfileRef`/`executionProfileRef` (the platform defaults the strategy inline-registry registers via `buildInlineOverlayRegistry` → `TRUSTED_REGISTRY_DEFINITION`), mirroring `submitOverlayRun`. This unblocked the `completed` run above.
 - Task-9 note: `getRunTrades` field reads verified correct (`descriptor.contentHash` + `ArtifactPage.page`) — controller-confirmed during implementation, `src/adapters/platform/http-backtester.adapter.ts:433-434`.
