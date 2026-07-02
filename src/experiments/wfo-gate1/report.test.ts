@@ -64,6 +64,17 @@ describe('parseArgs', () => {
     const args = parseArgs(['--models', 'm1,m2, m3']);
     expect(args.models).toEqual(['m1', 'm2', 'm3']);
   });
+
+  it('does not require --models for --label (dataset-build path runs no eval)', () => {
+    const args = parseArgs(['--label', '--teacher-model', 'openrouter/x']);
+    expect(args.models).toEqual([]);
+    expect(args.label).toBe(true);
+    expect(args.teacherModel).toBe('openrouter/x');
+  });
+
+  it('still throws "--models is required" for a non-label (dry-run) invocation with no models', () => {
+    expect(() => parseArgs(['--snapshot', 's'])).toThrow(/--models is required/);
+  });
 });
 
 describe('planDryRun', () => {

@@ -67,7 +67,7 @@ export function parseArgs(argv: string[]): CliArgs {
   });
 
   const models = (values.models ?? '').split(',').map((m) => m.trim()).filter(Boolean);
-  if (models.length === 0) {
+  if (!values.label && models.length === 0) {
     throw new Error('--models is required (comma-separated, e.g. anthropic/claude-haiku-4-5,openai/gpt-4o-mini)');
   }
 

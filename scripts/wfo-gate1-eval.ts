@@ -18,7 +18,6 @@ import { rankAggregates, frontierVerdict } from '../src/experiments/wfo-gate1/ag
 import { DbCaseSource, SnapshotCaseSource, type CaseSource } from '../src/experiments/wfo-gate1/case-source.ts';
 import { buildFrozenCases } from '../src/experiments/wfo-gate1/teacher.ts';
 import { freezeDataset, writeSnapshot, loadSnapshot } from '../src/experiments/wfo-gate1/dataset.ts';
-import { composeRuntime } from '../src/composition.ts';
 import { parseRoleModel, type ModelProviderEnv, type ModelProvider } from '../src/adapters/llm/model-provider.ts';
 
 const HARNESS_VERSION = 'wfo-gate1-eval-v1';
@@ -114,6 +113,7 @@ async function runLabel(args: CliArgs): Promise<number> {
   }
 
   if (!args.source || args.source === 'db') {
+    const { composeRuntime } = await import('../src/composition.ts');
     const { services, pool, queue } = composeRuntime();
     try {
       const source = new DbCaseSource({
