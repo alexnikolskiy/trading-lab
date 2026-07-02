@@ -286,10 +286,19 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort, BacktesterSt
       entry: 'index.js',
       files: { 'index.js': new TextDecoder().decode(bundle.bytes) },
     });
+    // The strategy engine rejects any run whose config can open a position but carries no
+    // riskProfileRef/executionProfileRef (runner.ts: missing_risk_profile / executionProfileRef не привязан).
+    // A standalone strategy has no overlay preset of its own, so borrow the platform-default risk + exec
+    // refs the sole run preset advertises — the SAME defaults the strategy inline-registry registers
+    // (buildInlineOverlayRegistry wires TRUSTED_REGISTRY_DEFINITION.risk/executionProfiles), so they
+    // resolve. moduleRef stays the strategy bundle (NOT the preset baseline).
+    const preset = await this.resolvePreset();
     const req: BtRunSubmitRequest = {
       mode: 'research',
       engine: 'strategy',
       moduleRef: { id: bundle.manifest.id, version: bundle.manifest.version },
+      riskProfileRef: preset.riskProfileRef,
+      executionProfileRef: preset.executionProfileRef,
       moduleBundle,
       datasetRef: opts.run.datasetId,
       symbols: opts.run.symbols,

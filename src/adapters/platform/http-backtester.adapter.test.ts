@@ -233,6 +233,16 @@ describe('HttpBacktesterAdapter', () => {
     expect(fake.submitted?.callbackUrl).toBe('https://cb.example/hook');
   });
 
+  it('submitStrategyResearchRun binds the platform-default risk + execution profile refs (from the resolved preset) — the strategy engine rejects a run without them', async () => {
+    // moduleRef stays the STRATEGY bundle (not the preset baseline); only risk/exec refs are borrowed
+    // from the sole preset, which advertises the platform defaults the strategy inline-registry registers.
+    const fake = new FakeClient();
+    await new HttpBacktesterAdapter(fake).submitStrategyResearchRun(strategyBundle, strategyOpts);
+    expect(fake.submitted?.moduleRef).toEqual({ id: 'strat_x', version: '2' });
+    expect(fake.submitted?.riskProfileRef).toEqual({ id: 'risk', version: 'v1' });
+    expect(fake.submitted?.executionProfileRef).toEqual({ id: 'exec', version: 'v1' });
+  });
+
   it('maps an overlay result: runKind=baseline-vs-variant, comparison populated from metricDeltas', async () => {
     const fake = new FakeClient();
     fake.resultMode = 'overlay-summary';
