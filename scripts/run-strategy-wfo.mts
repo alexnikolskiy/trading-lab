@@ -12,6 +12,20 @@
  * script does NOT re-run the baseline; it reads it (baseline metrics, holdout boundary source,
  * datasetScope) and starts the WFO round loop from there.
  *
+ * KNOWN LIMITATION (bundle-hash mismatch): step 3 below REBUILDS the strategy bundle via the
+ * non-deterministic LLM builder (services.strategyBuilder.build) rather than reusing the exact
+ * bundle the baseline validated — so the rebuilt bundle's hash will essentially never equal
+ * `baseline.bundleHash`. `ExperimentService.runWalkForwardOptimization` now fails fast on that
+ * mismatch (WFO must optimize the SAME bundle the baseline validated, or its train-window
+ * metrics / no-leakage boundary describe a different bundle than the one being optimized) — this
+ * script pre-flights the same check right after building the bundle (step 3) so it fails with a
+ * clear, script-level error before ever calling runWalkForwardOptimization. The proper fix is a
+ * follow-up: persist the baseline's `strategy_bundle` artifact ref on the ResearchExperiment row
+ * and reconstruct the bundle from it here via the ref-based `artifacts` port (`put` → ref,
+ * `get(ref)` → bytes) instead of rebuilding — scripts/run-strategy-baseline.mts currently calls
+ * `services.artifacts.put(...)` for its own 'strategy_bundle' persist but discards the returned
+ * ref, so that plumbing does not exist yet. NOT attempted here.
+ *
  * Loads the strategy profile the SAME way as `BASELINE_EXPERIMENT_ID`'s baseline experiment:
  *   STRATEGY_PROFILE_ID env (if set) → services.strategyProfiles.findById(id)
  *   else → services.strategyProfiles.findById(baseline.strategyProfileId)
@@ -194,6 +208,21 @@ try {
   process.stderr.write(
     `[run-wfo] bundle id=${strategyBundle.manifest.id} hash=${strategyBundle.bundleHash}\n`,
   );
+
+  // ── 3b) PRE-FLIGHT bundle-hash guard (see KNOWN LIMITATION in the file header) ──────────────
+  //      Fail fast with a script-level, actionable error BEFORE calling runWalkForwardOptimization
+  //      (which now also guards this, but with less context on WHY a rebuilt bundle can't match).
+  if (strategyBundle.bundleHash !== baseline.bundleHash) {
+    throw new Error(
+      `run-strategy-wfo: rebuilt bundle hash (${strategyBundle.bundleHash}) does not match baseline `
+      + `experiment bundleHash (${baseline.bundleHash}, baselineExperimentId=${baselineExperimentId}). `
+      + 'This script rebuilds the strategy bundle via the non-deterministic LLM builder '
+      + '(services.strategyBuilder.build), so its hash will essentially never match the bundle the '
+      + 'baseline validated. WFO must optimize the exact bundle the baseline validated — see the '
+      + 'KNOWN LIMITATION note in this file\'s header for the proper follow-up fix (persist + '
+      + 'reconstruct the baseline\'s strategy_bundle artifact ref instead of rebuilding).',
+    );
+  }
 
   // ── 4) persist the bundle before submit (audit anchor; same shape as
   //      run-strategy-baseline.mts's 'strategy_bundle' persist) ────────────────

@@ -352,6 +352,11 @@ export class ExperimentService {
     // --- Baseline metrics + boundary source (§ brief) ---
     const baseline = await this.d.experiments.findById(input.baselineExperimentId);
     if (!baseline) throw new Error(`runWalkForwardOptimization: baseline experiment not found: ${input.baselineExperimentId}`);
+    // Fail fast: WFO must optimize the exact bundle the baseline validated — otherwise the
+    // agent-facing baseline metrics + no-leakage boundary below would describe a different bundle.
+    if (baseline.bundleHash !== bundleHash) {
+      throw new Error(`runWalkForwardOptimization: bundle mismatch — baseline bundleHash ${baseline.bundleHash} != input ${bundleHash}; WFO must optimize the SAME bundle the baseline validated`);
+    }
     const baselineMembers = await this.d.experiments.listMembers(input.baselineExperimentId);
     const baselineRunMember = baselineMembers.find((m) => m.role === 'sanity') ?? baselineMembers.find((m) => m.role === 'holdout');
     if (!baselineRunMember?.strategyBacktestRunId) {
@@ -359,12 +364,31 @@ export class ExperimentService {
     }
     const baselineRun = await this.d.strategyBacktests.findById(baselineRunMember.strategyBacktestRunId);
     if (!baselineRun?.metrics) throw new Error('runWalkForwardOptimization: baseline strategy backtest run has no metrics');
-    const baselineMetrics = baselineRun.metrics;
 
+    // --- Resolve the split boundary FIRST (sanity/holdout run is the trades/boundary source —
+    // unchanged), so we know whether a valid split exists before choosing which member's metrics
+    // the agents are allowed to see. ---
     let boundary = baseline.holdoutBoundary;
     if (!boundary) {
       const trades = await this.d.runTrades.getRunTrades(baselineRun.platformRunId);
       boundary = resolveHoldoutBoundary(trades, input.datasetScope.period, baseline.holdoutPolicy);
+    }
+
+    // --- Agent-facing baseline metrics: no-leakage requires the TRAIN-window ([from, T)) metrics,
+    // never the sanity/holdout run's FULL-PERIOD metrics (which include the future holdout window).
+    // Only meaningful when a valid split exists; with mode:'none' there is no split/no leakage
+    // concept, so fall back to the sanity/holdout member's metrics (pre-existing behavior). ---
+    let baselineMetrics: NonNullable<typeof baselineRun.metrics>;
+    if (boundary.mode !== 'none') {
+      const baselineTrainMember = baselineMembers.find((m) => m.role === 'train');
+      if (!baselineTrainMember?.strategyBacktestRunId) {
+        throw new Error('runWalkForwardOptimization: baseline experiment has a valid split but no train member with a strategyBacktestRunId');
+      }
+      const baselineTrainRun = await this.d.strategyBacktests.findById(baselineTrainMember.strategyBacktestRunId);
+      if (!baselineTrainRun?.metrics) throw new Error('runWalkForwardOptimization: baseline train strategy backtest run has no metrics');
+      baselineMetrics = baselineTrainRun.metrics;
+    } else {
+      baselineMetrics = baselineRun.metrics;
     }
 
     // --- Dedup / create (mirrors runStrategyBaselineValidation) ---
