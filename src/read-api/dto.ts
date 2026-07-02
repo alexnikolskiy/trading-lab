@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { AgentId, AgentLifecycle } from './agent-taxonomy.ts';
+import type { ParameterGrid } from '../domain/research-experiment.ts';
 
 const limit = z.coerce.number().int().min(1).max(100).default(20);
 const BACKTEST_STATUSES = ['queued', 'submitted', 'running', 'completed', 'rejected', 'failed', 'evaluated'] as const;
@@ -110,6 +111,7 @@ export interface ExperimentDto {
   holdoutPolicy: unknown;
   holdoutBoundary: unknown | null;
   aggregateMetrics: unknown | null;
+  parameterGrid?: ParameterGrid | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -125,6 +127,8 @@ export interface ExperimentRunMemberDto {
   periodFrom: string;
   periodTo: string;
   symbols: string[];
+  params?: Record<string, unknown> | null;
+  oos?: boolean | null;
   tradeCount: number | null;
   resultSummary: unknown | null;
   createdAt: string;

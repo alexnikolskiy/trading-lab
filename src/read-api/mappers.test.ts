@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { toHypothesisListItem, toHypothesisDetail, toBacktestDto, toAgentEventDto, toExperimentRunMemberDto } from './mappers.ts';
+import { toHypothesisListItem, toHypothesisDetail, toBacktestDto, toAgentEventDto, toExperimentDto, toExperimentRunMemberDto } from './mappers.ts';
 import type { HypothesisProposal } from '../domain/hypothesis.ts';
 import type { BacktestRun } from '../domain/backtest-run.ts';
 import type { AgentEventRow } from '../ports/agent-event-read.port.ts';
+import type { ResearchExperiment, ExperimentRunMember } from '../domain/research-experiment.ts';
+import { DEFAULT_HOLDOUT_POLICY } from '../domain/research-experiment.ts';
 
 const HYP_LIST_KEYS = ['id', 'profileId', 'thesis', 'targetBehavior', 'status', 'confidence', 'expectedEffect', 'rulesSummary', 'createdAt', 'updatedAt'];
 const BACKTEST_KEYS = ['id', 'hypothesisId', 'status', 'metrics', 'delta', 'isFragile', 'submittedAt', 'finishedAt', 'createdAt', 'updatedAt'];
@@ -114,5 +116,34 @@ describe('experiment run member mapper', () => {
     } as any);
     expect(dto.strategyBacktestRunId).toBe('sbr_1');
     expect(dto.backtestRunId ?? null).toBeNull();
+  });
+});
+
+function makeExperiment(over: Partial<ResearchExperiment> = {}): ResearchExperiment {
+  return {
+    id: 'e1', experimentKey: 'k1', experimentType: 'new_strategy_validation', strategyProfileId: 'p1',
+    datasetScope: { datasetId: 'd1', symbols: ['S'], timeframe: '1h', period: { from: 'a', to: 'b' } },
+    holdoutPolicy: DEFAULT_HOLDOUT_POLICY,
+    status: 'pending',
+    createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
+function makeMember(over: Partial<ExperimentRunMember> = {}): ExperimentRunMember {
+  return {
+    id: 'm1', experimentId: 'e1', role: 'sanity', periodFrom: 'a', periodTo: 'b',
+    symbols: ['S'], paramsHash: 'h', bundleHash: 'h', createdAt: '2026-01-01T00:00:00.000Z',
+    ...over,
+  };
+}
+
+describe('experiment DTO / member params+oos mapper', () => {
+  it('maps parameterGrid and member params/oos into DTOs', () => {
+    const dto = toExperimentDto(makeExperiment({ parameterGrid: { 'x': [1, 2] } }));
+    expect(dto.parameterGrid).toEqual({ 'x': [1, 2] });
+    const m = toExperimentRunMemberDto(makeMember({ params: { 'x': 1 }, oos: true }));
+    expect(m.params).toEqual({ 'x': 1 });
+    expect(m.oos).toBe(true);
   });
 });
