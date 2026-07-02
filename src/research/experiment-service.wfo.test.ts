@@ -16,6 +16,7 @@ import type { AgentCallOpts } from '../ports/agent-call-opts.ts';
 import type { TokenUsageRepository } from '../ports/token-usage.repository.ts';
 import { InMemoryResearchExperimentRepository } from '../adapters/repository/in-memory-research-experiment.repository.ts';
 import { InMemoryStrategyBacktestRunRepository } from '../adapters/repository/in-memory-strategy-backtest-run.repository.ts';
+import { InMemoryTokenUsageRepository } from '../adapters/repository/in-memory-token-usage.repository.ts';
 import { FakeRunTradesAdapter } from '../adapters/platform/fake-run-trades.adapter.ts';
 import type {
   ResearchPlatformPort, ResearchCapabilityDescriptor, ListDatasetsFilter, ListDatasetsResult,
@@ -549,6 +550,42 @@ describe('runWalkForwardOptimization', () => {
 
     expect(terminalReason).toBe('budget_exhausted');
     expect(sweepDesigner.calls).toHaveLength(1);
+  });
+
+  it('budget gate reads the same correlationId that onUsage writes (key-consistency regression)', async () => {
+    // Regression guard: the WFO budget gate MUST check the same correlationId that agentOpts.onUsage
+    // charges usage against — through a REAL InMemoryTokenUsageRepository, not a closure variable
+    // standing in for it (see the "stops the round loop..." test above, which intentionally drives
+    // tokenUsage.get off a plain `cumulative` closure — the anti-pattern this test proves is absent
+    // from the real write→read path). FakeGate1/FakeSweepDesigner/FakeResultInterpreter all invoke
+    // opts?.onUsage(...) when given (see fake-gate1.ts/fake-sweep-designer.ts), but as test doubles
+    // that never call a real LLM they report a fixed zero-token AgentCallUsage payload. To exercise
+    // the repository write path end-to-end we mirror src/orchestrator/make-on-usage.ts's shape
+    // (onUsage -> tokenUsage.add(correlationId, tokens)) but attribute a representative per-call
+    // token cost, since forwarding the fakes' literal zero would never trip the budget.
+    const tokenUsageRepo = new InMemoryTokenUsageRepository();
+    const correlationId = 'corr-key';
+    const agentOpts: AgentCallOpts = {
+      onUsage: async () => { await tokenUsageRepo.add(correlationId, 300); },
+    };
+    const { svc, experiments, strategyBacktests } = buildSvc({
+      resultFor: () => ({ totalTrades: 5 }),
+      resultInterpreter: new AlwaysExtendInterpreter(), // forces round 2 so the mid-loop gate is reached
+      tokenUsage: tokenUsageRepo,
+      researchTaskTokenBudget: 500, // survives GATE1 (300) but round 1's GATE1+sweepDesigner usage (600) trips it
+    });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 5,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(baselineExperimentId, [ENTRY_PARAM], { correlationId, agentOpts });
+
+    const { terminalReason } = await svc.runWalkForwardOptimization(input);
+
+    expect(terminalReason).toBe('budget_exhausted');
+    // Proves the gate's read (tokenUsage.get(correlationId)) actually observed the tokens
+    // onUsage wrote (tokenUsage.add(correlationId, ...)) under the identical key — no shortcut.
+    expect(await tokenUsageRepo.get(correlationId)).toBeGreaterThan(0);
   });
 
   it('forwards agentOpts to gate1/sweepDesigner/resultInterpreter calls', async () => {
