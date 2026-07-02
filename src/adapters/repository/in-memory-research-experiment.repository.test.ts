@@ -49,4 +49,14 @@ describe('InMemoryResearchExperimentRepository', () => {
     expect(members.map((m) => m.oos)).toEqual([false, true]);
     expect(members[0]?.params).toEqual({ 'dump.minDropPct': 2 });
   });
+  it('listByType returns only that type, ordered createdAt ASC then id ASC', async () => {
+    const repo = new InMemoryResearchExperimentRepository();
+    // insert out of createdAt order to prove the ORDER BY, not insertion order
+    await repo.createExperiment(experiment({ id: 'e2', experimentKey: 'k-e2', experimentType: 'strategy_baseline_validation', createdAt: '2026-02-01T00:00:00Z' }));
+    await repo.createExperiment(experiment({ id: 'e1', experimentKey: 'k-e1', experimentType: 'strategy_baseline_validation', createdAt: '2026-01-01T00:00:00Z' }));
+    await repo.createExperiment(experiment({ id: 'e3', experimentKey: 'k-e3', experimentType: 'walk_forward_optimization', createdAt: '2026-01-15T00:00:00Z' }));
+    const rows = await repo.listByType('strategy_baseline_validation');
+    expect(rows.map((r) => r.id)).toEqual(['e1', 'e2']); // createdAt ASC — NOT insertion order, no .sort()
+    expect(rows.every((r) => r.experimentType === 'strategy_baseline_validation')).toBe(true);
+  });
 });

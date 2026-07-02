@@ -1,11 +1,12 @@
 import type {
-  ResearchExperiment, ExperimentRunMember, ExperimentEvaluation,
+  ResearchExperiment, ExperimentRunMember, ExperimentEvaluation, ExperimentType,
 } from '../domain/research-experiment.ts';
 
 export interface ResearchExperimentRepository {
   createExperiment(e: ResearchExperiment): Promise<void>;
   findById(id: string): Promise<ResearchExperiment | null>;
   findByKey(experimentKey: string): Promise<ResearchExperiment | null>;
+  listByType(type: ExperimentType, opts?: { limit?: number }): Promise<ResearchExperiment[]>;
   updateExperiment(id: string, patch: Partial<Pick<ResearchExperiment,
     'status' | 'verdict' | 'verdictReason' | 'holdoutBoundary' | 'aggregateMetrics' | 'completedAt' | 'updatedAt' | 'parameterGrid'>>): Promise<void>;
   addMember(m: ExperimentRunMember): Promise<void>;
