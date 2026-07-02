@@ -154,6 +154,11 @@ async function seedBaseline(opts: {
   strategyBacktests: InMemoryStrategyBacktestRunRepository;
   totalTrades: number;
   boundary: HoldoutBoundary;
+  // Optional TRAIN-window totalTrades, defaults to mirroring `totalTrades` so pre-existing
+  // trade_based-boundary tests keep their original GATE1/hasEntrySignalEvidence behavior. Pass
+  // explicitly to simulate a train window whose metrics diverge from the sanity/full-period run
+  // (no-leakage regression coverage — see runWalkForwardOptimization).
+  trainTotalTrades?: number;
 }): Promise<string> {
   const experimentId = `baseline-${randomUUID()}`;
   const strategyBacktestRunId = `sbr-${randomUUID()}`;
@@ -181,6 +186,32 @@ async function seedBaseline(opts: {
     periodFrom: DATASET_SCOPE.period.from, periodTo: DATASET_SCOPE.period.to, symbols: [...DATASET_SCOPE.symbols],
     paramsHash: '', bundleHash: BUNDLE_HASH, strategyBacktestRunId, tradeCount: opts.totalTrades, createdAt: NOW,
   });
+
+  // TRAIN member: the agent-facing baseline metrics source whenever a valid split exists.
+  if (opts.boundary.mode !== 'none') {
+    const trainTotalTrades = opts.trainTotalTrades ?? opts.totalTrades;
+    const trainRunId = `sbr-train-${randomUUID()}`;
+    const trainPeriod = encodeTrainPeriod(DATASET_SCOPE.period.from, opts.boundary.t ?? DATASET_SCOPE.period.to, RUN_CONFIG.timeframe);
+    await opts.strategyBacktests.createSubmitted({
+      id: trainRunId, strategyProfileId: 'p1', strategyBundleId: 'sb-wfo',
+      bundleHash: BUNDLE_HASH, paramsHash: 'baseline-train-hash', runKind: STRATEGY_RUN_KIND,
+      platformRunId: 'plat-baseline-train', correlationId: 'train', taskId: 'baseline-task',
+      params: {}, status: 'submitted', metrics: null,
+      platformRun: { ...RUN_CONFIG, period: trainPeriod },
+      artifactRefs: [], platformContractVersion: 'pending', sdkContractVersion: '1', backend: 'research_platform',
+      submittedAt: NOW, finishedAt: null, createdAt: NOW, updatedAt: NOW,
+    });
+    await opts.strategyBacktests.markCompleted(trainRunId, {
+      metrics: metrics({ totalTrades: trainTotalTrades, profitFactor: 1.2, sharpe: 2 }),
+      artifactRefs: [], platformContractVersion: 'v1', finishedAt: NOW,
+    });
+    await opts.experiments.addMember({
+      id: `mem-${randomUUID()}`, experimentId, role: 'train',
+      periodFrom: trainPeriod.from, periodTo: trainPeriod.to, symbols: [...DATASET_SCOPE.symbols],
+      paramsHash: '', bundleHash: BUNDLE_HASH, strategyBacktestRunId: trainRunId, tradeCount: trainTotalTrades, createdAt: NOW,
+    });
+  }
+
   return experimentId;
 }
 
@@ -409,5 +440,39 @@ describe('runWalkForwardOptimization', () => {
     expect(terminalReason).toBe('grid_invalid');
     expect(members.filter((m) => m.role === 'train' && m.oos === false).length).toBe(0);
     expect(members.filter((m) => m.oos === true).length).toBe(0);
+  });
+
+  it('no-leakage regression: agents see the TRAIN-window baseline metrics, not the sanity/full-period ones', async () => {
+    // Sanity/full-period run looks GOOD (20 trades) — if that leaked into GATE1, FakeGate1 would
+    // pick 'improve' (its `baselineMetrics.totalTrades >= 1` branch). The TRAIN-window run is a
+    // 0-trade run — the correct agent-facing signal for a valid split. With totalTrades:0 and
+    // entrySignalEvidence left unset, FakeGate1 must fall through entry-affecting-but-no-evidence
+    // to 'stop_insufficient_evidence', proving GATE1 saw the TRAIN metrics, not the sanity ones.
+    const { svc, experiments, strategyBacktests } = buildSvc({ resultFor: () => ({ totalTrades: 5 }) });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 20, trainTotalTrades: 0,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(baselineExperimentId, [ENTRY_PARAM]);
+
+    const { experimentId, verdict, terminalReason } = await svc.runWalkForwardOptimization(input);
+    const members = await experiments.listMembers(experimentId);
+
+    expect(verdict).toBe('INCONCLUSIVE');
+    expect(terminalReason).toBe('stop_insufficient_evidence');
+    expect(members.length).toBe(0); // GATE1 stopped before any sweep/train round — no leaked 'improve'
+  });
+
+  it('bundle-hash mismatch between input.strategyBundle and the baseline experiment throws before any round runs', async () => {
+    const { svc, experiments, strategyBacktests } = buildSvc({ resultFor: () => ({ totalTrades: 5 }) });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 5,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(baselineExperimentId, [ENTRY_PARAM], {
+      strategyBundle: { ...bundle(), bundleHash: 'sha256:different-rebuilt-bundle' },
+    });
+
+    await expect(svc.runWalkForwardOptimization(input)).rejects.toThrow(/bundle mismatch/);
   });
 });
