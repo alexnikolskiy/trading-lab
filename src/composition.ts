@@ -39,8 +39,14 @@ import type { ResearcherPort } from './ports/researcher.port.ts';
 import type { CriticPort } from './ports/critic.port.ts';
 import { FakeBuilder } from './adapters/builder/fake-builder.ts';
 import { MastraBuilder } from './adapters/builder/mastra-builder.ts';
+import { FakeStrategyBuilder } from './adapters/builder/fake-strategy-builder.ts';
+import { MastraStrategyBuilder } from './adapters/builder/mastra-strategy-builder.ts';
+import { createStrategyBuilderAgent } from './mastra/agents/strategy-builder.agent.ts';
+import { getAuthoringDoc } from '@trading-backtester/sdk/builder';
+import type { StrategyBuilder } from './ports/strategy-builder.port.ts';
 import { DrizzleHypothesisBuildRepository } from './adapters/repository/drizzle-hypothesis-build.repository.ts';
 import { DrizzleBacktestRunRepository } from './adapters/repository/drizzle-backtest-run.repository.ts';
+import { DrizzleStrategyBacktestRunRepository } from './adapters/repository/drizzle-strategy-backtest-run.repository.ts';
 import { DrizzleEvaluationRepository } from './adapters/repository/drizzle-evaluation.repository.ts';
 import type { BuilderPort } from './ports/builder.port.ts';
 import { composeMastra } from './mastra/compose-mastra.ts';
@@ -81,6 +87,7 @@ import type { ReadApiDeps } from './read-api/deps.ts';
 import { PhoenixTraceReader } from './read-api/phoenix/phoenix-trace-reader.ts';
 import { randomUUID } from 'node:crypto';
 import { BacktesterExperimentRunExecutor } from './research/backtester-experiment-run-executor.ts';
+import { BacktesterStrategyExperimentRunExecutor } from './research/backtester-strategy-experiment-run-executor.ts';
 import { ExperimentService } from './research/experiment-service.ts';
 
 function buildAnalyst(rt: MastraRuntime): StrategyAnalystPort {
@@ -214,6 +221,22 @@ function buildBuilder(rt: MastraRuntime): BuilderPort {
   return new FakeBuilder();
 }
 
+/**
+ * Strategy-bundle-authoring builder for the strategy-baseline experiment lane. Reuses the SAME
+ * BUILDER_ADAPTER / BUILDER_MODEL env as the legacy `buildBuilder` overlay wiring above — no new
+ * env var, no second model-selection knob. Mirrors scripts/code-analyst-roundtrip.mts /
+ * scripts/prove-builder-loop.mts.
+ */
+function buildStrategyBuilder(env: ReturnType<typeof loadEnv>): StrategyBuilder {
+  if (env.BUILDER_ADAPTER === 'mastra') {
+    const resolved = resolveLanguageModel(env, env.BUILDER_MODEL);
+    const strategyBuilderAgent = createStrategyBuilderAgent({ model: resolved.model, authoringDoc: getAuthoringDoc('strategy') });
+    return new MastraStrategyBuilder(strategyBuilderAgent, resolved.label);
+  }
+  console.warn('[composition] BUILDER_ADAPTER is not "mastra"; using FakeStrategyBuilder (template bundle)');
+  return new FakeStrategyBuilder();
+}
+
 /** Operator confirmation window for a proposed chat action — policy, not deployment tuning. */
 const CHAT_PROPOSAL_TTL_MS = 10 * 60 * 1000;
 
@@ -252,10 +275,19 @@ export function composeRuntime() {
     ...(backtestCallbackUrl !== undefined ? { callbackUrl: backtestCallbackUrl } : {}),
     now,
   });
+  const strategyBacktests = new DrizzleStrategyBacktestRunRepository(db);
+  const strategyRunExecutor = new BacktesterStrategyExperimentRunExecutor({
+    platform: researchPlatform,
+    strategyBacktests,
+    poll: platformPoll,
+    ...(backtestCallbackUrl !== undefined ? { callbackUrl: backtestCallbackUrl } : {}),
+    now,
+  });
   const experimentService = new ExperimentService({
     experiments,
     runTrades,
     runExecutor: experimentRunExecutor,
+    strategyRunExecutor,
     newId: (p) => `${p}-${randomUUID()}`,
     now,
     events,
@@ -302,6 +334,8 @@ export function composeRuntime() {
     experiments,
     runTrades,
     experimentService,
+    strategyBuilder: buildStrategyBuilder(env),
+    strategyBacktests,
   };
 
   const router = new WorkflowRouter();

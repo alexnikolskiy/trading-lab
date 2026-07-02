@@ -33,6 +33,7 @@ import type {
   ListDatasetsResult,
   ValidationReport,
   SubmitOverlayRunOptions,
+  SubmitStrategyResearchRunOptions,
   ValidateModuleOptions,
   RunJobHandle,
   RunStatusView,
@@ -40,6 +41,7 @@ import type {
 } from '../../ports/research-platform.port.ts';
 import type { GatewayError } from '../../ports/research-run-lifecycle.ts';
 import type { ModuleBundle } from '../../domain/module-bundle.ts';
+import type { AssembledStrategyBundle } from '../../domain/strategy-bundle.ts';
 import type { BacktesterStrategyPort, StrategyRunResult, StrategyRunSubmission } from '../../ports/backtester-strategy.port.ts';
 import { GatewayRunError, GatewayValidationError } from './gateway-errors.ts';
 import { toBacktesterBundle } from './backtester-bundle.ts';
@@ -261,6 +263,41 @@ export class HttpBacktesterAdapter implements ResearchPlatformPort, BacktesterSt
       // so trust preset.metrics directly.
       metrics: [...preset.metrics],
       ...(opts.correlationId !== undefined ? { correlationId: opts.correlationId } : {}),
+      ...(opts.resumeToken !== undefined ? { resumeToken: opts.resumeToken } : {}),
+      ...(opts.workflowId !== undefined ? { workflowId: opts.workflowId } : {}),
+      ...(opts.callbackUrl !== undefined ? { callbackUrl: opts.callbackUrl } : {}),
+    };
+    try {
+      return await this.client.submitRun(req);
+    } catch (err) {
+      throw new GatewayRunError(toGatewayError(err));
+    }
+  }
+
+  /**
+   * Submit a standalone `engine:'strategy'` run for the strategy-baseline lane: no overlay/preset
+   * target, just the bundle's own moduleRef against the given dataset/period. Returns a pollable
+   * `RunJobHandle` (unlike the golden-hash equivalence probe `submitStrategyRun`, which never
+   * returns a handle — it polls internally and reports signed/equivalent/divergent).
+   */
+  async submitStrategyResearchRun(bundle: AssembledStrategyBundle, opts: SubmitStrategyResearchRunOptions): Promise<RunJobHandle> {
+    const moduleBundle = createModuleBundle({
+      manifest: bundle.manifest,
+      entry: 'index.js',
+      files: { 'index.js': new TextDecoder().decode(bundle.bytes) },
+    });
+    const req: BtRunSubmitRequest = {
+      mode: 'research',
+      engine: 'strategy',
+      moduleRef: { id: bundle.manifest.id, version: bundle.manifest.version },
+      moduleBundle,
+      datasetRef: opts.run.datasetId,
+      symbols: opts.run.symbols,
+      timeframe: opts.run.timeframe,
+      period: opts.run.period,
+      seed: opts.run.seed,
+      metrics: [...opts.metrics],
+      correlationId: opts.correlationId,
       ...(opts.resumeToken !== undefined ? { resumeToken: opts.resumeToken } : {}),
       ...(opts.workflowId !== undefined ? { workflowId: opts.workflowId } : {}),
       ...(opts.callbackUrl !== undefined ? { callbackUrl: opts.callbackUrl } : {}),

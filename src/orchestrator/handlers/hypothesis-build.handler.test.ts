@@ -82,6 +82,7 @@ describe('hypothesisBuildHandler', () => {
       validateModule: base.validateModule.bind(base),
       getRunStatus: base.getRunStatus.bind(base),
       getRunResult: base.getRunResult.bind(base),
+      submitStrategyResearchRun: base.submitStrategyResearchRun.bind(base),
       submitOverlayRun: async (...args: Parameters<typeof base.submitOverlayRun>) => {
         submitCount += 1;
         return base.submitOverlayRun(...args);

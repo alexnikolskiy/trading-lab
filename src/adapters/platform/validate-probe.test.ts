@@ -39,6 +39,7 @@ describe('runValidateProbe', () => {
       async listDatasets() { return { datasets: [] }; },
       async validateModule() { return rejected; },
       async submitOverlayRun() { throw new Error('not implemented'); },
+      async submitStrategyResearchRun() { throw new Error('not implemented'); },
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };
@@ -53,6 +54,7 @@ describe('runValidateProbe', () => {
       async listDatasets() { return { datasets: [] }; },
       async validateModule() { throw new GatewayValidationError({ category: 'sandbox_module_error', code: 'bundle_load_failed', message: 'x' }); },
       async submitOverlayRun() { throw new Error('not implemented'); },
+      async submitStrategyResearchRun() { throw new Error('not implemented'); },
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };
@@ -68,6 +70,7 @@ describe('runValidateProbe', () => {
       async listDatasets() { return { datasets: [] }; },
       async validateModule() { return { status: 'accepted', issues: [], executed: false }; },
       async submitOverlayRun() { throw new Error('not implemented'); },
+      async submitStrategyResearchRun() { throw new Error('not implemented'); },
       async getRunStatus() { throw new Error('not implemented'); },
       async getRunResult() { throw new Error('not implemented'); },
     };

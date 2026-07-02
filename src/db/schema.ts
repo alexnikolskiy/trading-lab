@@ -1,6 +1,7 @@
 import { pgTable, text, jsonb, timestamp, index, uniqueIndex, integer, real, boolean, doublePrecision, vector, customType } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { AnalystProfileOutput } from '../domain/strategy-profile.ts';
+import type { BacktestRunStatus } from '../domain/backtest-run.ts';
 import type { ArtifactRef, TaskSource } from '../domain/types.ts';
 import type { RuleAction, ExpectedEffect, HypothesisProposalDraft } from '../domain/hypothesis.ts';
 import type { ValidationIssue } from '../domain/schemas.ts';
@@ -187,6 +188,34 @@ export const backtestRun = pgTable('backtest_run', {
   createdIdx: index('backtest_run_created_idx').on(t.createdAt, t.id),
 }));
 
+export const strategyBacktestRun = pgTable('strategy_backtest_run', {
+  id: text('id').primaryKey(),
+  strategyProfileId: text('strategy_profile_id').notNull(),
+  strategyBundleId: text('strategy_bundle_id').notNull(),
+  bundleHash: text('bundle_hash').notNull(),
+  paramsHash: text('params_hash').notNull(),
+  runKind: text('run_kind').$type<'strategy_baseline'>().notNull(),
+  platformRunId: text('platform_run_id').notNull(),
+  correlationId: text('correlation_id').notNull(),
+  taskId: text('task_id'),
+  resumeToken: text('resume_token'),
+  params: jsonb('params').$type<Record<string, unknown>>().notNull(),
+  status: text('status').$type<BacktestRunStatus>().notNull(),
+  metrics: jsonb('metrics').$type<BacktestMetricBlock>(),
+  platformRun: jsonb('platform_run').$type<PlatformRunConfig>(),
+  artifactRefs: jsonb('artifact_refs').$type<string[]>().notNull(),
+  platformContractVersion: text('platform_contract_version').notNull(),
+  sdkContractVersion: text('sdk_contract_version').notNull(),
+  backend: text('backend').$type<'research_platform'>().notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({
+  idemUq: uniqueIndex('strategy_backtest_run_idem_uq').on(t.strategyBundleId, t.paramsHash, t.bundleHash),
+  profileIdx: index('strategy_backtest_run_profile_idx').on(t.strategyProfileId),
+}));
+
 export const evaluation = pgTable('evaluation', {
   id: text('id').primaryKey(),
   backtestRunId: text('backtest_run_id').notNull(),
@@ -301,6 +330,7 @@ export const experimentRunMember = pgTable('experiment_run_member', {
   id: text('id').primaryKey(),
   experimentId: text('experiment_id').notNull(),
   backtestRunId: text('backtest_run_id'),
+  strategyBacktestRunId: text('strategy_backtest_run_id'),
   role: text('role').notNull().$type<MemberRole>(),
   foldId: integer('fold_id'),
   periodFrom: timestamp('period_from', { withTimezone: true }).notNull(),
