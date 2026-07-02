@@ -25,6 +25,8 @@ describe('reconstructStrategyBundle', () => {
     );
     const got = await reconstructStrategyBundle(store, ref);
     expect(got.bundleHash).toBe(bundle.bundleHash);
+    expect(got.manifest).toEqual(bundle.manifest);
+    expect(got.source).toEqual(bundle.source);
   });
 
   it('fails fast when the stored hash does not match the reassembled bundle', async () => {
