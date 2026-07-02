@@ -325,27 +325,42 @@ git commit -m "feat(research): grid expansion with dedupe + size cap"
 
 **Interfaces:**
 - Consumes: `BacktestMetricBlock` (`src/ports/platform-gateway.port.ts`: `sharpe, profitFactor, maxDrawdownPct, netPnlPct, totalTrades, ...`), `GridPoint` (Task 5).
-- Produces: `interface GridResult { point: GridPoint; paramsHash: string; metrics: BacktestMetricBlock }`; `interface RankedPoint extends GridResult { lowConfidence: boolean }`; `rankTopN(results: GridResult[], opts: { n: number; minTradesTrain: number }): RankedPoint[]`.
+- Produces (the canonical result shapes used by Tasks 7 & 12):
+```ts
+export interface GridResult {
+  point: GridPoint;
+  paramsHash: string;
+  status: 'completed' | 'rejected' | 'pending';
+  strategyBacktestRunId: string;       // the executor returns a runId even for rejected points
+  metrics?: BacktestMetricBlock;       // present only when status==='completed'
+  tradeCount?: number;
+}
+export interface RankedPoint extends GridResult { status: 'completed'; metrics: BacktestMetricBlock; lowConfidence: boolean }
+export function rankTopN(results: GridResult[], opts: { n: number; minTradesTrain: number }): RankedPoint[];
+```
 
-**Rules (spec §6):** drop `totalTrades === 0`; `totalTrades < minTradesTrain` → keep, `lowConfidence: true`; sort `sharpe desc → profitFactor desc → maxDrawdownPct asc → netPnlPct desc`, with `lowConfidence` ranked below full-confidence regardless of raw metric; take `n`.
+**Rules (spec §6):** consider only `status === 'completed'`; drop `totalTrades === 0`; `totalTrades < minTradesTrain` → keep, `lowConfidence: true`; sort `sharpe desc → profitFactor desc → maxDrawdownPct asc → netPnlPct desc`, with `lowConfidence` ranked below full-confidence regardless of raw metric; take `n`. (Rejected / zero-trade points are NOT ranked but are still returned in `allResults` by Task 7 so they are all balanced into the ledger.)
 
 - [ ] **Step 1: Failing test**
 
 ```ts
 import { rankTopN } from './top-n-prefilter.ts';
 const mk = (o: Partial<BacktestMetricBlock>): BacktestMetricBlock => ({ netPnlUsd:0, netPnlPct:0, totalTrades:5, winRate:0, profitFactor:1, maxDrawdownPct:0, expectancyUsd:0, sharpe:0, topTradeContributionPct:0, ...o });
-it('drops zero-trade points and ranks trade-gated', () => {
+const gr = (paramsHash: string, m: Partial<BacktestMetricBlock>, status: GridResult['status'] = 'completed'): GridResult =>
+  ({ point:{}, paramsHash, status, strategyBacktestRunId:`run-${paramsHash}`, metrics: mk(m), tradeCount: (m.totalTrades ?? 5) });
+it('drops zero-trade + non-completed points and ranks trade-gated', () => {
   const res = rankTopN([
-    { point:{a:1}, paramsHash:'z', metrics: mk({ totalTrades:0, sharpe:9 }) },     // dropped
-    { point:{a:2}, paramsHash:'a', metrics: mk({ totalTrades:1, sharpe:9 }) },     // low-confidence (< 3)
-    { point:{a:3}, paramsHash:'b', metrics: mk({ totalTrades:5, sharpe:2 }) },
-    { point:{a:4}, paramsHash:'c', metrics: mk({ totalTrades:5, sharpe:3 }) },
+    gr('z', { totalTrades:0, sharpe:9 }),                 // dropped (zero-trade)
+    gr('r', { totalTrades:9, sharpe:9 }, 'rejected'),     // dropped (not completed)
+    gr('a', { totalTrades:1, sharpe:9 }),                 // low-confidence (< 3)
+    gr('b', { totalTrades:5, sharpe:2 }),
+    gr('c', { totalTrades:5, sharpe:3 }),
   ], { n: 3, minTradesTrain: 3 });
   expect(res.map((r) => r.paramsHash)).toEqual(['c', 'b', 'a']);   // full-conf by sharpe desc, then low-conf last
   expect(res.find((r) => r.paramsHash === 'a')?.lowConfidence).toBe(true);
 });
 it('returns empty when all points are zero-trade', () => {
-  expect(rankTopN([{ point:{}, paramsHash:'x', metrics: mk({ totalTrades:0 }) }], { n: 3, minTradesTrain: 3 })).toEqual([]);
+  expect(rankTopN([gr('x', { totalTrades:0 })], { n: 3, minTradesTrain: 3 })).toEqual([]);
 });
 ```
 
@@ -381,29 +396,33 @@ export interface RunGridInput {
   grid: ParameterGrid; metrics: readonly string[];
   maxPoints: number; topN: number; minTradesTrain: number; foldId: number;
 }
-export interface GridRunOutput { ranked: RankedPoint[]; submitted: number; rejected: number; }
+export interface GridRunOutput { allResults: GridResult[]; ranked: RankedPoint[]; submitted: number; rejected: number; }
 export class ParamGridRunner { constructor(deps: ParamGridRunnerDeps); runGrid(input: RunGridInput): Promise<GridRunOutput>; }
 ```
-Each point → `strategyRunExecutor.execute({ experimentId, role:'train', strategyBundle, strategyProfileId, run: trainRun, params: point, metrics:[...metrics] })`; skip non-`completed` outcomes (count `rejected`); build `GridResult` with `paramsHash = computeStrategyParamsHash({ bundleHash: strategyBundle.bundleHash, platformRun: trainRun, params: point })`; `rankTopN`.
+For EVERY expanded point → `strategyRunExecutor.execute({ experimentId, role:'train', strategyBundle, strategyProfileId, run: trainRun, params: point, metrics:[...metrics] })`; build a `GridResult` for **every** point (completed AND rejected/pending) with `paramsHash = computeStrategyParamsHash({ bundleHash: strategyBundle.bundleHash, platformRun: trainRun, params: point })`, `status: outcome.status`, `strategyBacktestRunId: outcome.runId`, and `metrics`/`tradeCount` when completed. Return **all** of them in `allResults` (so Task 11 can ledger every point); `ranked = rankTopN(allResults, { n: topN, minTradesTrain })` (top-N is completed+traded only). `submitted` = points attempted; `rejected` = count of non-`completed`. The runner does NOT write experiment members — Task 11 owns member persistence from `allResults`.
 
 - [ ] **Step 1: Failing test** — with a fake executor returning per-params metrics:
 
 ```ts
-it('runs each grid point on the train window and returns ranked top-N', async () => {
+it('runs every grid point on train, ledgers ALL results, ranks only completed', async () => {
   const seen: Record<string, unknown>[] = [];
   const fakeExec: StrategyExperimentRunExecutor = { async execute(req) {
     seen.push(req.params);
     const drop = Number(req.params['dump.minDropPct']);
+    if (drop === 9) return { status:'rejected', runId:'r9', platformRunId:'p9' };   // one point rejected by engine
     return { status:'completed', runId:`r${drop}`, platformRunId:`p${drop}`, totalTrades: 5,
       metrics: { netPnlUsd:0, netPnlPct:0, totalTrades:5, winRate:0, profitFactor:1, maxDrawdownPct:0, expectancyUsd:0, sharpe: drop, topTradeContributionPct:0 } };
   }};
   const out = await new ParamGridRunner({ strategyRunExecutor: fakeExec }).runGrid({
     experimentId:'e', strategyBundle: bundle, strategyProfileId:'p', trainRun,
-    grid: { 'dump.minDropPct': [2, 5] }, metrics:['sharpe'], maxPoints:8, topN:3, minTradesTrain:3, foldId:0,
+    grid: { 'dump.minDropPct': [2, 5, 9] }, metrics:['sharpe'], maxPoints:8, topN:3, minTradesTrain:3, foldId:0,
   });
-  expect(seen.length).toBe(2);                               // both points submitted on train
-  expect(out.ranked[0]?.metrics.sharpe).toBe(5);             // higher sharpe first
-  expect(out.submitted).toBe(2); expect(out.rejected).toBe(0);
+  expect(seen.length).toBe(3);                               // all points submitted on train
+  expect(out.allResults.length).toBe(3);                     // ALL points in the ledger (incl. rejected)
+  expect(out.allResults.find((r) => r.paramsHash === out.allResults[2]!.paramsHash)?.status).toBeDefined();
+  expect(out.allResults.filter((r) => r.status === 'rejected').length).toBe(1);
+  expect(out.ranked.map((r) => r.metrics.sharpe)).toEqual([5, 2]);   // only completed, sharpe desc; rejected excluded
+  expect(out.submitted).toBe(3); expect(out.rejected).toBe(1);
 });
 ```
 
@@ -503,17 +522,19 @@ git commit -m "feat(research): WFO agent ports, zod schemas, entry-param classif
 - Produces: `class FakeGate1 implements Gate1DecisionPort` (etc.); `class MastraGate1 implements Gate1DecisionPort` (etc.); `createGate1Agent(model): Agent` (etc.).
 
 **Fake behaviours (deterministic, drive the happy path):**
-- `FakeGate1.decide`: `baselineMetrics.totalTrades >= 1` → `improve`; `totalTrades === 0 && entryAffecting.length > 0` → `allow_exploratory_sweep`; else `stop_insufficient_evidence`.
+- `FakeGate1.decide`: `baselineMetrics.totalTrades >= 1` → `improve`; `totalTrades === 0 && entryAffecting.length > 0 && hasEntrySignalEvidence === true` → `allow_exploratory_sweep`; else `stop_insufficient_evidence`. (BOTH entry-affecting tunables AND entry-signal evidence are required — entry-like params alone are not enough, per spec §7.)
 - `FakeSweepDesigner.design`: return a small grid over the first 1–2 `tunableParams` (respecting `restrictToEntryParams`), e.g. `{ [firstEntryParam]: [v*0.5, v*1.5] }`.
 - `FakeResultInterpreter.interpret`: `topN.length === 0` → `stop`; else `select` with `chosenParamsHash = topN[0].paramsHash`.
 
 - [ ] **Step 1: Failing test**
 
 ```ts
-it('fake gate1 returns allow_exploratory_sweep at 0 trades with entry params', async () => {
+it('fake gate1 needs BOTH entry params AND entry-signal evidence for exploratory', async () => {
   const g = new FakeGate1();
-  const out = await g.decide({ profile: fakeProfile, baselineMetrics: mk({ totalTrades: 0 }), entryAffecting: ['dump.minDropPct'], hasEntrySignalEvidence: true });
-  expect(out.decision).toBe('allow_exploratory_sweep');
+  const base = { profile: fakeProfile, baselineMetrics: mk({ totalTrades: 0 }), entryAffecting: ['dump.minDropPct'] };
+  expect((await g.decide({ ...base, hasEntrySignalEvidence: true })).decision).toBe('allow_exploratory_sweep');
+  expect((await g.decide({ ...base, hasEntrySignalEvidence: false })).decision).toBe('stop_insufficient_evidence');
+  expect((await g.decide({ profile: fakeProfile, baselineMetrics: mk({ totalTrades: 0 }), entryAffecting: [], hasEntrySignalEvidence: true })).decision).toBe('stop_insufficient_evidence');
 });
 it('fake result-interpreter selects the top point', async () => {
   const out = await new FakeResultInterpreter().interpret({ topN: [{ paramsHash:'h', point:{}, metrics: mk({}), lowConfidence:false }], periodTo:'2026-06-15', roundsSoFar:1, maxRounds:2 });
@@ -548,6 +569,8 @@ git commit -m "feat(research): fake + mastra adapters and agent factories for WF
 - Consumes: `stableStringify` (`src/orchestrator/handlers/backtest-support.ts`).
 - Produces: `computeWfoExperimentKey(input: { baselineExperimentId: string; bundleHash: string }): string` — `sha256(stableStringify({ v:1, kind:'strategy_wfo', ...input }))`. Keyed on the WFO INTENT (one WFO per baseline+bundle), NOT the grid — the grid is an LLM-designed output stored as data, not an identity input. Distinct from `computeStrategyExperimentKey` (which fixes `kind:'strategy_baseline'`) so a WFO experiment never collides with its baseline.
 
+> **Identity policy (explicit):** "one WFO per (baseline, bundle)". A completed WFO experiment short-circuits on re-run. To re-run WFO with a new prompt/model/grid you need a NEW baseline experiment (new bundle → new `bundleHash`) or a manual reset of the prior WFO row. The grid is deliberately NOT part of identity (it is a non-deterministic LLM output).
+
 - [ ] **Step 1: Failing test**
 
 ```ts
@@ -571,49 +594,31 @@ git commit -m "feat(research): WFO experiment key (distinct from baseline)"
 
 ---
 
-## Task 11: Generalize strategy member writing to persist `params`/`oos`/`paramsHash`
+## Task 11: `runWalkForwardOptimization` orchestrator (incl. per-point member persistence)
 
 **Files:**
-- Modify: `src/research/experiment-service.ts` (extract/extend the member writer used by `runStrategyMember`)
-- Test: `src/research/experiment-service.strategy.test.ts` (or a new `experiment-service.wfo.test.ts`)
-
-**Interfaces:**
-- Produces: a private helper `private async runStrategyMemberWithParams(experimentId, role: MemberRole, input, run: PlatformRunConfig, params: Record<string, unknown>, oos: boolean, foldId?: number): Promise<StrategyExperimentRunResult>` — executes FIRST (throw ⇒ no member row), then a SINGLE `addMember` carrying `strategyBacktestRunId: outcome.runId`, `params`, `oos`, `paramsHash: computeStrategyParamsHash({ bundleHash: input.strategyBundle.bundleHash, platformRun: run, params })`, `foldId`, `tradeCount`, and emits `experiment.member.completed`.
-
-**Note:** keep the existing `runStrategyMember` (baseline) working — either have it delegate to the new helper with `params:{}, oos:false` (paramsHash then reflects empty params — acceptable, distinct from `''`) OR leave baseline as-is and add the new helper alongside. Prefer delegation to avoid divergence; update the baseline test if it asserted `paramsHash:''`.
-
-- [ ] **Step 1: Failing test** — WFO member persists params/oos:
-
-```ts
-it('writes a strategy member carrying params, oos and a params-derived hash', async () => {
-  // build ExperimentService with a fake strategyRunExecutor returning completed; run the helper via a WFO flow entrypoint or a thin test seam
-  // assert listMembers → member has params set, oos true, paramsHash !== '' and stable for identical params
-});
-```
-(If the helper is private, drive it through `runWalkForwardOptimization` in Task 12's test instead and mark this step as covered there; keep this task focused on the helper + delegation refactor with the baseline test still green.)
-
-- [ ] **Step 2: Run — expect FAIL** — `npx vitest run src/research/experiment-service.strategy.test.ts` after refactor stub → FAIL/compile error.
-- [ ] **Step 3: Implement** the helper + delegate baseline `runStrategyMember` to it.
-- [ ] **Step 4: Run — expect PASS** — baseline strategy tests still green (`npx vitest run src/research/experiment-service.strategy.test.ts`).
-- [ ] **Step 5: Typecheck** — `pnpm typecheck` → PASS.
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/research/experiment-service.ts src/research/experiment-service.strategy.test.ts
-git commit -m "refactor(research): member writer persists params/oos/paramsHash (baseline delegates)"
-```
-
----
-
-## Task 12: `runWalkForwardOptimization` orchestrator
-
-**Files:**
-- Modify: `src/research/experiment-service.ts` (deps + method)
+- Modify: `src/research/experiment-service.ts` (deps + method + private `writeStrategyMember` helper)
 - Test: `src/research/experiment-service.wfo.test.ts`
 
 **Interfaces:**
-- Consumes: `Gate1DecisionPort`, `SweepDesignerPort`, `ResultInterpreterPort`, `ParamGridRunner`, `resolveHoldoutBoundary`, `evaluateStrategyBaseline`, `computeWfoExperimentKey`, `classifyEntryAffectingParams`, the member helper (T11), and a budget guard.
-- ExperimentServiceDeps += `gate1: Gate1DecisionPort; sweepDesigner: SweepDesignerPort; resultInterpreter: ResultInterpreterPort; paramGridRunner: ParamGridRunner; wfoBudget?: { maxRounds: number; maxPointsPerRound: number; minTradesTrain: number; topN: number }`.
+- Consumes: `Gate1DecisionPort`, `SweepDesignerPort`, `ResultInterpreterPort`, `ParamGridRunner` (returns `allResults` + `ranked`), `StrategyBacktestRunRepository` (`findById`), `RunTradesPort` (`getRunTrades`), `resolveHoldoutBoundary`, `evaluateStrategyBaseline`, `computeWfoExperimentKey`, `classifyEntryAffectingParams`, `encodeTrainPeriod`/`encodeHoldoutPeriod` (existing).
+- ExperimentServiceDeps += `gate1: Gate1DecisionPort; sweepDesigner: SweepDesignerPort; resultInterpreter: ResultInterpreterPort; paramGridRunner: ParamGridRunner; strategyBacktests: StrategyBacktestRunRepository; wfoBudget?: { maxRounds: number; maxPointsPerRound: number; minTradesTrain: number; topN: number }`.
+- Produces a private helper (used ONLY by the WFO flow; the baseline `runStrategyMember` is left untouched → zero-diff):
+```ts
+private async writeStrategyMember(args: {
+  experimentId: string; role: MemberRole; run: PlatformRunConfig;
+  params: Record<string, unknown>; oos: boolean; foldId: number;
+  strategyBacktestRunId: string; tradeCount?: number; bundleHash: string;
+}): Promise<void>;
+// single addMember: { strategyBacktestRunId, backtestRunId: undefined, params, oos, foldId,
+//   paramsHash: computeStrategyParamsHash({ bundleHash, platformRun: run, params }),
+//   tradeCount, role, periodFrom/To from run.period, symbols: run.symbols }
+// emits experiment.member.completed
+```
+
+**Ledger invariant (spec §2/§9):** the orchestrator writes ONE `experiment_run_member` for **every** element of `runGrid(...).allResults` — including rejected and zero-trade points — with `oos:false`, `role:'train'`, `foldId = round-1`, and the point's `params`/`paramsHash`/`strategyBacktestRunId`/`tradeCount`. The top-N (`ranked`) is passed ONLY to the result-interpreter; it never gates what gets ledgered. The chosen holdout member is the single `oos:true` row.
+
+**Baseline metrics + boundary source (explicit):** from `input.baselineExperimentId` → `experiments.findById` + `experiments.listMembers`; take the baseline `holdoutBoundary` if present. Read baseline metrics via the baseline's sanity (or holdout) member → `strategyBacktestRunId` → `strategyBacktests.findById(id)` → `.metrics` (a `BacktestMetricBlock`) + `.platformRunId`. If `holdoutBoundary` is absent, resolve it: `runTrades.getRunTrades(baselineSanity.platformRunId)` → `resolveHoldoutBoundary(trades, datasetScope.period, holdoutPolicy)`.
 - Produces:
 ```ts
 export interface RunWfoInput {
@@ -624,20 +629,21 @@ export interface RunWfoInput {
   datasetScope: DatasetScope;
   runConfig: Omit<PlatformRunConfig, 'period'>;
   metrics: readonly string[];
+  entrySignalEvidence?: boolean;        // GATE1 evidence flag for a 0-trade baseline (trigger sets true when the baseline's decision-records show entry-signal annotations, e.g. long_oi dump_detected); defaults false
   taskId: string;
 }
 async runWalkForwardOptimization(input: RunWfoInput): Promise<{ experimentId: string; verdict: ExperimentVerdict; terminalReason: string }>;
 ```
 
 **Flow (mirror `runStrategyBaselineValidation` structure; period helpers `encodeTrainPeriod`/`encodeHoldoutPeriod` already exist in the baseline flow — reuse them):**
-1. Load baseline experiment (`findById`) → its `holdoutBoundary` (already resolved in Slice A). If absent, resolve from baseline sanity trades via `getRunTrades` + `resolveHoldoutBoundary`. Fix `T = boundary.t`.
-2. `classifyEntryAffectingParams(profile.parameters)`; build baseline metrics from the baseline sanity/holdout member `resultSummary` (or re-read the baseline strategy_backtest_run metrics).
-3. **GATE1** `gate1.decide(...)`. If `stop_not_worth`/`stop_insufficient_evidence` → create the WFO experiment, finalize `INCONCLUSIVE`/no-sweep with that `terminalReason`, return.
+1. Resolve baseline metrics + boundary per the **"Baseline metrics + boundary source"** note above (`findById` + `listMembers` → sanity member's `strategyBacktestRunId` → `strategyBacktests.findById` → `.metrics`/`.platformRunId`; boundary from `baseline.holdoutBoundary` or resolve via `getRunTrades`). Fix `T = boundary.t`.
+2. `classifyEntryAffectingParams(profile.parameters)` → `entryAffecting`. `hasEntrySignalEvidence = baselineMetrics.totalTrades > 0 || input.entrySignalEvidence === true`.
+3. **GATE1** `gate1.decide({ profile, baselineMetrics, entryAffecting, hasEntrySignalEvidence })`. If `stop_not_worth`/`stop_insufficient_evidence` → create the WFO experiment, finalize with `verdict:'INCONCLUSIVE'` + that `terminalReason`, return (no sweep).
 4. `findByKey(computeWfoExperimentKey({ baselineExperimentId, bundleHash }))` — short-circuit if a completed WFO experiment already exists. Otherwise create it: `experimentType:'walk_forward_optimization'`, that `experimentKey`, `parameterGrid: {}` (empty at create), `holdoutBoundary: baseline.holdoutBoundary`, `status:'running'`. As each round's designer produces a grid, accumulate the union locally and persist it via `updateExperiment(id, { parameterGrid: unionSoFar, updatedAt })` (the `parameterGrid` key was added to the update Pick in Task 3).
 5. If `boundary.mode === 'none'` → finalize `INCONCLUSIVE` (`terminalReason:'inconclusive'`) — still record GATE1 + the round grid, but no OOS possible. (This is the live 6-day-slice path.)
 6. **Round loop (r = 1..maxRounds):**
    a. `sweepDesigner.design({ ..., restrictToEntryParams: gate1.decision==='allow_exploratory_sweep', periodTo: T, maxPoints })` → grid; `expandGrid` (→ `grid_too_large` terminal if it throws).
-   b. `paramGridRunner.runGrid({ trainRun: { ...runConfig, period: encodeTrainPeriod(from, T) }, grid, foldId: r-1, ... })` → `ranked`. Each train point persisted as a member (`role:'train'`, `oos:false`, `foldId:r-1`, `params`, `paramsHash`) — done inside the runner via the executor + the member helper, OR by the orchestrator after collecting results (choose: orchestrator writes members from `ranked`/`GridResult` so persistence stays in the service). If `ranked.length === 0` → `sweep_failed` terminal.
+   b. `const { allResults, ranked } = await paramGridRunner.runGrid({ trainRun: { ...runConfig, period: encodeTrainPeriod(from, T) }, grid, foldId: r-1, topN, minTradesTrain, maxPoints, ... })`. **Then the orchestrator writes a `writeStrategyMember(...)` for EVERY `allResults` element** (`role:'train'`, `oos:false`, `foldId:r-1`, its `params`/`paramsHash`/`strategyBacktestRunId`/`tradeCount`) — including rejected/zero-trade points (the ledger invariant). If `ranked.length === 0` (no completed+traded point) → `sweep_failed` terminal.
    c. `resultInterpreter.interpret({ topN: ranked, periodTo: T, roundsSoFar: r, maxRounds })`.
    d. `select` → break with `chosenParamsHash`; `extend` → if `r < maxRounds` continue else `round_limit_reached` terminal; `stop` → `stop` terminal (no paper).
    e. Budget guard between rounds → `budget_exhausted` terminal if exceeded.
@@ -648,19 +654,32 @@ async runWalkForwardOptimization(input: RunWfoInput): Promise<{ experimentId: st
 
 - [ ] **Step 1: Failing lifecycle test** — with fake platform (Task 2 mock or a bespoke fake) varying metrics by params, fake agents (Task 9), a real `ParamGridRunner` + real `BacktesterStrategyExperimentRunExecutor` over the fake platform:
 
+Test harness: an in-memory `ResearchExperimentRepository`, an in-memory `StrategyBacktestRunRepository`, a `BacktesterStrategyExperimentRunExecutor` over a fake platform whose strategy metrics vary by params (reuse Task 2's mock or a local fake), fake agents (Task 9), a real `ParamGridRunner`. Pre-seed a completed baseline strategy experiment via the repo (a sanity member → a persisted `strategy_backtest_run` with metrics + a `trade_based` boundary on the experiment).
+
 ```ts
-it('runs GATE1 → sweep → train grid → select → OOS → verdict', async () => {
-  // baseline experiment pre-seeded with a trade_based boundary (mode:'trade_based', t:'<mid>')
-  const { experimentId, verdict, terminalReason } = await svc.runWalkForwardOptimization(wfoInput);
+it('runs GATE1 → sweep → train grid → select → OOS → verdict; ledgers EVERY grid point', async () => {
+  // baseline pre-seeded: holdoutBoundary { mode:'trade_based', t:'<mid ISO>', lowConfidence:false }; sanity strategy_backtest_run metrics totalTrades:5
+  const { experimentId, verdict } = await svc.runWalkForwardOptimization(wfoInput);   // grid designed by FakeSweepDesigner (≥2 points)
   const members = await repo.listMembers(experimentId);
-  expect(members.some((m) => m.role === 'train' && m.oos === false)).toBe(true);
+  const train = members.filter((m) => m.role === 'train' && m.oos === false);
+  expect(train.length).toBe(gridPointCount);                                   // EVERY expanded point ledgered (incl. any rejected/zero-trade)
+  expect(train.every((m) => m.params && m.paramsHash)).toBe(true);
   expect(members.filter((m) => m.role === 'holdout' && m.oos === true).length).toBe(1);   // exactly one OOS
   expect(['PAPER_CANDIDATE','FAIL']).toContain(verdict);
 });
-it('mode:none boundary → INCONCLUSIVE, no OOS member', async () => { /* seed boundary mode:'none' */ });
-it('GATE1 stop_insufficient_evidence (0 trades, exit-only tunables) → no sweep', async () => { /* ... */ });
-it('empty top-N → sweep_failed', async () => { /* fake platform returns totalTrades:0 for all points */ });
-it('extend beyond maxRounds → round_limit_reached', async () => { /* fake interpreter always extend */ });
+it('a rejected train point still becomes an oos:false member', async () => {
+  // fake platform rejects one specific params point → assert a train member exists with that paramsHash and no metrics
+});
+it('mode:none boundary → INCONCLUSIVE, no OOS member', async () => {
+  // seed baseline boundary { mode:'none', lowConfidence:true }; expect verdict INCONCLUSIVE, zero oos:true members
+});
+it('GATE1 stop_insufficient_evidence (0-trade baseline, exit-only tunables) → no sweep, no train members', async () => {
+  // baseline metrics totalTrades:0, profile has only tpLadder/hardStopPct tunables, entrySignalEvidence:false
+});
+it('empty top-N → sweep_failed', async () => {
+  // fake platform returns totalTrades:0 for all points → ranked empty; train members still written; terminalReason 'sweep_failed'
+});
+it('interpreter always extend beyond maxRounds → round_limit_reached', async () => { /* FakeResultInterpreter overridden to always 'extend' */ });
 ```
 
 - [ ] **Step 2: Run — expect FAIL** — `npx vitest run src/research/experiment-service.wfo.test.ts` → FAIL.
@@ -676,7 +695,7 @@ git commit -m "feat(research): runWalkForwardOptimization 1-fold WFO decision co
 
 ---
 
-## Task 13: Env + composition wiring
+## Task 12: Env + composition wiring
 
 **Files:**
 - Modify: `src/config/env.ts` (`WFO_GATE1_ADAPTER`/`WFO_SWEEP_DESIGNER_ADAPTER`/`WFO_RESULT_INTERPRETER_ADAPTER` + `_MODEL` envs, mirroring `STRATEGY_CRITIC_ADAPTER`/`_MODEL` via `resolveAdapter`)
@@ -685,7 +704,7 @@ git commit -m "feat(research): runWalkForwardOptimization 1-fold WFO decision co
 - Test: `src/composition.test.ts` (or the existing composition smoke test)
 
 **Interfaces:**
-- Consumes: T9 adapters/factories, T7 runner, T12 deps.
+- Consumes: T9 adapters/factories, T7 runner, T11 deps.
 - Produces: `composeRuntime().services.experimentService` constructed with `gate1`, `sweepDesigner`, `resultInterpreter`, `paramGridRunner`, `wfoBudget` (defaults `{ maxRounds:2, maxPointsPerRound:8, minTradesTrain:3, topN:3 }`).
 
 - [ ] **Step 1: Failing test** — assert `composeRuntime()` builds without throwing and the fake agents are wired when `WFO_*_ADAPTER` unset (fake path):
@@ -710,7 +729,7 @@ git commit -m "feat(research): wire WFO agents + ParamGridRunner into compositio
 
 ---
 
-## Task 14: One-shot trigger `scripts/run-strategy-wfo.mts`
+## Task 13: One-shot trigger `scripts/run-strategy-wfo.mts`
 
 **Files:**
 - Create: `scripts/run-strategy-wfo.mts` (mirror `scripts/run-strategy-baseline.mts` header + env guards)
