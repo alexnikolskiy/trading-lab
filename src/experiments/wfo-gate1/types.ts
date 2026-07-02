@@ -31,9 +31,23 @@ export interface FrozenDataset {
   cases: FrozenCase[];
 }
 
+// Minimal REAL validation of a Gate1Input payload (not a full StrategyProfile/BacktestMetricBlock
+// schema — those live as plain interfaces, not zod schemas). This asserts the shape callers
+// (DbCaseSource / SnapshotCaseSource / the oracle labeler) actually dereference: profile must be
+// a non-null object, baselineMetrics must carry a numeric totalTrades, entryAffecting must be a
+// string array, hasEntrySignalEvidence must be a boolean. Cast to Gate1Input at the boundary —
+// intentionally narrower than the full interface (same as the previous z.any() cast), but unlike
+// z.any() it actually rejects malformed snapshot/db payloads at parse time.
+const Gate1InputMinimalSchema = z.object({
+  profile: z.record(z.string(), z.unknown()),
+  baselineMetrics: z.object({ totalTrades: z.number() }).passthrough(),
+  entryAffecting: z.array(z.string()),
+  hasEntrySignalEvidence: z.boolean(),
+});
+
 export const RawCaseSchema = z.object({
   id: z.string(),
-  input: z.any() as z.ZodType<Gate1Input>,
+  input: Gate1InputMinimalSchema as unknown as z.ZodType<Gate1Input>,
   meta: z.object({
     experimentId: z.string(),
     sourceRef: z.string(),
