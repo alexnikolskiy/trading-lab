@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { researchExperiment, experimentRunMember, experimentEvaluation } from '../../db/schema.ts';
 import type {
-  ResearchExperiment, ExperimentRunMember, ExperimentEvaluation, ParameterGrid,
+  ResearchExperiment, ExperimentRunMember, ExperimentEvaluation, ParameterGrid, ExperimentType,
 } from '../../domain/research-experiment.ts';
 import type { ResearchExperimentRepository } from '../../ports/research-experiment.repository.ts';
 
@@ -67,6 +67,13 @@ export class DrizzleResearchExperimentRepository implements ResearchExperimentRe
   async findByKey(key: string): Promise<ResearchExperiment | null> {
     const rows = await this.db.select().from(researchExperiment).where(eq(researchExperiment.experimentKey, key)).limit(1);
     return rows[0] ? expToDomain(rows[0]) : null;
+  }
+  async listByType(type: ExperimentType, opts?: { limit?: number }): Promise<ResearchExperiment[]> {
+    const query = this.db.select().from(researchExperiment)
+      .where(eq(researchExperiment.experimentType, type))
+      .orderBy(asc(researchExperiment.createdAt), asc(researchExperiment.id));
+    const rows = opts?.limit !== undefined ? await query.limit(opts.limit) : await query;
+    return rows.map(expToDomain);
   }
   async updateExperiment(id: string, patch: Partial<ResearchExperiment>): Promise<void> {
     const set: Record<string, unknown> = { updatedAt: new Date(patch.updatedAt ?? new Date().toISOString()) };
