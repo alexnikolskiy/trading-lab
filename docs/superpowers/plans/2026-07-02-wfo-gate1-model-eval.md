@@ -59,13 +59,14 @@
 - [ ] **Step 1: Failing test** — in the in-memory repo test:
 
 ```ts
-it('listByType returns experiments of the given type, createdAt/id ordered', async () => {
+it('listByType returns only that type, ordered createdAt ASC then id ASC', async () => {
   const repo = new InMemoryResearchExperimentRepository();
-  await repo.createExperiment(makeExperiment({ id: 'e2', experimentType: 'strategy_baseline_validation' }));
-  await repo.createExperiment(makeExperiment({ id: 'e1', experimentType: 'strategy_baseline_validation' }));
-  await repo.createExperiment(makeExperiment({ id: 'e3', experimentType: 'walk_forward_optimization' }));
+  // insert out of createdAt order to prove the ORDER BY, not insertion order
+  await repo.createExperiment(makeExperiment({ id: 'e2', experimentType: 'strategy_baseline_validation', createdAt: '2026-02-01T00:00:00Z' }));
+  await repo.createExperiment(makeExperiment({ id: 'e1', experimentType: 'strategy_baseline_validation', createdAt: '2026-01-01T00:00:00Z' }));
+  await repo.createExperiment(makeExperiment({ id: 'e3', experimentType: 'walk_forward_optimization', createdAt: '2026-01-15T00:00:00Z' }));
   const rows = await repo.listByType('strategy_baseline_validation');
-  expect(rows.map((r) => r.id).sort()).toEqual(['e1', 'e2']);
+  expect(rows.map((r) => r.id)).toEqual(['e1', 'e2']);   // createdAt ASC — NOT insertion order, no .sort()
   expect(rows.every((r) => r.experimentType === 'strategy_baseline_validation')).toBe(true);
 });
 ```
@@ -173,7 +174,7 @@ export const SYNTHETIC_CASES: RawCase[];   // exported from fixtures.ts (re-expo
 
 **`reconstructGate1Input`** (mirrors `runWalkForwardOptimization` §3): `entryAffecting = classifyEntryAffectingParams(profile.profile.parameters).entryAffecting`; `hasEntrySignalEvidence = baselineMetrics.totalTrades > 0` (the recorded-evidence enrichment is future — default the 0-trade case to `false`); return `{ profile, baselineMetrics, entryAffecting, hasEntrySignalEvidence }`.
 
-**`DbCaseSource.load`**: `experiments.listByType('strategy_baseline_validation')`; for each experiment → `listMembers` → pick the `train` member (`m.role === 'train'`) when present else the `sanity` member (mirrors the Slice-B #123 fix: train-window metrics when a split exists, sanity when `mode:'none'`); skip experiments whose chosen member has no `strategyBacktestRunId`; `strategyBacktests.findById(member.strategyBacktestRunId)` → skip if `!run?.metrics`; `strategyProfiles.findById(exp.strategyProfileId)` → skip if null; `reconstructGate1Input({ profile, baselineMetrics: run.metrics })`; `RawCase = { id: 'case-' + exp.id, input, meta: { experimentId: exp.id, sourceRef: 'db' } }`. Log (console.warn) each skipped experiment with the reason (no silent drop).
+**`DbCaseSource.load`**: `experiments.listByType('strategy_baseline_validation')`; for each experiment: **first, skip unless `exp.status === 'completed'`** (a running/failed baseline has no reliable members/metrics — don't drag partial/noisy state into the eval dataset); then `listMembers` → pick the `train` member (`m.role === 'train'`) when present else the `sanity` member (mirrors the Slice-B #123 fix: train-window metrics when a split exists, sanity when `mode:'none'`); skip experiments whose chosen member has no `strategyBacktestRunId`; `strategyBacktests.findById(member.strategyBacktestRunId)` → skip if `!run?.metrics`; `strategyProfiles.findById(exp.strategyProfileId)` → skip if null; `reconstructGate1Input({ profile, baselineMetrics: run.metrics })`; `RawCase = { id: 'case-' + exp.id, input, meta: { experimentId: exp.id, sourceRef: 'db' } }`. Log (console.warn) each skipped experiment with the reason (no silent drop) — but a non-`completed` experiment is skipped quietly (expected, not noise).
 
 **`SnapshotCaseSource.load`**: `readFileSync(filePath)` → `JSON.parse` → zod-validate an array of `RawCase` (define a `RawCaseSchema` in `types.ts` or here) → return.
 
@@ -189,6 +190,12 @@ it('DbCaseSource reconstructs a Gate1 case from a baseline experiment train memb
   expect(cases).toHaveLength(1);
   expect(cases[0]!.input.baselineMetrics.totalTrades).toBe(5);
   expect(cases[0]!.meta.experimentId).toBe('exp-1');
+});
+it('skips a non-completed baseline experiment', async () => {
+  // seed a second experiment with status:'running' (type strategy_baseline_validation) + a train member;
+  // assert load() still returns only the completed one (running is skipped, not thrown)
+  const cases = await new DbCaseSource({ experiments, strategyBacktests, strategyProfiles }).load();
+  expect(cases.every((c) => c.meta.experimentId !== 'exp-running')).toBe(true);
 });
 ```
 
@@ -406,16 +413,17 @@ export const KEY_BY_PROVIDER: Record<ModelProvider, string> = { anthropic:'ANTHR
 export interface CliArgs { models: string[]; snapshot: string | undefined; run: boolean; label: boolean; threshold: number; repeat: number; teacherModel: string | undefined; source: string | undefined }
 export function parseArgs(argv: string[]): CliArgs;   // node:util parseArgs; --run requires --snapshot; --label requires --teacher-model
 export interface DryRunPlan { mode: 'dry-run'; plannedPaidCalls: number; classifyCalls: number; caseCount: number; models: string[]; missingKeys: string[] }
-export function planDryRun(args: CliArgs, env: ModelProviderEnv, caseCount: number): DryRunPlan;
+export type DryRunEnv = Partial<ModelProviderEnv> & { MODEL_PROVIDER?: ModelProvider };   // dry-run must NOT require a paid env
+export function planDryRun(args: CliArgs, env: DryRunEnv, caseCount: number): DryRunPlan;
 export function renderReport(run: EvalRunResult, verdict: FrontierVerdict): string;   // markdown; ⚠ teacher-circular banner when run.manifest.teacherCircular
 export function writeRunArtifacts(outDir: string, result: EvalRunResult): string[];   // per-candidate JSON + manifest.json
 export function writeReport(outDir: string, result: EvalRunResult, verdict: FrontierVerdict): string;
 export function compactTimestamp(date: Date): string;
 ```
 
-**`planDryRun`**: `classifyCalls = models.length * repeat * caseCount`; `plannedPaidCalls = classifyCalls`; `missingKeys` = for each model, `parseRoleModel(env, model).provider` → `KEY_BY_PROVIDER[provider]` if the env key is absent (dedupe). **`renderReport`**: a markdown table (model | provider | accuracy | oracleAcc | teacherAcc | passRate | meanLatency | PASS/FAIL) + a headline PASS/FAIL for the frontier verdict; when `run.manifest.teacherCircular`, prepend a `> ⚠ **teacher-circular**: candidate == teacher (<model>); teacher-labeled accuracy is not independent.` banner. `writeRunArtifacts` mirrors TI (per-candidate JSON + `manifest.json`).
+**`planDryRun`** (must never throw on missing paid env): `classifyCalls = models.length * repeat * caseCount`; `plannedPaidCalls = classifyCalls`; `missingKeys` = for each model, resolve its provider from its explicit `anthropic/|openai/|openrouter/` prefix, else from `env.MODEL_PROVIDER` if set; if NEITHER resolves a provider, add `'MODEL_PROVIDER (unset)'` to `missingKeys` (do NOT call `parseRoleModel`, which requires `MODEL_PROVIDER`); when a provider resolves, add `KEY_BY_PROVIDER[provider]` if that env key is absent. Dedupe. This lets a keyless dry-run report exactly what a `--run` would need without requiring any paid env. **`renderReport`**: a markdown table (model | provider | accuracy | oracleAcc | teacherAcc | passRate | meanLatency | PASS/FAIL) + a headline PASS/FAIL for the frontier verdict; when `run.manifest.teacherCircular`, prepend a `> ⚠ **teacher-circular**: candidate == teacher (<model>); teacher-labeled accuracy is not independent.` banner. `writeRunArtifacts` mirrors TI (per-candidate JSON + `manifest.json`).
 
-- [ ] **Step 1: Failing test** (`report.test.ts`): `planDryRun` math (`models×repeat×caseCount`) + `missingKeys` (a model on a provider whose key is absent → its env key listed); `renderReport` contains a PASS/FAIL headline and, when `manifest.teacherCircular`, the `⚠ teacher-circular` banner; `parseArgs` rejects `--run` without `--snapshot`.
+- [ ] **Step 1: Failing test** (`report.test.ts`): `planDryRun` math (`models×repeat×caseCount`); `missingKeys` with a prefixed model (`openrouter/x`) and no `OPENROUTER_API_KEY` → lists `OPENROUTER_API_KEY`; `planDryRun` with `env: {}` (no `MODEL_PROVIDER`) and a bare model id → does NOT throw and lists `'MODEL_PROVIDER (unset)'`; `renderReport` contains a PASS/FAIL headline and, when `manifest.teacherCircular`, the `⚠ teacher-circular` banner; `parseArgs` rejects `--run` without `--snapshot`.
 - [ ] **Step 2: Run — expect FAIL** — → FAIL.
 - [ ] **Step 3: Implement** (mirror TI `report.ts` structure; `writeRunArtifacts`/`writeReport` use `fs`).
 - [ ] **Step 4: Run — expect PASS** — → PASS.
@@ -467,9 +475,14 @@ git commit -m "feat(wfo-gate1-eval): real Gate1 + teacher factory (only composeM
 **Behaviour:**
 - `HARNESS_VERSION='wfo-gate1-eval-v1'`, `CONTRACT_VERSION='wfo-gate1-v0'`, `gitSha()` (execSync try/catch), `modelEnv()` (reads MODEL_PROVIDER + 3 keys).
 - `parseArgs(process.argv.slice(2))`.
-- **`--label` branch (paid):** dynamic `await import('.../real-gate1-factory.ts')`; build the case source (from `--source` — `composeRuntime()` for `db` (default), or `SnapshotCaseSource(path)`); `source.load()`; `buildFrozenCases(rawCases, { teacher: buildRealTeacher(env, args.teacherModel), teacherModel: args.teacherModel, now: ()=>new Date().toISOString() })`; `freezeDataset(...)`; `writeSnapshot('.artifacts/experiments/wfo-gate1/datasets', ds)`; print the `snapshotId`. (For `db`, use `composeRuntime()` + `finally { queue.close(); pool.end() }`.)
-- **`--run` branch (paid eval):** requires `--snapshot`; `loadSnapshot(baseDir, args.snapshot)`; dynamic import `buildRealGate1For`; `runEval({ models, dataset, threshold, repeat }, { gate1For: buildRealGate1For(env), providerOf: m=>{const r=parseRoleModel(env,m);return {provider:r.provider,modelId:r.modelId}}, clock: ()=>Date.now() })`; thread `HARNESS_VERSION`/`gitSha()` into the manifest; `rankAggregates` → `frontierVerdict({ incumbentModelId: process.env.WFO_GATE1_MODEL ?? '', threshold })`; `writeRunArtifacts` + `writeReport` under `.artifacts/experiments/wfo-gate1/${args.snapshot}/${compactTimestamp(now)}`; exit `overallSuccess?0:3` (overallSuccess = some aggregate passRate>0).
-- **Dry-run (default, neither --run nor --label, OR --run without keys):** `planDryRun` → print JSON → return 0.
+- **`--label` branch (paid) — ORDER MATTERS (do the free/local work first, pay last):**
+  1. Build the case source (from `--source` — `composeRuntime()` for `db` (default), or `SnapshotCaseSource(path)`) and `await source.load()` — this is the free/local step (DB read or file read).
+  2. **Fail-fast if `rawCases.length === 0`** (a broken/empty source is a setup error) — throw a clear Error BEFORE any LLM import, so dry setup mistakes never surface as key/model errors.
+  3. Only THEN `await import('.../real-gate1-factory.ts')` + `buildRealTeacher(env, args.teacherModel)` (the paid dependency) → `buildFrozenCases(rawCases, { teacher, teacherModel: args.teacherModel, now: ()=>new Date().toISOString() })`.
+  4. `freezeDataset(...)`; `writeSnapshot('.artifacts/experiments/wfo-gate1/datasets', ds)`; print the `snapshotId`. (For `db`, wrap in `finally { queue.close(); pool.end() }`.)
+  - Note: the oracle-only path never calls the teacher, so a dataset that is entirely oracle-labeled will not make a paid call at all — but the import still happens after the fail-fast, which is fine.
+- **`--run` branch (paid eval — paid INTENT, so a setup problem exits non-zero, never silently degrades to dry-run):** `parseArgs` already rejects `--run` without `--snapshot` (parse error → exit 1). Then: `loadSnapshot(baseDir, args.snapshot)` (fail-fast on unknown id); compute `planDryRun(args, modelEnv(), dataset.cases.length)` and if `missingKeys.length > 0` → print `{ error:'missing_keys', missingKeys }` and **exit 2 BEFORE any paid call** (do not run). Only when keys are present: dynamic import `buildRealGate1For`; `runEval({ models, dataset, threshold, repeat }, { gate1For: buildRealGate1For(env), providerOf: m=>{const r=parseRoleModel(env,m);return {provider:r.provider,modelId:r.modelId}}, clock: ()=>Date.now() })`; thread `HARNESS_VERSION`/`gitSha()` into the manifest; `rankAggregates` → `frontierVerdict({ incumbentModelId: process.env.WFO_GATE1_MODEL ?? '', threshold })`; `writeRunArtifacts` + `writeReport` under `.artifacts/experiments/wfo-gate1/${args.snapshot}/${compactTimestamp(now)}`; exit `overallSuccess?0:3` (overallSuccess = some aggregate passRate>0).
+- **Dry-run (the DEFAULT — no `--run` and no `--label`):** `planDryRun(args, modelEnv(), caseCount)` → print JSON `{ mode:'dry-run', ... }` → exit 0. (Case count for the plan: if `--snapshot` is given, load it for the count; else 0 with a note.) Dry-run never requires a paid env and never makes a call.
 - Top-level `main().then(process.exit).catch(err=>{console.error(err);process.exit(1)})`.
 
 - [ ] **Step 1: Write the script** — mirror `scripts/turn-interpreter-eval.ts`; add the `--label` branch. Do NOT execute (needs DB + keys — a later live step).
