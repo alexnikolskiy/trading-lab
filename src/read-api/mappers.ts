@@ -94,7 +94,7 @@ export function toExperimentDto(e: ResearchExperiment): ExperimentDto {
     hypothesisId: e.hypothesisId ?? null, buildId: e.buildId ?? null, bundleHash: e.bundleHash ?? null,
     status: e.status, verdict: e.verdict ?? null, verdictReason: e.verdictReason ?? null,
     datasetScope: e.datasetScope, holdoutPolicy: e.holdoutPolicy, holdoutBoundary: e.holdoutBoundary ?? null,
-    aggregateMetrics: e.aggregateMetrics ?? null,
+    aggregateMetrics: e.aggregateMetrics ?? null, parameterGrid: e.parameterGrid ?? null,
     createdAt: e.createdAt, updatedAt: e.updatedAt, completedAt: e.completedAt ?? null,
   };
 }
@@ -104,7 +104,8 @@ export function toExperimentRunMemberDto(m: ExperimentRunMember): ExperimentRunM
     id: m.id, experimentId: m.experimentId, backtestRunId: m.backtestRunId ?? null,
     strategyBacktestRunId: m.strategyBacktestRunId ?? null,
     role: m.role, foldId: m.foldId ?? null, periodFrom: m.periodFrom, periodTo: m.periodTo,
-    symbols: m.symbols, tradeCount: m.tradeCount ?? null, resultSummary: m.resultSummary ?? null,
+    symbols: m.symbols, params: m.params ?? null, oos: m.oos ?? null,
+    tradeCount: m.tradeCount ?? null, resultSummary: m.resultSummary ?? null,
     createdAt: m.createdAt,
   };
 }
