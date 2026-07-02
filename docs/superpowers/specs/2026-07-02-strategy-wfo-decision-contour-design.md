@@ -58,7 +58,14 @@ Each agent gets a **fake** sibling for composition/tests (existing convention: `
 3. `MockResearchPlatformAdapter.submitStrategyResearchRun`: honor `opts.params` so fabricated metrics **vary by params** — required for deterministic unit tests that assert grid points differ (e.g. derive a deterministic metric perturbation from a stable hash of params).
 4. `BacktesterStrategyExperimentRunExecutor.execute`: pass `params: req.params` in the `submitStrategyResearchRun(...)` call (currently omitted). Hash/persist paths unchanged (already correct).
 
-**No migration.** `strategy_backtest_run.params/params_hash`, `experiment_run_member.params/oos/params_hash`, `research_experiment.parameter_grid jsonb` all already exist. `experiment_type` is a domain-level TS union (`ExperimentType`), not a DB check — add `'walk_forward_optimization'` there.
+**No migration — but domain/repo/DTO wiring IS required.** The DB columns already exist (`src/db/schema.ts:315`: `research_experiment.parameter_grid`, `experiment_run_member.params`, `experiment_run_member.oos`, `experiment_run_member.params_hash`), so no migration. **However, they are not yet threaded through the domain/repo layer** — Slice B must wire:
+- `ResearchExperiment` (domain, `research-experiment.ts`) — add `parameterGrid?: ParameterGrid`.
+- `ExperimentRunMember` (domain) — add `params?: Record<string, unknown>` and `oos?: boolean` (currently only `paramsHash`/`bundleHash` exist).
+- `ResearchExperimentRepository` port + `drizzle-research-experiment.repository.ts` — map `parameterGrid` on create/read; `addMember` currently writes `paramsHash` but **not** `params`/`oos` → extend the INSERT + row mappers (in-memory adapter too).
+- Read API DTO + `src/read-api/mappers.ts` — surface `parameterGrid` / member `params` / `oos`.
+- `ExperimentType` TS union — add `'walk_forward_optimization'` (domain-level, not a DB check).
+
+Without this wiring the ledger records `params_hash` but drops the actual `params`/`oos`, making the WFO ledger useless for later analysis.
 
 ## 5. WFO 1-fold data flow
 
@@ -87,11 +94,11 @@ Applied to train-window metrics before the LLM ever sees them:
 
 Input: profile (`parameters[]` tunables, `entryConditions`, direction) + baseline metrics + baseline decision-record evidence summary.
 
-- baseline `totalTrades ≥ 1` → `improve` (normal sweep) or `stop` (baseline already strong — configurable threshold).
-- baseline `totalTrades === 0` **and** (no tunable entry/threshold params **or** no decision-record entry-signal evidence) → **`stop_insufficient_evidence`** (nothing to tune toward trades).
-- baseline `totalTrades === 0` **and** tunable entry/threshold params exist **and** the profile plausibly shows "params choke entries" (e.g. decision-records show `dump_detected` annotations but no `enter`) → **`allow_exploratory_sweep`** (sweep may find params that trade).
+- baseline `totalTrades ≥ 1` → `improve` (normal sweep) or `stop_not_worth` (baseline already strong — configurable threshold).
+- baseline `totalTrades === 0` → allowed into a sweep **only** as `allow_exploratory_sweep`, and **only** if the profile has tunable params that can plausibly affect **entry** — i.e. an **entry gate / signal threshold / entry filter strictness / cooldown / warmup-signal-age** param. Otherwise → **`stop_insufficient_evidence`**.
+- **Anti-waste guard (explicit):** **exit/risk-only** tunables (e.g. `tpLadder.*`, `hardStopPct`, `maxHoldMin`, `protection.*`) are **NOT** sufficient for an exploratory sweep at 0 trades — they cannot turn a non-entry into an entry. `0 trades` + only exit/risk tunables → `stop_insufficient_evidence`. The classification is by param **role** (entry-affecting vs exit/risk), derived from the profile param name/description; the sweep-designer's grid at 0-trade baseline is restricted to the entry-affecting subset.
 
-> Live long_oi today: baseline 0 trades but decision-records show `dump_detected` + tunable `tpLadder.*`/`hardStopPct`/`maxHoldMin` → `allow_exploratory_sweep`. **paper is still forbidden without OOS evidence** — an exploratory sweep can reach at most `INCONCLUSIVE`/`FAIL` on the current data, never `PAPER_CANDIDATE`.
+> Live long_oi today: baseline 0 trades, decision-records show `dump_detected` but no `enter`. It qualifies for `allow_exploratory_sweep` because it has **entry-affecting** tunables — `dump.minDropPct` / `dump.triggerMode` / `dump.highToLow*` (entry signal threshold), `entry.minBouncePctFromLow` / `entry.fastBouncePct` / `entry.requireGreenPriceCandles` (entry gate), `oiFilter.entryMinOiRecoveryPct2m` / `liqFilter.*` (entry filters), `watch.cooldownMinutes`, `warmup.maxSignalAgeMin` — NOT because of its exit-only `tpLadder.*`/`hardStopPct`/`maxHoldMin`. The 0-trade grid targets those entry params. **paper remains forbidden without OOS evidence** — an exploratory sweep reaches at most `INCONCLUSIVE`/`FAIL` on the current data, never `PAPER_CANDIDATE`.
 
 ## 8. Bounds, terminal reasons, token-economy
 
@@ -120,7 +127,8 @@ One-shot `scripts/run-strategy-wfo.mts` over an existing baseline experiment (an
 ## 12. Testing
 
 - **Deterministic units:** `ParamGridRunner` grid-expansion (cardinality, dedupe, `grid_too_large`), top-N ranking (trade-gate, low-confidence ordering, all-zero → `sweep_failed`), `params_hash` distinctness per point.
-- **Agents on fixtures:** structured-output shape + no-leakage (assert the prompt/context carries `period.to=T` and no post-T data) for GATE1 / sweep-designer / result-interpreter.
+- **Agents on fixtures:** structured-output shape + no-leakage (assert the prompt/context carries `period.to=T` and no post-T data) for GATE1 / sweep-designer / result-interpreter. GATE1 anti-waste guard: `0 trades` + only exit/risk tunables → `stop_insufficient_evidence`; `0 trades` + entry-affecting tunables → `allow_exploratory_sweep` with the grid restricted to the entry-affecting subset.
+- **Domain/repo wiring:** round-trip test that `parameterGrid` (experiment) and `params`/`oos` (member) persist and read back through the repo adapters + read DTO/mappers (the columns exist but were unmapped before Slice B).
 - **Orchestrator lifecycle** (fake platform that varies metrics by params): full contour, `extend` round, `select` → OOS → verdict, `mode:'none'` → INCONCLUSIVE, `budget_exhausted`, `round_limit_reached`, all-rejected → `sweep_failed`, GATE1 `stop_insufficient_evidence` vs `allow_exploratory_sweep`.
 - **Submit-contract regression:** wire test asserts `submitStrategyResearchRun` puts `opts.params` into the request (and omits when empty); mock adapter varies metrics by params.
 - **Overlay-lane zero-diff:** Slice A / overlay paths behaviourally unchanged.
