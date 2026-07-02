@@ -24,6 +24,8 @@ import type { StrategyProfile, StrategyParameter } from '../domain/strategy-prof
 import { DEFAULT_HOLDOUT_POLICY, type HoldoutBoundary } from '../domain/research-experiment.ts';
 import { STRATEGY_RUN_KIND } from '../domain/strategy-backtest-run.ts';
 import type { BacktestMetricBlock } from '../ports/platform-gateway.port.ts';
+import { computeStrategyParamsHash } from './strategy-run-identity.ts';
+import { encodeTrainPeriod } from './period-encoding.ts';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -118,6 +120,22 @@ class AlwaysExtendInterpreter implements ResultInterpreterPort {
   readonly adapter = 'fake' as const;
   readonly model = 'fake';
   async interpret(_input: InterpretInput): Promise<ResultInterpretOutput> { return { decision: 'extend' }; }
+}
+
+/**
+ * ResultInterpreterPort that always "selects" a fixed paramsHash, regardless of what it was
+ * actually shown in topN. Used to simulate a hallucinated/out-of-band chosenParamsHash that
+ * matches a point present in allResults (e.g. a rejected/zero-trade point) but absent from
+ * the top-N ranked list the interpreter was given.
+ */
+class FixedHashInterpreter implements ResultInterpreterPort {
+  readonly adapter = 'fake' as const;
+  readonly model = 'fake';
+  private readonly hash: string;
+  constructor(hash: string) { this.hash = hash; }
+  async interpret(_input: InterpretInput): Promise<ResultInterpretOutput> {
+    return { decision: 'select', chosenParamsHash: this.hash };
+  }
 }
 
 async function seedBaseline(opts: {
@@ -290,6 +308,32 @@ describe('runWalkForwardOptimization', () => {
     expect(verdict).toBe('INCONCLUSIVE');
     expect(terminalReason).toBe('sweep_failed');
     expect(train.length).toBe(2);
+    expect(members.filter((m) => m.oos === true).length).toBe(0);
+  });
+
+  it('chosenParamsHash matching only a rejected/zero-trade point (not in top-N) → sweep_failed, no oos member', async () => {
+    // dump.minDropPct=3 → rejected/zero-trade (present in allResults, excluded from ranked by rankTopN).
+    const { svc, experiments, strategyBacktests } = buildSvc({
+      resultFor: (params) => (params['dump.minDropPct'] === 3 ? { rejected: true, totalTrades: 0 } : { totalTrades: 5 }),
+      resultInterpreter: new FixedHashInterpreter(
+        computeStrategyParamsHash({
+          bundleHash: BUNDLE_HASH,
+          platformRun: { ...RUN_CONFIG, period: encodeTrainPeriod(DATASET_SCOPE.period.from, T, RUN_CONFIG.timeframe) },
+          params: { 'dump.minDropPct': 3 },
+        }),
+      ),
+    });
+    const baselineExperimentId = await seedBaseline({
+      experiments, strategyBacktests, totalTrades: 5,
+      boundary: { mode: 'trade_based', t: T, lowConfidence: false, trainTrades: 60, holdoutTrades: 30, reason: 'ok' },
+    });
+    const input = baseInput(baselineExperimentId, [ENTRY_PARAM]);
+
+    const { experimentId, verdict, terminalReason } = await svc.runWalkForwardOptimization(input);
+    const members = await experiments.listMembers(experimentId);
+
+    expect(verdict).toBe('INCONCLUSIVE');
+    expect(terminalReason).toBe('sweep_failed');
     expect(members.filter((m) => m.oos === true).length).toBe(0);
   });
 

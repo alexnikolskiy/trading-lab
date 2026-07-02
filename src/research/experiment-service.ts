@@ -470,7 +470,7 @@ export class ExperimentService {
       });
 
       if (interpretation.decision === 'select') {
-        const chosen = allResults.find((res) => res.paramsHash === interpretation.chosenParamsHash);
+        const chosen = ranked.find((res) => res.paramsHash === interpretation.chosenParamsHash);
         if (!chosen) return finalize('INCONCLUSIVE', 'sweep_failed');
         selected = { point: chosen.point, foldId: r - 1 };
         break;
